@@ -1,0 +1,47 @@
+import { NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase'
+
+export async function GET() {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('comfyui_workflows')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+        if (error) throw error
+        return NextResponse.json({ success: true, data })
+    } catch (e: any) {
+        return NextResponse.json({ success: false, error: e.message }, { status: 500 })
+    }
+}
+
+export async function POST(request: Request) {
+    try {
+        const body = await request.json()
+        const { name, persona, workflow_type, prompt_node_id, width_node_id, height_node_id, batch_size_node_id, workflow_json } = body
+
+        if (!name || !workflow_json || !prompt_node_id) {
+            return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('comfyui_workflows')
+            .insert({
+                name,
+                persona: persona || null,
+                workflow_type: workflow_type || 'SFW',
+                prompt_node_id,
+                width_node_id,
+                height_node_id,
+                batch_size_node_id,
+                workflow_json
+            })
+            .select()
+            .single()
+
+        if (error) throw error
+        return NextResponse.json({ success: true, data })
+    } catch (e: any) {
+        return NextResponse.json({ success: false, error: e.message }, { status: 500 })
+    }
+}
