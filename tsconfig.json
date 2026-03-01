@@ -41,6 +41,7 @@
     "test-*.ts",
     "test-*.js",
     "reset-db.ts",
-    "reset-*.ts"
+    "reset-*.ts",
+    "supabase/functions/**/*"
   ]
 }
