@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, uploadToStorage } from '@/lib/supabase'
 import crypto from 'crypto'
-import fs from 'fs'
-import path from 'path'
 
 export async function POST(request: Request) {
     try {
@@ -20,19 +18,11 @@ export async function POST(request: Request) {
         const mediaType = isVideo ? 'video' : 'image'
         const fileName = `${crypto.randomUUID()}.${fileExt}`
 
-        // 1. Save to local storage
+        // 1. Save to Supabase Storage
         const buffer = Buffer.from(await file.arrayBuffer())
-        const relativeDir = path.join(contentItemId, 'manual')
-        const absoluteDir = path.join(process.cwd(), 'storage', isVideo ? 'videos' : 'images', relativeDir)
+        const storageBucketPath = `${isVideo ? 'videos' : 'images'}/${contentItemId}/manual/${fileName}`
 
-        if (!fs.existsSync(absoluteDir)) {
-            fs.mkdirSync(absoluteDir, { recursive: true })
-        }
-
-        const absolutePath = path.join(absoluteDir, fileName)
-        fs.writeFileSync(absolutePath, buffer)
-
-        const dbFilePath = `/storage/${isVideo ? 'videos' : 'images'}/${contentItemId}/manual/${fileName}`
+        const publicUrl = await uploadToStorage('content', storageBucketPath, buffer, isVideo ? 'video/mp4' : 'image/png')
 
         // 2. Record in generated_images as a MANUAL type
         const { data, error: dbError } = await supabaseAdmin
@@ -40,7 +30,7 @@ export async function POST(request: Request) {
             .insert({
                 content_item_id: contentItemId,
                 image_type: imageType,
-                file_path: dbFilePath,
+                file_path: publicUrl,
                 file_name: file.name,
                 status: 'Generated',
                 media_type: mediaType,

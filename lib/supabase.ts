@@ -40,3 +40,32 @@ export async function logSystem(
         console.error('Failed to log system event:', err)
     }
 }
+
+/**
+ * Uploads a buffer to a Supabase bucket and returns the public URL.
+ */
+export async function uploadToStorage(
+    bucket: string,
+    path: string,
+    fileBody: Buffer | Blob | File,
+    contentType: string = 'image/png'
+): Promise<string> {
+    if (!supabaseAdmin) throw new Error("Supabase Admin client not initialized");
+
+    const { data, error } = await supabaseAdmin.storage
+        .from(bucket)
+        .upload(path, fileBody, {
+            contentType,
+            upsert: true,
+        });
+
+    if (error) {
+        throw new Error(`Storage upload failed: ${error.message}`);
+    }
+
+    const { data: publicUrlData } = supabaseAdmin.storage
+        .from(bucket)
+        .getPublicUrl(path);
+
+    return publicUrlData.publicUrl;
+}

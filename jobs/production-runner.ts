@@ -1,6 +1,6 @@
 import { getActivePods, waitForComfyUI, getPodDetails } from '@/lib/runpod'
 import { ComfyUIClient } from '@/lib/comfyui'
-import { supabaseAdmin, logSystem } from '@/lib/supabase'
+import { supabaseAdmin, logSystem, uploadToStorage } from '@/lib/supabase'
 import { sendNotification } from '@/lib/telegram'
 import { ContentItem } from '@/types'
 import { getConfig } from '@/lib/config'
@@ -112,8 +112,8 @@ export async function runProductionBatch(itemIds?: string[], specificIndex?: num
 
                     const loopSeed = Math.floor(Math.random() * 1000000000)
                     const sfwRes = await runSingleWorkflow(comfy, item, 'SFW', loopSeed, item.persona, poseIdx)
-                    for (const fName of sfwRes.fileNames) {
-                        await recordGeneratedImage(item.id, 'SFW', fName, loopSeed, podId, sfwRes.workflowSnapshot, sfwRes.vdoPrompt, poseIdx)
+                    for (const fileObj of sfwRes.fileNames) {
+                        await recordGeneratedImage(item.id, 'SFW', fileObj.filename, fileObj.url, loopSeed, podId, sfwRes.workflowSnapshot, sfwRes.vdoPrompt, poseIdx)
                     }
                 }
                 await updateJob('Generating', item.id, 1)
@@ -131,8 +131,8 @@ export async function runProductionBatch(itemIds?: string[], specificIndex?: num
 
                     const loopSeed = Math.floor(Math.random() * 1000000000)
                     const nsfwRes = await runSingleWorkflow(comfy, item, 'NSFW', loopSeed, item.persona, poseIdx)
-                    for (const fName of nsfwRes.fileNames) {
-                        await recordGeneratedImage(item.id, 'NSFW', fName, loopSeed, podId, nsfwRes.workflowSnapshot, nsfwRes.vdoPrompt, poseIdx)
+                    for (const fileObj of nsfwRes.fileNames) {
+                        await recordGeneratedImage(item.id, 'NSFW', fileObj.filename, fileObj.url, loopSeed, podId, nsfwRes.workflowSnapshot, nsfwRes.vdoPrompt, poseIdx)
                     }
                 }
                 await updateJob('Generating', item.id, 1)
@@ -311,17 +311,20 @@ async function runSingleWorkflow(comfy: ComfyUIClient, item: ContentItem, type: 
     const images = await comfy.waitForImage(promptId)
 
     const downloadedFiles = []
-    const localDir = path.join(process.cwd(), 'storage', 'images', item.id, type)
 
     // Download ALL images generated from this batch
     for (let i = 0; i < images.length; i++) {
         const imgItem = images[i]
         const originalFilename = typeof imgItem === 'string' ? imgItem : imgItem.filename
         const storageFilename = `${item.id}_${type}_${Date.now()}_${i}.png`
-        const localPath = path.join(localDir, storageFilename)
+        const storageBucketPath = `images/${item.id}/${type}/${storageFilename}`
 
-        await comfy.downloadImage(imgItem, localPath)
-        downloadedFiles.push(storageFilename)
+        const imageBuffer = await comfy.downloadImageAsBuffer(imgItem)
+
+        // Upload to Supabase 'content' bucket
+        const publicUrl = await uploadToStorage('content', storageBucketPath, imageBuffer, 'image/png')
+
+        downloadedFiles.push({ filename: storageFilename, url: publicUrl })
     }
 
     const vdoPrompts = type === 'NSFW' ? struct.vdo_prompts_nsfw : struct.vdo_prompts
@@ -333,12 +336,11 @@ async function runSingleWorkflow(comfy: ComfyUIClient, item: ContentItem, type: 
 /**
  * Helper to record image in DB
  */
-async function recordGeneratedImage(contentId: string, type: 'SFW' | 'NSFW', fileName: string, seed: number, podId: string, workflow: any, vdoPrompt?: string, slotIndex?: number) {
-    const filePath = `/storage/images/${contentId}/${type}/${fileName}`
+async function recordGeneratedImage(contentId: string, type: 'SFW' | 'NSFW', fileName: string, fileUrl: string, seed: number, podId: string, workflow: any, vdoPrompt?: string, slotIndex?: number) {
     await supabaseAdmin.from('generated_images').insert({
         content_item_id: contentId,
         image_type: type,
-        file_path: filePath,
+        file_path: fileUrl,
         file_name: fileName,
         seed,
         workflow_json: workflow,

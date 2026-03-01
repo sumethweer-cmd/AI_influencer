@@ -378,14 +378,14 @@ export default function CreativeStudioModal({ item, onUpdate, onClose }: Creativ
                                         <div className="relative aspect-[4/5] bg-black overflow-hidden flex items-center justify-center">
                                             {img.media_type === 'video' ? (
                                                 <video
-                                                    src={img.file_path.replace('/storage/', '/api/')}
+                                                    src={img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')}
                                                     className="w-full h-full object-cover"
                                                     controls
                                                     muted
                                                 />
                                             ) : (
                                                 <img
-                                                    src={img.file_path.replace('/storage/', '/api/')}
+                                                    src={img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')}
                                                     className={`w-full h-full object-cover transition-all duration-700 ${img.image_type === 'NSFW' && !unblurList[img.id] ? 'blur-3xl' : 'blur-0'}`}
                                                     alt={`Variant ${idx + 1}`}
                                                 />
@@ -579,7 +579,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose }: Creativ
 
                 {editingImage && (
                     <ImageEditorModal
-                        imageUrl={editingImage.file_path.replace('/storage/', '/api/')}
+                        imageUrl={editingImage.file_path.startsWith('http') ? editingImage.file_path : editingImage.file_path.replace('/storage/', '/api/')}
                         onClose={() => setEditingImage(null)}
                         onSave={handleEditSave}
                     />

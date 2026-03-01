@@ -1,8 +1,7 @@
 import { getActivePods, waitForComfyUI } from '@/lib/runpod'
 import { ComfyUIClient } from '@/lib/comfyui'
-import { supabaseAdmin, logSystem } from '@/lib/supabase'
+import { supabaseAdmin, logSystem, uploadToStorage } from '@/lib/supabase'
 import path from 'path'
-import fs from 'fs'
 
 /**
  * 1:1 Video Generation Logic
@@ -68,14 +67,14 @@ export async function generateVideoFromImage(imageId: string, userPrompt?: strin
             vdo_job_id: podId
         }).eq('id', imageId)
 
-        // 4. Upload Source Image to ComfyUI
-        const absoluteImagePath = path.join(process.cwd(), img.file_path)
-        if (!fs.existsSync(absoluteImagePath)) {
-            throw new Error(`Source image file not found: ${absoluteImagePath}`)
+        // 4. Upload Source Image to ComfyUI from Supabase URL
+        if (!img.file_path.startsWith('http')) {
+            throw new Error(`Cannot generate video from local image in serverless environment. Image must be migrated to Supabase first: ${img.file_path}`)
         }
 
-        const comfyFilename = `input_for_vdo_${imageId}${path.extname(img.file_path)}`
-        await comfy.uploadImage(absoluteImagePath, comfyFilename)
+        const fileExt = img.file_path.split('.').pop() || 'png'
+        const comfyFilename = `input_for_vdo_${imageId}.${fileExt}`
+        await comfy.uploadImageFromUrl(img.file_path, comfyFilename)
 
         // 5. Prepare Workflow
         const workflowObj = JSON.parse(JSON.stringify(workflow.workflow_json))
@@ -100,19 +99,20 @@ export async function generateVideoFromImage(imageId: string, userPrompt?: strin
 
         // 7. Download Video
         const videoOutput = outputs[0] // Assume first output is the video
-        const videoExt = typeof videoOutput === 'string' ? path.extname(videoOutput) : (videoOutput.filename.split('.').pop() || 'mp4')
+        const videoExt = typeof videoOutput === 'string' ? path.extname(videoOutput).replace('.', '') : (videoOutput.filename.split('.').pop() || 'mp4')
         const storageFilename = `vdo_${imageId}_${Date.now()}.${videoExt}`
-        const localDir = path.join(process.cwd(), 'storage', 'videos', img.content_item_id, 'generated')
-        const localPath = path.join(localDir, storageFilename)
+        const storageBucketPath = `videos/${img.content_item_id}/generated/${storageFilename}`
 
-        await comfy.downloadImage(videoOutput, localPath)
+        const videoBuffer = await comfy.downloadImageAsBuffer(videoOutput)
+        const contentType = videoExt === 'mp4' ? 'video/mp4' : (videoExt === 'webm' ? 'video/webm' : 'application/octet-stream')
+
+        const publicUrl = await uploadToStorage('content', storageBucketPath, videoBuffer, contentType)
 
         // 8. Record in DB as a NEW entry in generated_images with type 'video'
-        const dbVideoPath = `/storage/videos/${img.content_item_id}/generated/${storageFilename}`
         const { error: videoRecErr } = await supabaseAdmin.from('generated_images').insert({
             content_item_id: img.content_item_id,
             image_type: img.image_type,
-            file_path: dbVideoPath,
+            file_path: publicUrl,
             file_name: storageFilename,
             status: 'Generated',
             media_type: 'video',
@@ -126,7 +126,7 @@ export async function generateVideoFromImage(imageId: string, userPrompt?: strin
         await supabaseAdmin.from('generated_images').update({ vdo_status: 'completed' }).eq('id', imageId)
 
         await logSystem('SUCCESS', 'Video Queue', `Video generated for image ${imageId}`)
-        return { success: true, path: dbVideoPath }
+        return { success: true, path: publicUrl }
 
     } catch (err: any) {
         console.error('Video Generation Failed:', err)

@@ -314,7 +314,7 @@ export default function DashboardPage() {
                                         <div key={item.id} className="bg-slate-800/50 border border-slate-800 p-4 rounded-2xl flex items-center gap-6 hover:border-indigo-500/30 transition-all group">
                                             <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-900 shrink-0">
                                                 {item.generated_images?.[0] && (
-                                                    <img src={item.generated_images[0].file_path.replace('/storage/', '/api/')} className="w-full h-full object-cover" />
+                                                    <img src={item.generated_images[0].file_path.startsWith('http') ? item.generated_images[0].file_path : item.generated_images[0].file_path.replace('/storage/', '/api/')} className="w-full h-full object-cover" />
                                                 )}
                                             </div>
                                             <div className="flex-1">

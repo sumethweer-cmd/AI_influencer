@@ -23,12 +23,15 @@ export async function DELETE(
 
         if (dbError) throw dbError
 
-        // 2. Delete from Storage if it's a manual/cropped upload
-        if (img?.file_path?.includes('/manual/')) {
-            const storagePath = img.file_path.replace('/storage/media/', '')
-            await supabaseAdmin.storage
-                .from('media')
-                .remove([storagePath])
+        // 2. Delete from Supabase Storage if it's a Supabase URL
+        if (img?.file_path?.includes('/storage/v1/object/public/content/')) {
+            const pathParts = img.file_path.split('/storage/v1/object/public/content/')
+            if (pathParts.length > 1) {
+                const storagePath = decodeURIComponent(pathParts[1])
+                await supabaseAdmin.storage
+                    .from('content')
+                    .remove([storagePath])
+            }
         }
 
         return NextResponse.json({ success: true })

@@ -86,9 +86,9 @@ export class ComfyUIClient {
     }
 
     /**
-     * Download image from ComfyUI to local storage
+     * Download image from ComfyUI as a Buffer
      */
-    async downloadImage(image: any, localPath: string) {
+    async downloadImageAsBuffer(image: any): Promise<Buffer> {
         let url = `${this.baseUrl}/view?filename=`
         if (typeof image === 'string') {
             url += encodeURIComponent(image)
@@ -96,28 +96,21 @@ export class ComfyUIClient {
             url += `${encodeURIComponent(image.filename)}&subfolder=${encodeURIComponent(image.subfolder || '')}&type=${encodeURIComponent(image.type || 'output')}`
         }
 
-        const response = await axios.get(url, { responseType: 'stream' })
-
-        const dir = path.dirname(localPath)
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-
-        const writer = fs.createWriteStream(localPath)
-        response.data.pipe(writer)
-
-        return new Promise<void>((resolve, reject) => {
-            writer.on('finish', () => resolve())
-            writer.on('error', reject)
-        })
+        const response = await axios.get(url, { responseType: 'arraybuffer' })
+        return Buffer.from(response.data)
     }
 
     /**
-     * Upload an image to ComfyUI input folder
+     * Upload an image to ComfyUI input folder from a Public URL
      */
-    async uploadImage(imagePath: string, filename: string) {
+    async uploadImageFromUrl(imageUrl: string, filename: string) {
+        // Fetch the image from the URL (e.g. Supabase Public URL)
+        const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' })
+        const fileBuffer = Buffer.from(imageResponse.data)
+
         const url = `${this.baseUrl}/upload/image`
         const formData = new FormData()
 
-        const fileBuffer = fs.readFileSync(imagePath)
         const blob = new Blob([fileBuffer])
         formData.append('image', blob, filename)
         formData.append('overwrite', 'true')
