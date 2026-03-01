@@ -579,9 +579,18 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
     const sfwImages = item.generated_images?.filter(img => img.image_type === 'SFW') || []
     const nsfwImages = item.generated_images?.filter(img => img.image_type === 'NSFW') || []
 
+    // Default to SFW, fallback to NSFW if SFW is not generated
+    const displayImages = sfwImages.length > 0 ? sfwImages : nsfwImages
+
     // Default to the first image if not selected yet, or strictly the selected one once approved
-    const [selectedSfwId, setSelectedSfwId] = useState<string | null>(item.selected_image_id || (sfwImages.length > 0 ? sfwImages[0].id : null))
-    const displaySfwImage = sfwImages.find(img => img.id === selectedSfwId) || sfwImages[0]
+    const [selectedImageId, setSelectedImageId] = useState<string | null>(item.selected_image_id || (displayImages.length > 0 ? displayImages[0].id : null))
+    const displayImage = displayImages.find(img => img.id === selectedImageId) || displayImages[0]
+
+    const getImageUrl = (path: string) => {
+        if (!path) return ''
+        if (path.startsWith('http')) return path
+        return path.replace('/storage/', '/api/')
+    }
 
     const statusColors = {
         Draft: 'bg-slate-700 text-slate-300',
@@ -610,7 +619,7 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                     contentId: item.id,
                     caption_final: caption,
                     scheduledAt: new Date(scheduledAt || Date.now() + 3600000).toISOString(), // Schedule 1 hour from now as default
-                    selectedImageId: selectedSfwId
+                    selectedImageId: selectedImageId
                 })
             })
 
@@ -807,15 +816,24 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                             </label>
                         </div>
                     </div>
-                ) : sfwImages.length > 0 ? (
+                ) : displayImages.length > 0 ? (
                     <div className="w-full h-full flex flex-col">
                         {/* Main Image Display (Selected or First) */}
                         <div className="relative flex-1 overflow-hidden group/img">
-                            <img
-                                src={displaySfwImage.file_path.replace('/storage/', '/api/')}
-                                alt={item.topic}
-                                className={`w-full h-full object-cover transition-all duration-500 ${item.nsfw_option && !unblur ? 'blur-3xl' : 'blur-0'}`}
-                            />
+                            {displayImage.media_type === 'video' ? (
+                                <video
+                                    src={getImageUrl(displayImage.file_path)}
+                                    className="w-full h-full object-cover"
+                                    controls
+                                    muted
+                                />
+                            ) : (
+                                <img
+                                    src={getImageUrl(displayImage.file_path)}
+                                    alt={item.topic}
+                                    className={`w-full h-full object-cover transition-all duration-500 ${item.nsfw_option && !unblur ? 'blur-3xl' : 'blur-0'}`}
+                                />
+                            )}
                             {item.nsfw_option && !unblur && (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm z-10">
                                     <span className="text-4xl mb-4">🔞</span>
@@ -830,16 +848,20 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                         </div>
 
                         {/* Grid Selection for Awaiting Approval (if multiple images exist) */}
-                        {(item.status === 'Awaiting Approval' || item.status === 'QC Pending') && sfwImages.length > 1 && (
+                        {(item.status === 'Awaiting Approval' || item.status === 'QC Pending') && displayImages.length > 1 && (
                             <div className="h-24 bg-slate-900 border-t border-slate-700/50 p-2 overflow-x-auto flex gap-2 shrink-0 hide-scrollbar">
-                                {sfwImages.map((img, idx) => (
+                                {displayImages.map((img, idx) => (
                                     <button
                                         key={img.id}
-                                        onClick={() => setSelectedSfwId(img.id)}
-                                        className={`relative h-full aspect-[3/4] shrink-0 rounded-md overflow-hidden border-2 transition-all ${selectedSfwId === img.id ? 'border-orange-500 scale-100 shadow-lg' : 'border-transparent scale-95 opacity-50 hover:opacity-100 hover:scale-100'}`}
+                                        onClick={() => setSelectedImageId(img.id)}
+                                        className={`relative h-full aspect-[3/4] shrink-0 rounded-md overflow-hidden border-2 transition-all ${selectedImageId === img.id ? 'border-orange-500 scale-100 shadow-lg' : 'border-transparent scale-95 opacity-50 hover:opacity-100 hover:scale-100'}`}
                                     >
-                                        <img src={img.file_path.replace('/storage/', '/api/')} className="w-full h-full object-cover" />
-                                        {selectedSfwId === img.id && (
+                                        {img.media_type === 'video' ? (
+                                            <video src={getImageUrl(img.file_path)} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <img src={getImageUrl(img.file_path)} className="w-full h-full object-cover" />
+                                        )}
+                                        {selectedImageId === img.id && (
                                             <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
                                                 <div className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">✓</div>
                                             </div>
@@ -904,7 +926,7 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                     {item.status === 'Awaiting Approval' ? (
                         <button
                             onClick={handleApprove}
-                            disabled={approving || sfwImages.length === 0 || !selectedSfwId}
+                            disabled={approving || displayImages.length === 0 || !selectedImageId}
                             className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-lg text-sm font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50"
                         >
                             {approving ? 'Scheduling...' : 'Approve & Schedule'}
@@ -924,6 +946,33 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                     <button className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors border border-slate-600 active:scale-95">
                         ⚙️
                     </button>
+                    {(item.status === 'In Production' || item.status === 'QC Pending' || item.status === 'Awaiting Approval') && (
+                        <>
+                            <button
+                                onClick={() => setShowPrompt(true)}
+                                title="View Prompts"
+                                className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors border border-slate-600 active:scale-95"
+                            >
+                                👁️
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!confirm('Reset this item to Draft? This will allow you to regenerate it.')) return;
+                                    const res = await fetch(`/api/content/${item.id}`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ status: 'Draft' })
+                                    });
+                                    if (res.ok) onUpdate();
+                                    else alert('Failed to reset');
+                                }}
+                                title="Reset to Draft"
+                                className="px-3 py-2 bg-amber-950/30 hover:bg-amber-900/50 text-amber-500 rounded-lg transition-colors border border-amber-900/30 active:scale-95"
+                            >
+                                🔄
+                            </button>
+                        </>
+                    )}
                     <button
                         onClick={async () => {
                             if (!confirm('Are you sure you want to delete this content and all related images?')) return

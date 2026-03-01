@@ -65,16 +65,26 @@ export class ComfyUIClient {
                         }
                     }
 
-                    // Fallback: If no 'output' type found (maybe they only had temp/preview), grab the last node's images
-                    if (images.length === 0) {
-                        const outputKeys = Object.keys(data.outputs);
-                        const lastNodeId = outputKeys[outputKeys.length - 1];
-                        if (lastNodeId && data.outputs[lastNodeId].images) {
-                            images.push(...data.outputs[lastNodeId].images);
+                    // Fallback: If no 'output' type found (maybe they only had temp/preview), grab ALL images from all nodes
+                    if (images.length === 0 && Object.keys(data.outputs).length > 0) {
+                        for (const nodeId in data.outputs) {
+                            if (data.outputs[nodeId].images) {
+                                images.push(...data.outputs[nodeId].images);
+                            }
                         }
                     }
 
                     if (images.length > 0) return images
+
+                    // If job is finished and in history but no images produced, do not loop forever
+                    if (Object.keys(data.outputs).length > 0 || (data.status && data.status.completed)) {
+                        return images // returns []
+                    }
+                }
+
+                // Check if the job explicitly failed
+                if (data && data.status && data.status.status_str === 'error') {
+                    throw new Error('ComfyUI Job Failed: ' + (data.status.messages ? JSON.stringify(data.status.messages) : 'Unknown error'))
                 }
             } catch (err: any) {
                 // If 404, it means the job hasn't finished and isn't in history yet.

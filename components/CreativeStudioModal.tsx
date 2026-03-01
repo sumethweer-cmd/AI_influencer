@@ -356,8 +356,8 @@ export default function CreativeStudioModal({ item, onUpdate, onClose }: Creativ
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 md:gap-12">
                             {Array.from({ length: item.batch_size || 4 }).map((_, idx) => {
-                                const img = currentImages.find(i => i.slot_index === idx) || currentImages[idx]
-                                if (!img) {
+                                const imagesForSlot = currentImages.filter(i => i.slot_index === idx)
+                                if (imagesForSlot.length === 0) {
                                     return (
                                         <div key={`empty-${idx}`} className="group relative bg-slate-900/30 border-2 border-dashed border-slate-800 rounded-2xl aspect-[4/5] flex flex-col items-center justify-center text-slate-600 gap-3">
                                             <span className="text-4xl opacity-20">⌛</span>
@@ -372,7 +372,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose }: Creativ
                                         </div>
                                     )
                                 }
-                                return (
+                                return imagesForSlot.map((img, subIdx) => (
                                     <div key={img.id} className="group relative bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-orange-500/50 transition-all shadow-xl hover:shadow-orange-500/10 active:scale-[0.98]">
                                         {/* Image Container */}
                                         <div className="relative aspect-[4/5] bg-black overflow-hidden flex items-center justify-center">
@@ -387,7 +387,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose }: Creativ
                                                 <img
                                                     src={img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')}
                                                     className={`w-full h-full object-cover transition-all duration-700 ${img.image_type === 'NSFW' && !unblurList[img.id] ? 'blur-3xl' : 'blur-0'}`}
-                                                    alt={`Variant ${idx + 1}`}
+                                                    alt={`Variant ${idx + 1}.${subIdx + 1}`}
                                                 />
                                             )}
                                             {img.image_type === 'NSFW' && !unblurList[img.id] && img.media_type !== 'video' && (
@@ -403,7 +403,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose }: Creativ
 
                                             <div className="absolute top-3 left-3 flex gap-2">
                                                 <div className="px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[10px] font-black text-white border border-white/10">
-                                                    V-{idx + 1}
+                                                    V-{idx + 1}{imagesForSlot.length > 1 ? `.${subIdx + 1}` : ''}
                                                 </div>
                                                 {videoCoverId === img.id && (
                                                     <div className="px-2 py-1 bg-orange-600 text-white text-[10px] font-black rounded-lg shadow-lg animate-pulse">
@@ -537,7 +537,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose }: Creativ
                                             </div>
                                         </div>
                                     </div>
-                                )
+                                ))
                             })}
                         </div>
                     )}

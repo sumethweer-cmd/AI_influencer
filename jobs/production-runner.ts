@@ -98,49 +98,56 @@ export async function runProductionBatch(itemIds?: string[], specificIndex?: num
             // Update status to 'In Production'
             await supabaseAdmin.from('content_items').update({ status: 'In Production' }).eq('id', item.id)
 
-            const totalExpected = item.batch_size || 4
+            try {
+                const totalExpected = item.batch_size || 4
 
-            // SFW Generation Loop
-            if (item.gen_sfw && (forceType === 'SFW' || !forceType)) {
-                for (let poseIdx = 0; poseIdx < totalExpected; poseIdx++) {
-                    // Skip if specificIndex provided and this isn't it
-                    if (specificIndex !== undefined && poseIdx !== specificIndex) continue
+                // SFW Generation Loop
+                if (item.gen_sfw && (forceType === 'SFW' || !forceType)) {
+                    for (let poseIdx = 0; poseIdx < totalExpected; poseIdx++) {
+                        // Skip if specificIndex provided and this isn't it
+                        if (specificIndex !== undefined && poseIdx !== specificIndex) continue
 
-                    // Skip if not forced and image already exists for this slot
-                    const existingSfw = item.generated_images?.find((img: any) => img.image_type === 'SFW' && img.slot_index === poseIdx)
-                    if (!forceType && existingSfw) continue
+                        // Skip if not forced and image already exists for this slot
+                        const existingSfw = item.generated_images?.find((img: any) => img.image_type === 'SFW' && img.slot_index === poseIdx)
+                        if (!forceType && existingSfw) continue
 
-                    const loopSeed = Math.floor(Math.random() * 1000000000)
-                    const sfwRes = await runSingleWorkflow(comfy, item, 'SFW', loopSeed, item.persona, poseIdx)
-                    for (const fileObj of sfwRes.fileNames) {
-                        await recordGeneratedImage(item.id, 'SFW', fileObj.filename, fileObj.url, loopSeed, podId, sfwRes.workflowSnapshot, sfwRes.vdoPrompt, poseIdx)
+                        const loopSeed = Math.floor(Math.random() * 1000000000)
+                        const sfwRes = await runSingleWorkflow(comfy, item, 'SFW', loopSeed, item.persona, poseIdx)
+                        for (const fileObj of sfwRes.fileNames) {
+                            await recordGeneratedImage(item.id, 'SFW', fileObj.filename, fileObj.url, loopSeed, podId, sfwRes.workflowSnapshot, sfwRes.vdoPrompt, poseIdx)
+                        }
                     }
+                    await updateJob('Generating', item.id, 1)
                 }
-                await updateJob('Generating', item.id, 1)
-            }
 
-            // NSFW Generation Loop
-            if (item.gen_nsfw && (forceType === 'NSFW' || !forceType)) {
-                for (let poseIdx = 0; poseIdx < totalExpected; poseIdx++) {
-                    // Skip if specificIndex provided and this isn't it
-                    if (specificIndex !== undefined && poseIdx !== specificIndex) continue
+                // NSFW Generation Loop
+                if (item.gen_nsfw && (forceType === 'NSFW' || !forceType)) {
+                    for (let poseIdx = 0; poseIdx < totalExpected; poseIdx++) {
+                        // Skip if specificIndex provided and this isn't it
+                        if (specificIndex !== undefined && poseIdx !== specificIndex) continue
 
-                    // Skip if not forced and image already exists for this slot
-                    const existingNsfw = item.generated_images?.find((img: any) => img.image_type === 'NSFW' && img.slot_index === poseIdx)
-                    if (!forceType && existingNsfw) continue
+                        // Skip if not forced and image already exists for this slot
+                        const existingNsfw = item.generated_images?.find((img: any) => img.image_type === 'NSFW' && img.slot_index === poseIdx)
+                        if (!forceType && existingNsfw) continue
 
-                    const loopSeed = Math.floor(Math.random() * 1000000000)
-                    const nsfwRes = await runSingleWorkflow(comfy, item, 'NSFW', loopSeed, item.persona, poseIdx)
-                    for (const fileObj of nsfwRes.fileNames) {
-                        await recordGeneratedImage(item.id, 'NSFW', fileObj.filename, fileObj.url, loopSeed, podId, nsfwRes.workflowSnapshot, nsfwRes.vdoPrompt, poseIdx)
+                        const loopSeed = Math.floor(Math.random() * 1000000000)
+                        const nsfwRes = await runSingleWorkflow(comfy, item, 'NSFW', loopSeed, item.persona, poseIdx)
+                        for (const fileObj of nsfwRes.fileNames) {
+                            await recordGeneratedImage(item.id, 'NSFW', fileObj.filename, fileObj.url, loopSeed, podId, nsfwRes.workflowSnapshot, nsfwRes.vdoPrompt, poseIdx)
+                        }
                     }
+                    await updateJob('Generating', item.id, 1)
                 }
-                await updateJob('Generating', item.id, 1)
-            }
 
-            // Update status to 'QC Pending'
-            await supabaseAdmin.from('content_items').update({ status: 'QC Pending' }).eq('id', item.id)
-            iterCount++
+                // Update status to 'QC Pending'
+                await supabaseAdmin.from('content_items').update({ status: 'QC Pending' }).eq('id', item.id)
+                iterCount++
+            } catch (itemErr: any) {
+                console.error(`Error processing item ${item.id}:`, itemErr)
+                await logSystem('ERROR', 'Phase2: Production', `Item #${item.sequence_number} failed. Reverting to Draft.`, { error: itemErr.message })
+                await supabaseAdmin.from('content_items').update({ status: 'Draft' }).eq('id', item.id)
+                // We let the loop CONTINUE to process the next item!
+            }
         }
 
         await updateJob('Completed', undefined, 0)
