@@ -37,9 +37,10 @@ export class ComfyUIClient {
      */
     async waitForImage(promptId: string): Promise<any[]> {
         const historyUrl = `${this.baseUrl}/history/${promptId}`
+        const startTime = Date.now()
 
-        // Polling every 5 seconds
-        while (true) {
+        // Polling every 5 seconds, max wait time 10 minutes
+        while (Date.now() - startTime < 10 * 60 * 1000) {
             try {
                 const resp = await axios.get(historyUrl)
                 const data = resp.data[promptId]
@@ -88,11 +89,17 @@ export class ComfyUIClient {
                 }
             } catch (err: any) {
                 // If 404, it means the job hasn't finished and isn't in history yet.
-                // We just swallow the error and keep polling.
+                // We just swallow the 404 and keep polling.
+                // If it's the explicit throw from above, we bubble it up immediately.
+                if (err.message && err.message.startsWith('ComfyUI Job Failed')) {
+                    throw err;
+                }
             }
 
             await new Promise(resolve => setTimeout(resolve, 5000))
         }
+
+        throw new Error(`Timeout waiting for ComfyUI generation (promptId: ${promptId})`)
     }
 
     /**

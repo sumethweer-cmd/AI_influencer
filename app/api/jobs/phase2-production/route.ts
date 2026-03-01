@@ -5,13 +5,15 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
     const { contentIds, specificIndex, forceType } = body
 
-    const result = await runProductionBatch(contentIds, specificIndex, forceType)
+    // Trigger the production batch asynchronously without awaiting it.
+    // This allows the API to return immediately and prevents the browser's 
+    // network timeout or navigation from aborting the Next.js process midway.
+    runProductionBatch(contentIds, specificIndex, forceType).catch(err => {
+        console.error('Background batch error:', err)
+    })
 
-    if (result.success) {
-        return NextResponse.json(result)
-    } else {
-        return NextResponse.json(result, { status: 500 })
-    }
+    // Return immediately
+    return NextResponse.json({ success: true, message: 'Batch production started in background' })
 }
 
 export async function GET() {
