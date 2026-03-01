@@ -88,9 +88,19 @@ export async function runProductionBatch(itemIds?: string[], specificIndex?: num
         const globalBatchSize = globalBatchSizeStr ? parseInt(globalBatchSizeStr) : null
 
         let iterCount = 0
+        let processedCount = 0
 
-        // 5. Process each item
-        for (const item of items as ContentItem[]) {
+        // 5. Process each item (Limit to 1 per execution to avoid Vercel timeouts)
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i] as ContentItem
+
+            if (processedCount >= 1) {
+                // Stop processing to stay under the 5-minute Vercel Serverless limit
+                // The frontend loop will ping again to pick up the next item.
+                await updateJob('Waiting for next cycle', undefined, 0)
+                return { success: true, hasMore: true }
+            }
+
             await updateJob('Generating', item.id, 0)
 
             await logSystem('INFO', 'Phase2: Production', `Processing Item #${item.sequence_number}: ${item.topic}`)
@@ -141,22 +151,26 @@ export async function runProductionBatch(itemIds?: string[], specificIndex?: num
 
                 // Update status to 'QC Pending'
                 await supabaseAdmin.from('content_items').update({ status: 'QC Pending' }).eq('id', item.id)
+                processedCount++
                 iterCount++
             } catch (itemErr: any) {
                 console.error(`Error processing item ${item.id}:`, itemErr)
                 await logSystem('ERROR', 'Phase2: Production', `Item #${item.sequence_number} failed. Reverting to Draft.`, { error: itemErr.message })
                 await supabaseAdmin.from('content_items').update({ status: 'Draft' }).eq('id', item.id)
-                // We let the loop CONTINUE to process the next item!
+                processedCount++
+                // We count this as processed so we exit the loop, preventing the NEXT item from failing via timeout
             }
         }
 
         await updateJob('Completed', undefined, 0)
 
-        await logSystem('SUCCESS', 'Phase2: Production', 'Batch production completed.')
-        await sendNotification(`✨ <b>Phase 2 Complete:</b> Produced images for ${items.length} items. Moving to QC...`)
+        await logSystem('SUCCESS', 'Phase2: Production', 'Batch cycle completed.')
+        if (iterCount > 0 && items.length <= 1) {
+            await sendNotification(`✨ <b>Phase 2 Complete:</b> Produced images for items. Moving to QC...`)
+        }
         console.log('--- Production Batch Completed ---')
 
-        return { success: true }
+        return { success: true, hasMore: false }
     } catch (err: any) {
         console.error('Batch Production Error:', err)
         await updateJob(err.message.includes('NO_ACTIVE_POD') ? 'Failed: No Pod Running' : 'Failed')

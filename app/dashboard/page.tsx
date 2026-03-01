@@ -18,6 +18,7 @@ export default function DashboardPage() {
     const [activeTab, setActiveTab] = useState<'workspace' | 'calendar'>('workspace')
     const [statusFilter, setStatusFilter] = useState<string>('All')
     const [selectedIds, setSelectedIds] = useState<string[]>([])
+    const [isBatchRunning, setIsBatchRunning] = useState(false)
 
     useEffect(() => {
         Promise.all([fetchItems(), fetchWorkflows(), fetchPersonas()])
@@ -55,6 +56,30 @@ export default function DashboardPage() {
         setLoading(false)
     }
 
+    const startProductionLoop = async () => {
+        if (isBatchRunning) return
+        setIsBatchRunning(true)
+        let hasMore = true
+        while (hasMore) {
+            try {
+                // We POST with empty contentIds; the backend picks precisely 1 available item
+                const res = await fetch('/api/jobs/phase2-production', { method: 'POST', body: JSON.stringify({}) })
+                if (res.ok) {
+                    const data = await res.json()
+                    hasMore = data.hasMore === true
+                } else {
+                    hasMore = false
+                }
+            } catch (e) {
+                hasMore = false
+            }
+            fetchItems() // Update UI inside the loop visually
+            if (hasMore) await new Promise(r => setTimeout(r, 2000)) // slight delay between jobs
+        }
+        setIsBatchRunning(false)
+        fetchItems()
+    }
+
     const baseItems = activePersona === 'All'
         ? items
         : items.filter(item => item.persona === activePersona)
@@ -76,11 +101,12 @@ export default function DashboardPage() {
                 body: JSON.stringify({ itemIds: draftItems.map(i => i.id) })
             })
             if (res.ok) {
-                alert('Plan Confirmed! Items have moved to Production Queue.')
+                alert('Plan Confirmed! Batch generation will now run sequentially. Please keep this tab open until all items complete.')
                 fetchItems()
+                setSelectedIds([])
 
-                // Fire and forget trigger to start Phase 2 immediately
-                fetch('/api/jobs/phase2-production', { method: 'POST' }).catch(() => { })
+                // Start chunked polling
+                startProductionLoop()
             } else {
                 alert('❌ Failed to confirm plan. Check settings and logs.')
             }
