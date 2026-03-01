@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server'
 import { runProductionBatch } from '@/jobs/production-runner'
 
+export const maxDuration = 300; // Allow 5 minutes execution time before Vercel kills it
+
 export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
     const { contentIds, specificIndex, forceType } = body
 
-    // Trigger the production batch asynchronously without awaiting it.
-    // This allows the API to return immediately and prevents the browser's 
-    // network timeout or navigation from aborting the Next.js process midway.
-    runProductionBatch(contentIds, specificIndex, forceType).catch(err => {
-        console.error('Background batch error:', err)
-    })
+    const result = await runProductionBatch(contentIds, specificIndex, forceType)
 
-    // Return immediately
-    return NextResponse.json({ success: true, message: 'Batch production started in background' })
+    if (result.success) {
+        return NextResponse.json(result)
+    } else {
+        return NextResponse.json(result, { status: 500 })
+    }
 }
 
 export async function GET() {
