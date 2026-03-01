@@ -959,7 +959,7 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                                 onClick={async () => {
                                     if (!confirm('Reset this item to Draft? This will allow you to regenerate it.')) return;
                                     const res = await fetch(`/api/content/${item.id}`, {
-                                        method: 'PUT',
+                                        method: 'PATCH',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ status: 'Draft' })
                                     });
@@ -985,6 +985,22 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                         🗑️
                     </button>
                 </div>
+
+                {/* Always allow Prompt Editor to mount regardless of status if triggered from footer buttons */}
+                {showPrompt && item.status !== 'Draft' && (
+                    <PromptEditorModal
+                        item={item}
+                        workflows={workflows}
+                        personas={personas}
+                        promptStructure={promptStructure}
+                        updatePromptStructure={updatePromptStructure}
+                        sfwPrompt={sfwPrompt}
+                        setSfwPrompt={setSfwPrompt}
+                        handleUpdateDraft={handleUpdateDraft}
+                        onClose={() => setShowPrompt(false)}
+                        genNsfw={genNsfw}
+                    />
+                )}
             </div>
         </div>
     )
