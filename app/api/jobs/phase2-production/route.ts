@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { runProductionBatch } from '@/jobs/production-runner'
 
-export async function POST() {
-    const result = await runProductionBatch()
+export async function POST(req: Request) {
+    const body = await req.json().catch(() => ({}))
+    const { contentIds, specificIndex, forceType } = body
+
+    const result = await runProductionBatch(contentIds, specificIndex, forceType)
 
     if (result.success) {
         return NextResponse.json(result)

@@ -5,7 +5,12 @@ export async function GET() {
     try {
         const { data, error } = await supabaseAdmin
             .from('content_items')
-            .select('*, generated_images(*)')
+            .select(`
+                *,
+                storyline,
+                weekly_plans(campaign_theme),
+                generated_images:generated_images!generated_images_content_item_id_fkey(*)
+            `)
             .order('sequence_number', { ascending: true })
 
         if (error) throw error

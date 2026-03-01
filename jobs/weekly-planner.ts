@@ -1,6 +1,7 @@
 import { scrapeTrends } from '@/lib/apify'
 import { generateWeeklyPlan, generatePlanFromPrompt, generatePlanFromImage } from '@/lib/gemini'
 import { supabaseAdmin, logSystem } from '@/lib/supabase'
+import { getConfig } from '@/lib/config'
 import { sendNotification } from '@/lib/telegram'
 import { WeeklyPlanJSON } from '@/types'
 
@@ -26,19 +27,20 @@ export async function runWeeklyPlanner(method: ScoutMethod = 'apify', payload: S
         let plan: WeeklyPlanJSON
         let rawTrends: any = { method }
         const targetPersona = payload.persona || 'Momo' // Default to Momo safely
+        const globalBatchSize = parseInt(await getConfig('PRODUCTION_BATCH_SIZE') || '4')
 
         if (method === 'apify') {
             rawTrends = await scrapeTrends()
             await logSystem('INFO', PHASE, `Trends scraped successfully for ${targetPersona}`, { hashtags: rawTrends.instagram_hashtags })
-            plan = await generateWeeklyPlan(rawTrends, targetPersona)
+            plan = await generateWeeklyPlan(rawTrends, targetPersona, globalBatchSize)
         } else if (method === 'brainstorm' && payload.prompt) {
             rawTrends.details = `Prompt: ${payload.prompt}`
             await logSystem('INFO', PHASE, `Brainstorming with prompt for ${targetPersona}: ${payload.prompt}`)
-            plan = await generatePlanFromPrompt(payload.prompt, targetPersona)
+            plan = await generatePlanFromPrompt(payload.prompt, targetPersona, globalBatchSize)
         } else if (method === 'image' && payload.imageBase64) {
             rawTrends.details = `Reference Image. Instructions: ${payload.prompt || 'None'}`
             await logSystem('INFO', PHASE, `Analyzing reference image for ${targetPersona}...`)
-            plan = await generatePlanFromImage(payload.imageBase64, payload.mimeType || 'image/jpeg', payload.prompt, targetPersona)
+            plan = await generatePlanFromImage(payload.imageBase64, payload.mimeType || 'image/jpeg', payload.prompt, targetPersona, globalBatchSize)
         } else {
             throw new Error('Invalid method or missing requirements in payload')
         }
@@ -54,6 +56,7 @@ export async function runWeeklyPlanner(method: ScoutMethod = 'apify', payload: S
             .insert({
                 week_start_date: plan.week_start,
                 week_end_date: plan.week_end,
+                campaign_theme: plan.campaign_theme,
                 raw_trends: rawTrends,
                 plan_json: plan
             })
@@ -62,8 +65,11 @@ export async function runWeeklyPlanner(method: ScoutMethod = 'apify', payload: S
 
         if (planError) throw planError
 
+        const globalWidth = parseInt(await getConfig('PRODUCTION_WIDTH') || '896')
+        const globalHeight = parseInt(await getConfig('PRODUCTION_HEIGHT') || '1152')
+
         // b. Insert 21 Content Items
-        const contentItems = plan.contents.map((item) => {
+        const contentItems = plan.contents.map((item, idx) => {
             // Auto calculate schedule: 3 posts/day at 09:00, 13:00, 19:00 over 7 days
             const dayOffset = Math.floor((item.sequence - 1) / 3)
             const postOfDay = (item.sequence - 1) % 3
@@ -78,21 +84,39 @@ export async function runWeeklyPlanner(method: ScoutMethod = 'apify', payload: S
 
             return {
                 weekly_plan_id: weeklyPlan.id,
-                sequence_number: item.sequence,
-                content_type: item.content_type,
-                persona: item.persona,
-                topic: item.topic,
-                theme: item.theme,
-                sfw_prompt: item.sfw_prompt,
-                nsfw_option: item.nsfw_option,
+                sequence_number: item.sequence || idx + 1,
+                content_type: item.content_type || 'Post',
+                persona: item.persona || targetPersona,
+                storyline: item.storyline || plan.campaign_theme || 'General',
+                topic: item.topic || 'Untitled Topic',
+                theme: item.theme || plan.campaign_theme || 'Default Theme',
+                sfw_prompt: item.sfw_prompt || '',
+                prompt_structure: {
+                    mood_and_tone: item.prompt_structure?.mood_and_tone || '',
+                    vibe: item.prompt_structure?.vibe || '',
+                    lighting: item.prompt_structure?.lighting || '',
+                    outfit: item.prompt_structure?.outfit || '',
+                    camera_settings: padArray(item.prompt_structure?.camera_settings, globalBatchSize),
+                    poses: padArray(item.prompt_structure?.poses, globalBatchSize),
+                    nsfw_prompts: padArray(item.prompt_structure?.nsfw_prompts, globalBatchSize),
+                    vdo_prompts: padArray((item.prompt_structure as any)?.vdo_prompts, globalBatchSize),
+                    vdo_prompts_nsfw: padArray((item.prompt_structure as any)?.vdo_prompts_nsfw, globalBatchSize)
+                },
+                nsfw_option: !!item.nsfw_option,
                 gen_sfw: true,
                 gen_nsfw: false,
                 post_to_ig: true,
                 post_to_x: false,
                 post_to_fanvue: false,
-                caption_draft: item.caption_draft,
+                caption_draft: item.caption_draft || '',
                 scheduled_at: baseDate.toISOString(),
-                status: 'Draft'
+                batch_size: globalBatchSize,
+                image_width: globalWidth,
+                image_height: globalHeight,
+                status: 'Draft',
+                image_prompts: item.prompt_structure || {},
+                vdo_prompt: (item.prompt_structure?.vdo_prompts?.[0]) || '',
+                vdo_prompt_nsfw: (item.prompt_structure?.vdo_prompts_nsfw?.[0]) || ''
             }
         })
 
@@ -111,4 +135,10 @@ export async function runWeeklyPlanner(method: ScoutMethod = 'apify', payload: S
         await sendNotification(`❌ <b>Phase 1 Error:</b> ${error.message}`)
         return { success: false, error: error.message }
     }
+}
+
+function padArray(arr: any[] | undefined, length: number) {
+    const newArr = [...(arr || [])]
+    while (newArr.length < length) newArr.push('')
+    return newArr.slice(0, length)
 }

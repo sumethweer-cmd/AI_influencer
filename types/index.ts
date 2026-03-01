@@ -33,9 +33,21 @@ export interface ContentItem {
   sequence_number: number
   content_type: ContentType
   persona?: string
+  storyline?: string
   topic: string
   theme?: string
   sfw_prompt: string
+  prompt_structure?: {
+    mood_and_tone?: string
+    vibe?: string
+    lighting?: string
+    outfit?: string
+    camera_settings?: string[]
+    poses?: string[]
+    nsfw_prompts?: string[]
+    vdo_prompts?: string[]
+    vdo_prompts_nsfw?: string[]
+  }
   nsfw_option: boolean
   caption_draft?: string
   caption_final?: string
@@ -49,6 +61,15 @@ export interface ContentItem {
   published_at?: string
   post_url?: string
   selected_workflow_id?: string
+  selected_image_id?: string
+  video_cover_id?: string
+  batch_size: number
+  image_width: number
+  image_height: number
+  platform_selections?: Record<string, any>
+  image_prompts?: Record<string, any>
+  vdo_prompt?: string
+  vdo_prompt_nsfw?: string
   created_at: string
   updated_at: string
   // Joined
@@ -66,6 +87,11 @@ export interface GeneratedImage {
   quality_score?: number
   qc_feedback?: QCFeedback
   status: ImageStatus
+  media_type?: 'image' | 'video'
+  vdo_prompt?: string
+  vdo_status?: 'none' | 'pending' | 'processing' | 'completed' | 'failed'
+  vdo_job_id?: string
+  slot_index?: number
   gen_attempt: number
   runpod_job_id?: string
   created_at: string
@@ -109,6 +135,7 @@ export interface SystemLog {
 export interface WeeklyPlanJSON {
   week_start: string
   week_end: string
+  campaign_theme?: string
   trends: TrendData
   contents: ContentPlan[]
 }
@@ -123,11 +150,36 @@ export interface ContentPlan {
   sequence: number
   content_type: ContentType
   persona: string
+  storyline?: string
   topic: string
   theme: string
   sfw_prompt: string
+  prompt_structure?: {
+    mood_and_tone: string
+    vibe: string
+    lighting: string
+    outfit: string
+    camera_settings: string[]
+    poses: string[]
+    nsfw_prompts?: string[]
+    vdo_prompts?: string[]
+    vdo_prompts_nsfw?: string[]
+  }
   nsfw_option: boolean
   caption_draft: string
+  vdo_prompt?: string
+}
+
+export interface AIPersona {
+  id: string
+  name: string
+  display_name: string
+  system_prompt: string
+  trigger_word?: string
+  instruction_rule?: string
+  lora_triggers?: string
+  created_at: string
+  updated_at: string
 }
 
 // --- Phase 2: ComfyUI ---
@@ -141,6 +193,8 @@ export interface ComfyUIWorkflow {
   width_node_id?: string
   height_node_id?: string
   batch_size_node_id?: string
+  video_image_node_id?: string
+  video_prompt_node_id?: string
   created_at: string
   updated_at: string
 }
@@ -156,12 +210,12 @@ export interface ComfyUIJob {
 export interface RunpodPod {
   id: string
   name: string
-  status: string
+  desiredStatus: string
   runtime?: {
     gpus: { id: string }[]
     ports: {
       ip: string
-      isPublic: boolean
+      isIpPublic: boolean
       privatePort: number
       publicPort: number
     }[]
@@ -183,5 +237,17 @@ export interface PostResult {
   platform: string
   post_id: string
   post_url: string
-  posted_at: string
+}
+
+export interface ProductionJob {
+  id: string
+  status: string
+  total_items: number
+  completed_items: number
+  current_item_id: string
+  runpod_job_id?: string
+  error_message?: string
+  created_at?: string
+  updated_at?: string
+  completed_at?: string
 }

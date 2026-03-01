@@ -9,8 +9,8 @@ import path from 'path'
 export class ComfyUIClient {
     private baseUrl: string
 
-    constructor(host: string, port: number = 8188) {
-        this.baseUrl = `http://${host}:${port}`
+    constructor(baseUrl: string) {
+        this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
     }
 
     /**
@@ -35,23 +35,50 @@ export class ComfyUIClient {
     /**
      * Wait for a job to finish and get the image filename
      */
-    async waitForImage(promptId: string): Promise<string[]> {
+    async waitForImage(promptId: string): Promise<any[]> {
         const historyUrl = `${this.baseUrl}/history/${promptId}`
 
         // Polling every 5 seconds
         while (true) {
-            const resp = await axios.get(historyUrl)
-            const data = resp.data[promptId]
+            try {
+                const resp = await axios.get(historyUrl)
+                const data = resp.data[promptId]
 
-            if (data && data.outputs) {
-                // Extract filenames from all image outputs
-                const images: string[] = []
-                for (const nodeId in data.outputs) {
-                    if (data.outputs[nodeId].images) {
-                        images.push(...data.outputs[nodeId].images.map((img: any) => img.filename))
+                if (data && data.outputs) {
+                    // Extract filenames from all image outputs
+                    const images: any[] = []
+
+                    // Instead of blindly grabbing all images from all nodes:
+                    for (const nodeId in data.outputs) {
+                        const nodeOutput = data.outputs[nodeId]
+
+                        // Check if this node output contains images
+                        if (nodeOutput.images && Array.isArray(nodeOutput.images)) {
+                            // Filter images: In ComfyUI, SaveImage nodes often put the image type as 'output'
+                            // PreviewImage or intermediate nodes might have different types or we want to filter them
+                            // Since we don't always know the exact node ID of the final SaveImage, 
+                            // a robust way is to look for images of type 'output' (which usually means they were saved to disk)
+                            const outputImages = nodeOutput.images.filter((img: any) => img.type === 'output')
+                            if (outputImages.length > 0) {
+                                images.push(...outputImages)
+                            }
+                        }
                     }
+
+                    // Fallback: If no 'output' type found (maybe they only had temp/preview), grab the last node's images
+                    if (images.length === 0) {
+                        const outputKeys = Object.keys(data.outputs);
+                        const lastNodeId = outputKeys[outputKeys.length - 1];
+                        if (lastNodeId && data.outputs[lastNodeId].images) {
+                            images.push(...data.outputs[lastNodeId].images);
+                        }
+                    }
+
+                    if (images.length > 0) return images
                 }
-                return images
+            } catch (err: any) {
+                // If 404, it means the job hasn't finished and isn't in history yet.
+                // We just swallow the error and keep polling.
             }
 
             await new Promise(resolve => setTimeout(resolve, 5000))
@@ -61,8 +88,14 @@ export class ComfyUIClient {
     /**
      * Download image from ComfyUI to local storage
      */
-    async downloadImage(filename: string, localPath: string) {
-        const url = `${this.baseUrl}/view?filename=${filename}`
+    async downloadImage(image: any, localPath: string) {
+        let url = `${this.baseUrl}/view?filename=`
+        if (typeof image === 'string') {
+            url += encodeURIComponent(image)
+        } else {
+            url += `${encodeURIComponent(image.filename)}&subfolder=${encodeURIComponent(image.subfolder || '')}&type=${encodeURIComponent(image.type || 'output')}`
+        }
+
         const response = await axios.get(url, { responseType: 'stream' })
 
         const dir = path.dirname(localPath)
@@ -75,6 +108,29 @@ export class ComfyUIClient {
             writer.on('finish', () => resolve())
             writer.on('error', reject)
         })
+    }
+
+    /**
+     * Upload an image to ComfyUI input folder
+     */
+    async uploadImage(imagePath: string, filename: string) {
+        const url = `${this.baseUrl}/upload/image`
+        const formData = new FormData()
+
+        const fileBuffer = fs.readFileSync(imagePath)
+        const blob = new Blob([fileBuffer])
+        formData.append('image', blob, filename)
+        formData.append('overwrite', 'true')
+
+        try {
+            const response = await axios.post(url, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            })
+            return response.data
+        } catch (err: any) {
+            console.error('ComfyUI Upload Failed:', err.message)
+            throw err
+        }
     }
 
     /**

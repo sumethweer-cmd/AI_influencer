@@ -19,6 +19,7 @@ export default function DashboardLayout({
                     <div className="flex items-center gap-6 text-sm font-medium">
                         <a href="/dashboard" className="hover:text-orange-400 transition-colors">Dashboard</a>
                         <a href="/dashboard/workflows" className="hover:text-orange-400 transition-colors">Workflows</a>
+                        <a href="/dashboard/prompts" className="hover:text-orange-400 transition-colors">Template Studio</a>
                         <a href="/dashboard/settings" className="hover:text-orange-400 transition-colors">API Settings</a>
                         <a href="/dashboard/analytics" className="hover:text-orange-400 transition-colors">Analytics</a>
                         <a href="/dashboard/logs" className="hover:text-orange-400 transition-colors">System Logs</a>

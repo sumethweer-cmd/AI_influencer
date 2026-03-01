@@ -1,0 +1,23 @@
+
+const { createClient } = require('@supabase/supabase-js');
+const dotenv = require('dotenv');
+dotenv.config({ path: '.env.local' });
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+async function checkData() {
+    const { count, error: countError } = await supabase.from('content_items').select('*', { count: 'exact', head: true });
+    if (countError) {
+        console.error('Count Error:', countError);
+    } else {
+        console.log('Total content_items in DB:', count);
+    }
+
+    const { data, error } = await supabase.from('content_items').select('*').limit(1);
+    console.log('Sample content record:', JSON.stringify(data, null, 2));
+}
+
+checkData();

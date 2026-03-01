@@ -17,12 +17,47 @@ const getApi = async () => {
 }
 
 /**
- * Phase 2: Deploy a Pod using the specific template
+ * Get all currently active pods for the user
  */
-export async function deployPod(name: string): Promise<string> {
+export async function getActivePods(): Promise<RunpodPod[]> {
+  const query = `
+    query {
+      myself {
+        pods {
+          id
+          name
+          desiredStatus
+          runtime {
+            gpus { id }
+            ports {
+              isIpPublic
+              ip
+              privatePort
+              publicPort
+            }
+          }
+        }
+      }
+    }
+  `
+
+  try {
+    const api = await getApi()
+    const response = await api.post('', { query })
+    return response.data.data.myself.pods
+  } catch (err) {
+    console.error('Failed to fetch active Runpods:', err)
+    return []
+  }
+}
+
+/**
+ * Phase 2.1: Deploy a Pod using the specific template and GPU
+ */
+export async function deployPod(name: string, gpuTypeId: string = "NVIDIA GeForce RTX 4090"): Promise<string> {
   const templateId = await getConfig('RUNPOD_TEMPLATE_ID') || 'new Template V.2'
   const volumeId = await getConfig('RUNPOD_NETWORK_VOLUME_ID')
-  console.log(`Deploying Runpod: ${name} using ${templateId}${volumeId ? ` with Volume ${volumeId}` : ''}...`)
+  console.log(`Deploying Runpod: ${name} on ${gpuTypeId} using ${templateId}${volumeId ? ` with Volume ${volumeId}` : ''}...`)
 
   const volumeInput = volumeId ? `networkVolumeId: "${volumeId}",` : ''
 
@@ -32,9 +67,8 @@ export async function deployPod(name: string): Promise<string> {
         input: {
           cloudType: ALL,
           gpuCount: 1,
-          gpuTypeId: "NVIDIA GeForce RTX 4090",
+          gpuTypeId: "${gpuTypeId}",
           name: "${name}",
-          imageName: "runpod/stable-diffusion:v1",
           templateId: "${templateId}",
           ${volumeInput}
           volumeInGb: 0,
@@ -90,10 +124,11 @@ export async function getPodDetails(podId: string): Promise<RunpodPod> {
       pod(input: {podId: "${podId}"}) {
         id
         name
+        desiredStatus
         runtime {
           gpus { id }
           ports {
-            isPublic
+            isIpPublic
             ip
             privatePort
             publicPort
@@ -122,8 +157,14 @@ export async function waitForComfyUI(podId: string, maxRetries = 30, delayMs = 1
       // Look for port 8188
       // @ts-ignore
       const port8188 = pod.runtime?.ports?.find(p => p.privatePort === 8188)
-      if (port8188 && port8188.ip && port8188.publicPort) {
-        const comfyUrl = `http://${port8188.ip}:${port8188.publicPort}`
+      if (port8188) {
+        // Runpod exposes internal HTTP ports via their Proxy URL structure
+        let comfyUrl = ''
+        if (port8188.isIpPublic && port8188.ip && port8188.publicPort) {
+          comfyUrl = `http://${port8188.ip}:${port8188.publicPort}`
+        } else {
+          comfyUrl = `https://${podId}-${port8188.privatePort}.proxy.runpod.net`
+        }
 
         // Try to ping the ComfyUI system stats endpoint
         try {

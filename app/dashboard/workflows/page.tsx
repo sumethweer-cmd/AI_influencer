@@ -22,6 +22,8 @@ export default function WorkflowsPage() {
     const [widthNodeId, setWidthNodeId] = useState('')
     const [heightNodeId, setHeightNodeId] = useState('')
     const [batchSizeNodeId, setBatchSizeNodeId] = useState('')
+    const [videoImageNodeId, setVideoImageNodeId] = useState('')
+    const [videoPromptNodeId, setVideoPromptNodeId] = useState('')
 
     useEffect(() => {
         fetchWorkflows()
@@ -98,6 +100,8 @@ export default function WorkflowsPage() {
         setWidthNodeId('')
         setHeightNodeId('')
         setBatchSizeNodeId('')
+        setVideoImageNodeId('')
+        setVideoPromptNodeId('')
         if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
@@ -118,7 +122,9 @@ export default function WorkflowsPage() {
                     prompt_node_id: promptNodeId,
                     width_node_id: widthNodeId || null,
                     height_node_id: heightNodeId || null,
-                    batch_size_node_id: batchSizeNodeId || null
+                    batch_size_node_id: batchSizeNodeId || null,
+                    video_image_node_id: videoImageNodeId || null,
+                    video_prompt_node_id: videoPromptNodeId || null
                 })
             })
 
@@ -213,6 +219,7 @@ export default function WorkflowsPage() {
                                             >
                                                 <option value="SFW">SFW</option>
                                                 <option value="NSFW">NSFW</option>
+                                                <option value="Video">Video</option>
                                             </select>
                                         </div>
                                     </div>
@@ -272,6 +279,36 @@ export default function WorkflowsPage() {
                                             </select>
                                             <p className="text-[10px] text-slate-500 mt-1">Select the node (usually EmptyLatentImage) if you want the system to dynamically control how many images are generated per post.</p>
                                         </div>
+
+                                        {workflowType === 'Video' && (
+                                            <div className="space-y-4 pt-4 border-t border-slate-700">
+                                                <h4 className="text-xs font-black text-indigo-400 uppercase">Video Specific Mappings</h4>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-400 mb-1">Source Image Node</label>
+                                                    <select
+                                                        value={videoImageNodeId} onChange={e => setVideoImageNodeId(e.target.value)}
+                                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none hover:cursor-pointer font-mono"
+                                                    >
+                                                        <option value="">Select Load Image node</option>
+                                                        {availableNodes.map(n => (
+                                                            <option key={n.id} value={n.id}>[{n.id}] {n.title} ({n.type})</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-400 mb-1">Video Motion Prompt Node</label>
+                                                    <select
+                                                        value={videoPromptNodeId} onChange={e => setVideoPromptNodeId(e.target.value)}
+                                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none hover:cursor-pointer font-mono"
+                                                    >
+                                                        <option value="">Select the Text Encode node</option>
+                                                        {availableNodes.map(n => (
+                                                            <option key={n.id} value={n.id}>[{n.id}] {n.title} ({n.type})</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -309,7 +346,7 @@ export default function WorkflowsPage() {
                     ) : (
                         workflows.map(wf => (
                             <div key={wf.id} className="bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col items-start group relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-1 h-full bg-slate-700 group-hover:bg-orange-500 transition-colors" />
+                                <div className={`absolute top-0 left-0 w-1 h-full bg-slate-700 transition-colors ${wf.workflow_type === 'Video' ? 'group-hover:bg-indigo-500' : 'group-hover:bg-orange-500'}`} />
 
                                 <div className="w-full flex justify-between items-start mb-4">
                                     <div className="flex items-center gap-3">
@@ -317,8 +354,8 @@ export default function WorkflowsPage() {
                                         <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full \${wf.persona === 'Momo' ? 'bg-pink-900 text-pink-300' : wf.persona === 'Karen' ? 'bg-purple-900 text-purple-300' : 'bg-slate-700 text-slate-300'}`}>
                                             {wf.persona || 'Shared'}
                                         </span>
-                                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full \${wf.workflow_type === 'SFW' ? 'bg-emerald-900 text-emerald-300' : 'bg-rose-900 text-rose-300'}`}>
-                                            {wf.workflow_type}
+                                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full ${wf.workflow_type === 'SFW' ? 'bg-emerald-900 text-emerald-300' : wf.workflow_type === 'Video' ? 'bg-indigo-900 text-indigo-300' : 'bg-rose-900 text-rose-300'}`}>
+                                            {wf.workflow_type === 'Video' ? '🎬 Video' : wf.workflow_type}
                                         </span>
                                     </div>
                                     <button
@@ -342,9 +379,10 @@ export default function WorkflowsPage() {
                                         <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest block">Height Node</span>
                                         <span className="text-slate-300 font-mono block">{wf.height_node_id ? `[\${wf.height_node_id}]` : '-'}</span>
                                     </div>
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest block">Batch Node</span>
-                                        <span className="text-slate-300 font-mono block">{wf.batch_size_node_id ? `[\${wf.batch_size_node_id}]` : '-'}</span>
+                                    <div className="space-y-1 text-slate-500">
+                                        <span className="text-[10px] uppercase font-bold tracking-widest block">Video Mapping</span>
+                                        <span className="text-[10px] font-mono block">Img: {wf.video_image_node_id || '-'}</span>
+                                        <span className="text-[10px] font-mono block">Pmt: {wf.video_prompt_node_id || '-'}</span>
                                     </div>
                                 </div>
                                 <div className="w-full mt-3 text-xs text-slate-500 flex justify-end">
