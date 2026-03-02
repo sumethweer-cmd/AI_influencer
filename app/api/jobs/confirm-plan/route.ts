@@ -20,7 +20,7 @@ export async function POST(request: Request) {
         if (fetchError || !items) throw fetchError || new Error('Failed to fetch items');
 
         // 2. Fetch all unique personas and workflows involved
-        const personas = Array.from(new Set(items.map(i => i.persona).filter(Boolean)))
+        const personas = Array.from(new Set(items.map((i: any) => i.persona).filter(Boolean)))
         const { data: personaData } = await supabaseAdmin
             .from('ai_personas')
             .select('name, trigger_word')
@@ -34,13 +34,13 @@ export async function POST(request: Request) {
         const jobsToInsert: any[] = []
         
         for (const item of items) {
-            const persona = personaData?.find(p => p.name === item.persona)
+            const persona = personaData?.find((p: any) => p.name === item.persona)
             const trigger = persona?.trigger_word || ''
             
             // Determine workflow
-            let selectedWf = workflows?.find(w => w.id === item.selected_workflow_id)
+            let selectedWf = workflows?.find((w: any) => w.id === item.selected_workflow_id)
             if (!selectedWf) {
-                const personaMatches = workflows?.filter(w => w.persona === item.persona)
+                const personaMatches = workflows?.filter((w: any) => w.persona === item.persona)
                 selectedWf = (personaMatches?.length ? personaMatches : workflows!)?.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
             }
 

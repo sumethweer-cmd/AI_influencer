@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { refillSinglePrompt } from '@/lib/gemini'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, logSystem } from '@/lib/supabase'
 
 export async function POST(req: Request) {
     try {
@@ -28,24 +28,73 @@ export async function POST(req: Request) {
             if (updateError) throw updateError
         }
 
-        // 3. Trigger actual generation (This will call the existing ComfyUI queue logic)
-        // For simplicity, we assume the UI will call /api/jobs/generate-vdo or similar if needed,
-        // but typically "Regenerate" implies both prompt refresh AND image generation.
-        // We'll trigger the background job here.
+        // 2. Fetch dependencies to build the final prompt
+        let personaTrigger = ''
+        if (item.persona) {
+            const { data: personaData } = await supabaseAdmin
+                .from('ai_personas')
+                .select('trigger_word')
+                .eq('name', item.persona)
+                .single()
+            if (personaData) personaTrigger = personaData.trigger_word || ''
+        }
 
-        const genRes = await fetch(`${new URL(req.url).origin}/api/jobs/phase2-production`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contentIds: [contentId],
-                specificIndex: index,
-                forceType: type // Custom param for the generator to know which one to pick
+        const { data: workflows } = await supabaseAdmin.from('comfyui_workflows').select('*')
+        let selectedWf = workflows?.find((w: any) => w.id === item.selected_workflow_id)
+        if (!selectedWf) {
+            const personaMatches = workflows?.filter((w: any) => w.persona === item.persona)
+            selectedWf = (personaMatches?.length ? personaMatches : workflows!)?.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+        }
+        
+        const basePos = selectedWf?.base_positive_prompt ? `${selectedWf.base_positive_prompt}, ` : ''
+        const struct = newPromptStructure || {}
+
+        const pose = struct.poses?.[index] || ''
+        const camera = struct.camera_settings?.[index] || ''
+        const parts = [
+            personaTrigger,
+            struct.mood_and_tone,
+            struct.vibe,
+            struct.lighting,
+            struct.outfit,
+            camera,
+            pose
+        ]
+        
+        if (type === 'NSFW') {
+            const nsfwPrompt = struct.nsfw_prompts?.[index] || ''
+            parts.push(nsfwPrompt)
+        }
+
+        const finalPrompt = `${basePos}${Array.from(new Set(parts.filter(p => p && String(p).trim() !== ''))).join(', ')}`
+
+        // 3. Queue Job: delete old jobs for this specific slot to keep 'count' accurate
+        await supabaseAdmin
+            .from('production_jobs')
+            .delete()
+            .match({ content_item_id: contentId, slot_index: index, image_type: type })
+
+        const { error: insertError } = await supabaseAdmin
+            .from('production_jobs')
+            .insert({
+                content_item_id: contentId,
+                status: 'Pending',
+                image_type: type,
+                slot_index: index,
+                prompt_text: finalPrompt
             })
-        })
 
-        if (!genRes.ok) throw new Error('Failed to trigger generation')
+        if (insertError) throw insertError
 
-        return NextResponse.json({ success: true, message: 'Regeneration started' })
+        // 4. Update parent item to 'In Production' so UI knows it is generating again
+        await supabaseAdmin
+            .from('content_items')
+            .update({ status: 'In Production' })
+            .eq('id', contentId)
+
+        await logSystem('INFO', 'Regen Queue', `Regeneration scheduled for item ${contentId} (Slot ${index}, ${type}) via queue.`)
+
+        return NextResponse.json({ success: true, message: 'Regeneration job added to queue' })
     } catch (error: any) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }

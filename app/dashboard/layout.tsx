@@ -1,5 +1,5 @@
 import React from 'react'
-import ProductionMonitor from '@/app/dashboard/components/ProductionMonitor'
+import QueueManager from '@/app/dashboard/components/QueueManager'
 
 export default function DashboardLayout({
     children,
@@ -32,7 +32,7 @@ export default function DashboardLayout({
             <main className="max-w-7xl mx-auto px-4 py-8 relative">
                 {children}
             </main>
-            <ProductionMonitor />
+            <QueueManager />
         </div>
     )
 }

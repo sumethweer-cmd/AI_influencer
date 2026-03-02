@@ -962,6 +962,7 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                         item={item}
                         onUpdate={onUpdate}
                         onClose={() => setShowStudio(false)}
+                        onOpenPromptEditor={() => setShowPrompt(true)}
                     />
                 )}
 
@@ -1157,9 +1158,12 @@ function PromptEditorModal({
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
             <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl w-full max-w-5xl shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
                 <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                    <h3 className="text-xl font-bold text-orange-400 flex items-center gap-2">
-                        <span>👁️</span> Prompt Structure Editor
-                    </h3>
+                    <div>
+                        <h3 className="text-xl font-bold text-orange-400 flex items-center gap-2">
+                            <span>✍️</span> Interactive Prompt Editor
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">✨ Changes to prompts and settings are automatically saved as you type.</p>
+                    </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-white p-2 text-2xl leading-none">&times;</button>
                 </div>
 
@@ -1265,8 +1269,8 @@ function PromptEditorModal({
                 </div>
 
                 <div className="mt-8 pt-4 border-t border-slate-800 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-xl text-sm font-bold transition-all shadow-lg active:scale-95">
-                        Done Editing
+                    <button onClick={onClose} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-xl text-sm font-bold transition-all shadow-lg active:scale-95 flex items-center gap-2">
+                        <span>💾</span> Save & Close
                     </button>
                 </div>
             </div>

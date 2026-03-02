@@ -8,9 +8,10 @@ interface CreativeStudioModalProps {
     item: ContentItem
     onUpdate: () => void
     onClose: () => void
+    onOpenPromptEditor?: () => void
 }
 
-export default function CreativeStudioModal({ item, onUpdate, onClose }: CreativeStudioModalProps) {
+export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPromptEditor }: CreativeStudioModalProps) {
     const [selections, setSelections] = useState<Record<string, any>>(item.platform_selections || {})
     const [videoCoverId, setVideoCoverId] = useState<string | undefined>(item.video_cover_id)
     const [saving, setSaving] = useState(false)
@@ -526,6 +527,13 @@ export default function CreativeStudioModal({ item, onUpdate, onClose }: Creativ
                                                         {isRegenerating[idx] ? '🔃...' : '✨ REGEN'}
                                                     </button>
                                                 </div>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onOpenPromptEditor?.() }}
+                                                    className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-orange-400 text-[9px] font-bold rounded-lg flex items-center justify-center gap-1 border border-slate-700 transition-all shadow-lg active:scale-95"
+                                                    title="✍️ EDIT SCRIPT BEFORE REGEN"
+                                                >
+                                                    ✍️ EDIT PROMPT
+                                                </button>
 
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleGenerateVideo(img.id) }}

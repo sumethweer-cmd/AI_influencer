@@ -359,6 +359,35 @@ async function pollComfyUIJobs(isMock: boolean = false, mockDelay: number = 2000
         }
     }
 
+    // --- AUTO TERMINATE RUNPOD CHECK ---
+    const { count: anyActiveJobs } = await supabase.from('production_jobs')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['Pending', 'Queued', 'Processing'])
+    
+    if (anyActiveJobs === 0) {
+        const { data: config } = await supabase.from('system_configs').select('key_value').eq('key_name', 'AUTO_TERMINATE_RUNPOD').maybeSingle()
+        if (config?.key_value === 'true') {
+            const activePods = await getActivePods()
+            const runningPod = activePods.find((p: any) => p.desiredStatus === 'RUNNING')
+            if (runningPod) {
+                try {
+                    await fetch(`https://api.runpod.io/graphql?api_key=${Deno.env.get('RUNPOD_API_KEY')}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            query: `mutation { podStop(input: {podId: "${runningPod.id}"}) { id desiredStatus } }`
+                        })
+                    })
+                    // Reset config to false so we don't spam API
+                    await supabase.from('system_configs').upsert({ key_name: 'AUTO_TERMINATE_RUNPOD', key_value: 'false' })
+                    await logSystem('SUCCESS', 'Production Worker', `Auto-terminated Runpod ${runningPod.id} because the queue is empty.`)
+                } catch (e: any) {
+                    await logSystem('ERROR', 'Production Worker', `Failed to auto-terminate Runpod: ${e.message}`)
+                }
+            }
+        }
+    }
+
     return completedCount;
 }
 
