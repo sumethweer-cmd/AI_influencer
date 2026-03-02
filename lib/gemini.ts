@@ -4,45 +4,69 @@ import { getConfig } from './config'
 import { logSystem, supabaseAdmin } from './supabase'
 
 async function getPersonaSystemPrompt(targetPersona: string): Promise<string> {
-  const { data } = await supabaseAdmin.from('ai_personas').select('system_prompt, instruction_rule, lora_triggers').eq('name', targetPersona).single()
+  const { data } = await supabaseAdmin
+    .from('ai_personas')
+    .select('system_prompt, instruction_rule, lora_triggers, role_prompt, persona_rules, sfw_critical, nsfw_critical')
+    .eq('name', targetPersona)
+    .single()
 
-  let prompt = `${data?.system_prompt || 'You are an AI generating content for a persona.'}
-  
-  ADDITIONAL CORE RULE TO ALWAYS FOLLOW: ${data?.instruction_rule || 'None'}`
+  // ---- Section 1: ROLE ----
+  const role = data?.role_prompt || `You are the Creative Marketing Director of Nong Kung Agency, a boutique AI influencer management studio.
+Your speciality is crafting ultra-viral, authentic-feeling social media content that blurs the line between real and AI.
+You think like a Gen-Z audience — raw, candid, slightly imperfect content performs better than polished studio shots.`
 
-  if (data?.lora_triggers) {
-    prompt += `
-    
-    LORA ACTION TRIGGER LIBRARY (CRITICAL):
-    Here is a library of special action trigger words installed for this specific persona: 
-    [ ${data.lora_triggers} ]
-    
-    HOW TO USE THEM: You must intelligently INJECT these EXACT phrases into the 'poses' or 'vibe' descriptions ONLY IF the storyline explicitly matches that action. 
-    For example: If the storyline says they are taking a selfie in the bathroom, you MUST use the exact trigger "taking a mirror selfie" (if it exists in the library) as part of the pose prompt.
-    Do NOT use them if they don't fit the context.`
-  }
+  // ---- Section 2: PERSONA RULES ----
+  const rules = data?.persona_rules || data?.system_prompt || `PERSONA: ${targetPersona}
+CHARACTER DNA: A realistic, relatable AI influencer with a strong personal aesthetic.
+CONTENT PERSONALITY: Candid, spontaneous, authentic.`
 
-  return prompt
+  // ---- Section 2b: LoRA Triggers (inject after rules if present) ----
+  const loraTriggers = data?.lora_triggers ? `
+LORA ACTION TRIGGER LIBRARY (CRITICAL — USE EXACT PHRASES):
+Available trigger words installed for ${targetPersona}: [ ${data.lora_triggers} ]
+HOW TO USE: Inject these EXACT phrases into 'poses' or 'vibe' ONLY IF the storyline naturally matches that action. Never force-fit them.` : ''
+
+  // ---- Section 4: SFW Critical ----
+  const sfwCritical = data?.sfw_critical || data?.instruction_rule || `SFW STANDARDS:
+- Shot on iPhone quality — grainy, raw, no studio lighting
+- Candid feel — natural expressions, slightly off-center composition
+- Real backgrounds — lived-in spaces, not studio sets`
+
+  // ---- Section 5: NSFW Critical ----
+  const nsfwCritical = data?.nsfw_critical || `NSFW STANDARDS:
+- LOCATION RULE: Public space = wardrobe malfunction / leaking feel (NOT intentionally nude)
+- LOCATION RULE: Private space (bedroom/bathroom) = explicit allowed (undressing, topless, suggestive)
+- Maximum explicit level: tasteful — no graphic acts, no masturbation`
+
+  return `=== [1. ROLE] ===
+${role}
+
+=== [2. PERSONA DNA & RULES] ===
+${rules}${loraTriggers}
+
+=== [4a. CRITICAL — SFW IMAGE STANDARDS] ===
+${sfwCritical}
+
+=== [4b. CRITICAL — NSFW IMAGE STANDARDS] ===
+${nsfwCritical}`
 }
 
 async function getBasePrompt(): Promise<string> {
   const basePrompt = await getConfig('PHASE1_BASE_PROMPT')
-  return basePrompt || `
-    TECHNICAL PROMPT GUIDE FOR COMFYUI:
-    - MUST USE: grainy, smartphone quality, raw photo, direct flash.
-    
-    LANGUAGE RULE:
-    - ALL captions MUST be written in 100% ENGLISH.
-  `
+  return basePrompt || `TECHNICAL PROMPT GUIDE FOR COMFYUI:
+- PHOTO QUALITY: Smartphone quality (iPhone) — grainy, raw photo, no studio lighting, natural or harsh direct flash
+- ULTRA-DETAIL RULE: Every prompt must describe posture, facial expression, outfit texture, background clutter, and lighting quality in maximum detail
+- LANGUAGE: ALL output text and captions MUST be in 100% ENGLISH
+- AVOID: Symmetrical compositions, studio backdrops, perfect DSLR bokeh, over-edited aesthetics`
 }
 
 function getJsonOutputFormat(personaPrompt: string, basePrompt: string, targetPersona: string) {
-  return `
-    ${personaPrompt}
-    
-    ${basePrompt.replace('TARGET_PERSONA', targetPersona)}
-  `
+  return `${personaPrompt}
+
+=== [3. TECHNICAL GUIDE] ===
+${basePrompt.replace('TARGET_PERSONA', targetPersona)}`
 }
+
 
 /**
  * Phase 1: Create Content Matrix based on trends
