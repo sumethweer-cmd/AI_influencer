@@ -19,6 +19,7 @@ export default function DashboardPage() {
     const [activeTab, setActiveTab] = useState<'workspace' | 'calendar'>('workspace')
     const [statusFilter, setStatusFilter] = useState<string>('All')
     const [selectedIds, setSelectedIds] = useState<string[]>([])
+    const [globalUnblur, setGlobalUnblur] = useState(false)
 
     useEffect(() => {
         Promise.all([fetchItems(), fetchWorkflows(), fetchPersonas()])
@@ -188,7 +189,18 @@ export default function DashboardPage() {
                             </span>
                         </div>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 items-center">
+                        {/* Global Blur Toggle */}
+                        <button
+                            onClick={() => setGlobalUnblur(v => !v)}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 transition-all border ${globalUnblur
+                                ? 'bg-rose-600/20 border-rose-500 text-rose-400 shadow-lg shadow-rose-500/20'
+                                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                                }`}
+                            title={globalUnblur ? 'Click to blur all NSFW content' : 'Click to unblur all NSFW content'}
+                        >
+                            {globalUnblur ? '🔓 UNBLURRED' : '🔞 BLUR ON'}
+                        </button>
                         {hasDrafts && (
                             <button
                                 onClick={handleConfirmPlan}
@@ -313,6 +325,7 @@ export default function DashboardPage() {
                                     personas={personas}
                                     onUpdate={fetchItems}
                                     isSelected={selectedIds.includes(item.id)}
+                                    globalUnblur={globalUnblur}
                                     onToggleSelect={() => {
                                         setSelectedIds(prev => prev.includes(item.id)
                                             ? prev.filter(id => id !== item.id)
@@ -557,15 +570,17 @@ function ScoutModal({ personas, onClose, onStarted }: { personas: any[], onClose
     )
 }
 
-function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggleSelect }: {
+function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggleSelect, globalUnblur }: {
     item: ContentItem;
     workflows: any[];
     personas: any[];
     onUpdate: () => void;
     isSelected: boolean;
     onToggleSelect: () => void;
+    globalUnblur?: boolean;
 }) {
     const [unblur, setUnblur] = useState(false)
+    const isUnblurred = globalUnblur || unblur
     const [caption, setCaption] = useState(item.caption_final || item.caption_draft || '')
     const [approving, setApproving] = useState(false)
     const [showStudio, setShowStudio] = useState(false)
@@ -884,10 +899,10 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                                 <img
                                     src={getImageUrl(displayImage.file_path)}
                                     alt={item.topic}
-                                    className={`w-full h-full object-cover transition-all duration-500 ${item.nsfw_option && !unblur ? 'blur-3xl' : 'blur-0'}`}
+                                    className={`w-full h-full object-cover transition-all duration-500 ${item.nsfw_option && !isUnblurred ? 'blur-3xl' : 'blur-0'}`}
                                 />
                             )}
-                            {item.nsfw_option && !unblur && (
+                            {item.nsfw_option && !isUnblurred && (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm z-10">
                                     <span className="text-4xl mb-4">🔞</span>
                                     <button

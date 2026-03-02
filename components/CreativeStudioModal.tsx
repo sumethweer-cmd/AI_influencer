@@ -25,8 +25,26 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
 
     const sfwImages = localImages.filter(img => img.image_type === 'SFW')
     const nsfwImages = localImages.filter(img => img.image_type === 'NSFW')
-
     const currentImages = activeTab === 'SFW' ? sfwImages : nsfwImages
+
+    async function handleDownload(img: GeneratedImage) {
+        try {
+            const url = img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')
+            const response = await fetch(url)
+            const blob = await response.blob()
+            const objectUrl = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = objectUrl
+            const ext = img.media_type === 'video' ? 'mp4' : 'png'
+            a.download = `${item.persona || 'image'}_${img.image_type}_${img.slot_index ?? ''}.${ext}`
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(objectUrl)
+        } catch (e) {
+            alert('❌ Download failed')
+        }
+    }
 
     async function handleTogglePlatform(platform: string, imageId: string | null) {
         if (!imageId) return
@@ -440,10 +458,17 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                                     )
                                                 })}
 
-                                                {/* Delete Button */}
+                                                {/* Delete + Download Buttons */}
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDownload(img) }}
+                                                    className="mt-2 w-8 h-8 bg-black/60 backdrop-blur-md rounded-full text-sky-400 hover:bg-sky-600 hover:text-white transition-all flex items-center justify-center border border-sky-500/30 opacity-0 group-hover:opacity-100"
+                                                    title="Download image"
+                                                >
+                                                    ⬇️
+                                                </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id) }}
-                                                    className="mt-2 w-8 h-8 bg-black/60 backdrop-blur-md rounded-full text-rose-500 hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center border border-rose-500/30 opacity-0 group-hover:opacity-100"
+                                                    className="mt-1 w-8 h-8 bg-black/60 backdrop-blur-md rounded-full text-rose-500 hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center border border-rose-500/30 opacity-0 group-hover:opacity-100"
                                                 >
                                                     🗑️
                                                 </button>
