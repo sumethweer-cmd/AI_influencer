@@ -237,6 +237,7 @@ async function pollComfyUIJobs(isMock: boolean = false, mockDelay: number = 2000
             const selfUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/process-phase2-batch'
             const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
             for (const pJob of pendingJobs) {
+                 // **CRITICAL FIX**: Change status to 'Queued' to trigger the webhook and the submit logic!
                  await supabase.from('production_jobs').update({ status: 'Queued' }).eq('id', pJob.id)
                  const nextJobToPush = { ...pJob, status: 'Queued' }
                  fetch(selfUrl, {
