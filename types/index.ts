@@ -195,6 +195,7 @@ export interface ComfyUIWorkflow {
   batch_size_node_id?: string
   video_image_node_id?: string
   video_prompt_node_id?: string
+  output_node_id?: string
   created_at: string
   updated_at: string
 }

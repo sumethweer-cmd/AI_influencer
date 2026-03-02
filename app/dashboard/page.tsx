@@ -12,6 +12,7 @@ export default function DashboardPage() {
     const [workflows, setWorkflows] = useState<any[]>([])
     const [personas, setPersonas] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [jobStats, setJobStats] = useState<any>(null)
     const [showScoutModal, setShowScoutModal] = useState(false)
     const [showSettingsModal, setShowSettingsModal] = useState(false)
     const [activePersona, setActivePersona] = useState<string>('All')
@@ -54,6 +55,32 @@ export default function DashboardPage() {
         }
         setLoading(false)
     }
+
+    async function fetchJobStats() {
+        try {
+            const res = await fetch('/api/jobs/queue-stats')
+            const json = await res.json()
+            if (json.success) setJobStats(json.stats)
+        } catch (e) {
+            console.error('Failed to fetch job stats:', e)
+        }
+    }
+
+    // Polling for job stats if any item is In Production
+    useEffect(() => {
+        const hasActiveJobs = items.some(item => item.status === 'In Production')
+        if (!hasActiveJobs && (!jobStats || jobStats.pending === 0)) return
+
+        const interval = setInterval(() => {
+            fetchJobStats()
+            // If jobs are moving, also refresh items to show new images
+            if (jobStats && (jobStats.processing > 0 || jobStats.pending > 0)) {
+                fetchItems()
+            }
+        }, 10000)
+
+        return () => clearInterval(interval)
+    }, [items, jobStats])
 
     const baseItems = activePersona === 'All'
         ? items
@@ -184,6 +211,34 @@ export default function DashboardPage() {
                         </button>
                     </div>
                 </header>
+
+                {/* Job Queue Progress */}
+                {jobStats && (jobStats.pending > 0 || jobStats.processing > 0 || jobStats.completed > 0) && jobStats.total > 0 && (
+                    <div className="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-4 animate-in fade-in slide-in-from-top-4">
+                        <div className="flex justify-between items-center mb-2">
+                            <div className="flex items-center gap-2">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                                </span>
+                                <span className="text-xs font-black uppercase tracking-widest text-orange-400">Production Queue Active</span>
+                            </div>
+                            <span className="text-xs font-bold text-slate-400">{jobStats.completed} / {jobStats.total} Images Generated</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-gradient-to-r from-orange-600 to-rose-500 shadow-[0_0_10px_rgba(249,115,22,0.5)] transition-all duration-1000"
+                                style={{ width: `${(jobStats.completed / jobStats.total) * 100}%` }}
+                            />
+                        </div>
+                        {jobStats.processing > 0 && (
+                            <p className="text-[10px] text-slate-500 mt-2 italic">Currently generating {jobStats.processing} image(s)...</p>
+                        )}
+                        {jobStats.failed > 0 && (
+                            <p className="text-[10px] text-rose-500 mt-1">⚠️ {jobStats.failed} jobs failed. Check system logs for details.</p>
+                        )}
+                    </div>
+                )}
 
                 {/* Tabs & Filters UI */}
                 <div className="flex flex-col md:flex-row justify-between border-b border-slate-800 gap-4">

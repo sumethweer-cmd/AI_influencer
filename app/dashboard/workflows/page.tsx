@@ -22,6 +22,7 @@ export default function WorkflowsPage() {
     const [widthNodeId, setWidthNodeId] = useState('')
     const [heightNodeId, setHeightNodeId] = useState('')
     const [batchSizeNodeId, setBatchSizeNodeId] = useState('')
+    const [outputNodeId, setOutputNodeId] = useState('')
     const [videoImageNodeId, setVideoImageNodeId] = useState('')
     const [videoPromptNodeId, setVideoPromptNodeId] = useState('')
 
@@ -82,6 +83,11 @@ export default function WorkflowsPage() {
                     setBatchSizeNodeId(emptyLatentNodes[0].id)
                 }
 
+                const saveImageNodes = nodes.filter(n => n.type.includes('SaveImage') || n.title.includes('Save'))
+                if (saveImageNodes.length > 0) {
+                    setOutputNodeId(saveImageNodes[0].id)
+                }
+
                 // Default name based on filename
                 if (!name) setName(file.name.replace('.json', ''))
 
@@ -100,6 +106,7 @@ export default function WorkflowsPage() {
         setWidthNodeId('')
         setHeightNodeId('')
         setBatchSizeNodeId('')
+        setOutputNodeId('')
         setVideoImageNodeId('')
         setVideoPromptNodeId('')
         if (fileInputRef.current) fileInputRef.current.value = ''
@@ -123,6 +130,7 @@ export default function WorkflowsPage() {
                     width_node_id: widthNodeId || null,
                     height_node_id: heightNodeId || null,
                     batch_size_node_id: batchSizeNodeId || null,
+                    output_node_id: outputNodeId || null,
                     video_image_node_id: videoImageNodeId || null,
                     video_prompt_node_id: videoPromptNodeId || null
                 })
@@ -280,6 +288,20 @@ export default function WorkflowsPage() {
                                             <p className="text-[10px] text-slate-500 mt-1">Select the node (usually EmptyLatentImage) if you want the system to dynamically control how many images are generated per post.</p>
                                         </div>
 
+                                        <div>
+                                            <label className="block text-xs font-bold text-orange-400 mb-1">Output Node (Highly Recommended)</label>
+                                            <select
+                                                value={outputNodeId} onChange={e => setOutputNodeId(e.target.value)}
+                                                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 outline-none hover:cursor-pointer font-mono text-slate-300"
+                                            >
+                                                <option value="">Leave empty (system will fallback to scan all nodes)</option>
+                                                {availableNodes.map(n => (
+                                                    <option key={n.id} value={n.id}>[{n.id}] {n.title} ({n.type})</option>
+                                                ))}
+                                            </select>
+                                            <p className="text-[10px] text-slate-500 mt-1">Select the SaveImage node to ensure 100% reliable image fetching.</p>
+                                        </div>
+
                                         {workflowType === 'Video' && (
                                             <div className="space-y-4 pt-4 border-t border-slate-700">
                                                 <h4 className="text-xs font-black text-indigo-400 uppercase">Video Specific Mappings</h4>
@@ -377,7 +399,11 @@ export default function WorkflowsPage() {
                                     </div>
                                     <div className="space-y-1">
                                         <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest block">Height Node</span>
-                                        <span className="text-slate-300 font-mono block">{wf.height_node_id ? `[\${wf.height_node_id}]` : '-'}</span>
+                                        <span className="text-slate-300 font-mono block">{wf.height_node_id ? `[${wf.height_node_id}]` : '-'}</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest block">Output Node</span>
+                                        <span className="text-emerald-400 font-mono block">{wf.output_node_id ? `[${wf.output_node_id}]` : '-'}</span>
                                     </div>
                                     <div className="space-y-1 text-slate-500">
                                         <span className="text-[10px] uppercase font-bold tracking-widest block">Video Mapping</span>

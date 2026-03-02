@@ -20,7 +20,7 @@ export async function POST(request: Request) {
         const body = await request.json()
         const {
             name, persona, workflow_type, prompt_node_id, width_node_id, height_node_id,
-            batch_size_node_id, video_image_node_id, video_prompt_node_id,
+            batch_size_node_id, video_image_node_id, video_prompt_node_id, output_node_id,
             workflow_json, base_positive_prompt, base_negative_prompt, negative_prompt_node_id
         } = body
 
@@ -41,6 +41,7 @@ export async function POST(request: Request) {
                 batch_size_node_id,
                 video_image_node_id,
                 video_prompt_node_id,
+                output_node_id,
                 workflow_json,
                 base_positive_prompt,
                 base_negative_prompt

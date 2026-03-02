@@ -21,7 +21,8 @@ export default function GlobalSettingsModal({ onClose, onUpdate }: { onClose: ()
         'PRODUCTION_HEIGHT',
         'RUNPOD_API_KEY',
         'PHASE1_SYSTEM_INSTRUCTION',
-        'PHASE1_BASE_PROMPT'
+        'PHASE1_BASE_PROMPT',
+        'PRODUCTION_OUTPUT_NODE_ID'
     ]
 
     useEffect(() => {
@@ -173,6 +174,18 @@ export default function GlobalSettingsModal({ onClose, onUpdate }: { onClose: ()
                                         onChange={e => updateValue('PHASE1_BASE_PROMPT', e.target.value)}
                                         className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-xs font-medium text-slate-300 h-24 focus:border-rose-500 outline-none transition-all scrollbar-hide"
                                     />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Output Node ID Mapping (Optional)</label>
+                                    <input
+                                        type="text"
+                                        value={configs.find(c => c.key_name === 'PRODUCTION_OUTPUT_NODE_ID')?.key_value || ''}
+                                        onChange={e => updateValue('PRODUCTION_OUTPUT_NODE_ID', e.target.value)}
+                                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-orange-500 focus:border-orange-500 outline-none transition-all"
+                                        placeholder="e.g., 9 (ID of the SaveImage node)"
+                                    />
+                                    <p className="text-[10px] text-slate-600 font-medium">ระบุ Node ID ของรูปที่ต้องการดึง (ถ้าว่างระบบจะหาอัตโนมัติ)</p>
                                 </div>
                             </div>
 
