@@ -94,7 +94,10 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
             const res = await fetch('/api/jobs/approve-content', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contentId: item.id })
+                body: JSON.stringify({
+                    contentId: item.id,
+                    scheduledAt: localScheduledAt ? new Date(localScheduledAt).toISOString() : new Date().toISOString()
+                })
             })
 
             if (res.ok) {
