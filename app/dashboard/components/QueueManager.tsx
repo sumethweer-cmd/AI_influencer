@@ -68,7 +68,7 @@ export default function QueueManager() {
     const pausedCount = jobs.filter(j => j.status === 'Paused').length
 
     return (
-        <div className="fixed bottom-6 right-6 w-[350px] bg-slate-900 rounded-xl border border-slate-700 shadow-2xl overflow-hidden z-[100] flex flex-col transition-all duration-300">
+        <div className="fixed bottom-20 right-6 w-[350px] bg-slate-900 rounded-xl border border-slate-700 shadow-2xl overflow-hidden z-[100] flex flex-col transition-all duration-300">
             {/* Header */}
             <div
                 className={`px-4 py-3 flex justify-between items-center cursor-pointer select-none transition-colors ${processingCount > 0 ? 'bg-orange-600/20 hover:bg-orange-600/30 border-b border-orange-500/30' : 'bg-slate-800 hover:bg-slate-700 border-b border-slate-700'}`}
