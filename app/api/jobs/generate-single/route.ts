@@ -55,6 +55,8 @@ export async function POST(req: Request) {
             personaTrigger,
             struct.mood_and_tone,
             struct.vibe,
+            struct.time_of_day,
+            struct.location,
             struct.lighting,
             struct.outfit,
             camera,

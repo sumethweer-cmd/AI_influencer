@@ -122,6 +122,8 @@ export async function generateWeeklyPlan(trends: any, targetPersona: string, bat
           "prompt_structure": {
             "mood_and_tone": "...",
             "vibe": "...",
+            "time_of_day": "e.g. golden hour, midday sun, blue hour, late night, 3am dim room",
+            "location": "e.g. messy bedroom, rooftop bar, beach shoreline, gym locker room, hotel bathroom mirror",
             "lighting": "...",
             "outfit": "...",
             "camera_settings": ["", "", "", ""],
@@ -203,6 +205,8 @@ export async function generatePlanFromPrompt(userPrompt: string, targetPersona: 
           "prompt_structure": {
             "mood_and_tone": "...",
             "vibe": "...",
+            "time_of_day": "e.g. golden hour, midday sun, blue hour, late night, 3am dim room",
+            "location": "e.g. messy bedroom, rooftop bar, beach shoreline, gym locker room, hotel bathroom mirror",
             "lighting": "...",
             "outfit": "...",
             "camera_settings": ["", "", "", ""],
@@ -284,6 +288,8 @@ export async function generatePlanFromImage(imageBase64: string, mimeType: strin
           "prompt_structure": {
             "mood_and_tone": "...",
             "vibe": "...",
+            "time_of_day": "e.g. golden hour, midday sun, blue hour, late night, 3am dim room",
+            "location": "e.g. messy bedroom, rooftop bar, beach shoreline, gym locker room, hotel bathroom mirror",
             "lighting": "...",
             "outfit": "...",
             "camera_settings": ["", "", "", ""],
