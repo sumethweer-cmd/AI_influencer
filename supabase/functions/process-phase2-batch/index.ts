@@ -394,26 +394,29 @@ async function pollComfyUIJobs(isMock: boolean = false, mockDelay: number = 2000
 
 // --- HANDLER ---
 
-// --- WATCHDOG: Find stuck Processing jobs and retry ---
+// --- WATCHDOG: Find stuck Processing and Queued jobs ---
 async function runWatchdog(isMock: boolean, mockDelay: number) {
-    const STUCK_THRESHOLD_MINUTES = 8
-    const since = new Date(Date.now() - STUCK_THRESHOLD_MINUTES * 60 * 1000).toISOString()
+    const STUCK_PROCESSING_MINUTES = 8
+    const STUCK_QUEUED_MINUTES = 3  // Queued should trigger Edge Function fast, if stuck > 3min = problem
 
-    const { data: stuckJobs, error } = await supabase
+    const sinceLong = new Date(Date.now() - STUCK_PROCESSING_MINUTES * 60 * 1000).toISOString()
+    const sinceShort = new Date(Date.now() - STUCK_QUEUED_MINUTES * 60 * 1000).toISOString()
+
+    // --- Part 1: Fix stuck Processing jobs (retry) ---
+    const { data: stuckProcessing, error } = await supabase
         .from('production_jobs')
         .select('*')
         .eq('status', 'Processing')
-        .lt('updated_at', since)
+        .lt('updated_at', sinceLong)
 
     if (error) {
         await logSystem('ERROR', 'Watchdog', `Failed to fetch stuck jobs: ${error.message}`)
-        return { checked: 0, retried: 0 }
+        return { checked: 0, retried: 0, failedQueued: 0 }
     }
 
     let retried = 0
-    for (const stuckJob of (stuckJobs || [])) {
-        await logSystem('WARN', 'Watchdog', `Job ${stuckJob.id} stuck in Processing for > ${STUCK_THRESHOLD_MINUTES}min — retrying`)
-        // Reset to Queued so the trigger or self-call can pick it up
+    for (const stuckJob of (stuckProcessing || [])) {
+        await logSystem('WARN', 'Watchdog', `Job ${stuckJob.id} stuck in Processing for > ${STUCK_PROCESSING_MINUTES}min — retrying`)
         await supabase.from('production_jobs').update({ status: 'Queued', error_message: null, updated_at: new Date().toISOString() }).eq('id', stuckJob.id)
         const selfUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/process-phase2-batch'
         const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -426,8 +429,49 @@ async function runWatchdog(isMock: boolean, mockDelay: number) {
         retried++
     }
 
-    await logSystem('INFO', 'Watchdog', `Checked ${stuckJobs?.length || 0} stuck jobs, retried ${retried}`)
-    return { checked: stuckJobs?.length || 0, retried }
+    // --- Part 2: Fix stuck Queued jobs (Edge Function was never triggered or failed silently) ---
+    const { data: stuckQueued } = await supabase
+        .from('production_jobs')
+        .select('*')
+        .eq('status', 'Queued')
+        .lt('updated_at', sinceShort)
+
+    let failedQueued = 0
+    if (stuckQueued && stuckQueued.length > 0) {
+        // Check if Runpod is running, if not - fail all stuck Queued jobs
+        let hasRunningPod = false
+        try {
+            const activePods = await getActivePods()
+            hasRunningPod = activePods.some((p: any) => p.desiredStatus === 'RUNNING')
+        } catch (e) { hasRunningPod = false }
+
+        for (const qJob of stuckQueued) {
+            if (!hasRunningPod) {
+                // No pod running = certain fail, mark Failed immediately
+                await supabase.from('production_jobs').update({ 
+                    status: 'Failed', 
+                    error_message: 'NO_RUNNING_POD: Job was stuck in Queued and Runpod is not active.', 
+                    updated_at: new Date().toISOString() 
+                }).eq('id', qJob.id)
+                await logSystem('WARN', 'Watchdog', `Job ${qJob.id} stuck in Queued > ${STUCK_QUEUED_MINUTES}min and no Runpod running → marked Failed`)
+                failedQueued++
+            } else {
+                // Pod is running but Edge Function wasn't triggered - retry
+                await logSystem('WARN', 'Watchdog', `Job ${qJob.id} stuck in Queued > ${STUCK_QUEUED_MINUTES}min but Runpod is running → retrying`)
+                const selfUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/process-phase2-batch'
+                const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+                fetch(selfUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+                    body: JSON.stringify({ record: qJob, mock: isMock, mock_delay: mockDelay })
+                }).catch(e => console.error('Watchdog Queued retry failed:', e))
+                retried++
+            }
+        }
+    }
+
+    await logSystem('INFO', 'Watchdog', `Checked ${(stuckProcessing?.length || 0) + (stuckQueued?.length || 0)} stuck jobs, retried ${retried}, failed ${failedQueued}`)
+    return { checked: stuckProcessing?.length || 0, retried, failedQueued }
 }
 
 serve(async (req: Request) => {
