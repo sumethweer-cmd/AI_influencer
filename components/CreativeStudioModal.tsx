@@ -239,12 +239,6 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
 
     const [isRegenerating, setIsRegenerating] = useState<Record<number, boolean>>({})
     const handleRegenerate = async (index: number, regenPrompt: boolean = false) => {
-        const msg = regenPrompt
-            ? `✨ Regenerate PROMPT & IMAGE for variant ${index + 1}? This will create a completely new pose/angle.`
-            : `🔄 Regenerate IMAGE for variant ${index + 1}? (Uses existing prompt)`
-
-        if (!confirm(msg)) return
-
         setIsRegenerating(prev => ({ ...prev, [index]: true }))
         try {
             const res = await fetch('/api/jobs/generate-single', {
@@ -257,12 +251,17 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                     regenPrompt
                 })
             })
-            if (res.ok) {
-                alert('🚀 Regeneration started! Check back in a few minutes.')
+            const json = await res.json()
+            if (res.ok && json.success) {
+                alert('🚀 Regeneration job added to queue!')
                 onUpdate()
+            } else {
+                console.error('Regen API error:', json)
+                alert(`❌ Regeneration failed: ${json.error || 'Unknown error'}`)
             }
         } catch (e) {
-            alert('❌ Regeneration failed')
+            console.error('Regen request failed:', e)
+            alert('❌ Regeneration failed: Network error')
         } finally {
             setIsRegenerating(prev => ({ ...prev, [index]: false }))
         }
