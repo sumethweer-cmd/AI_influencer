@@ -132,20 +132,7 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             for (const p of pagesToExport) {
                 const page = pdfDoc.addPage([pdfWidth, pdfHeight])
 
-                // Top text
-                if (p.story_text) {
-                    page.drawText(p.story_text, {
-                        x: 40,
-                        y: pdfHeight - 50,
-                        size: 16,
-                        font: textFont,
-                        color: rgb(0, 0, 0),
-                        maxWidth: pdfWidth - 80,
-                        lineHeight: 24,
-                    })
-                }
-
-                // Image below text
+                // Image on the Left Half
                 if (p.image_url) {
                     try {
                         const imgBytes = await fetch(p.image_url).then(res => res.arrayBuffer())
@@ -156,17 +143,37 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                             embeddedImage = await pdfDoc.embedJpg(imgBytes)
                         }
 
-                        // Determine image dimensions to fit nicely in the middle
-                        const imgDims = embeddedImage.scaleToFit(pdfWidth - 80, pdfHeight - 150)
+                        // Fit inside the left half
+                        const maxImgWidth = (pdfWidth / 2) - 80
+                        const maxImgHeight = pdfHeight - 100
+                        const imgDims = embeddedImage.scaleToFit(maxImgWidth, maxImgHeight)
+
+                        // Center in the left half
+                        const imgX = (pdfWidth / 4) - (imgDims.width / 2)
+                        const imgY = (pdfHeight / 2) - (imgDims.height / 2)
+
                         page.drawImage(embeddedImage, {
-                            x: pdfWidth / 2 - imgDims.width / 2,
-                            y: 50, // 50 points from bottom
+                            x: imgX,
+                            y: imgY,
                             width: imgDims.width,
                             height: imgDims.height,
                         })
                     } catch (e) {
                         console.error('Failed to embed image for page', p.page_number, e)
                     }
+                }
+
+                // Text on the Right Half (Starting around horizontal and vertical middle)
+                if (p.story_text) {
+                    page.drawText(p.story_text, {
+                        x: (pdfWidth / 2) + 40,
+                        y: (pdfHeight / 2) + 100, // Starts a bit above the vertical center and flows down
+                        size: 24, // Larger size for landscape presentation
+                        font: textFont,
+                        color: rgb(0, 0, 0),
+                        maxWidth: (pdfWidth / 2) - 80,
+                        lineHeight: 36,
+                    })
                 }
             }
 
