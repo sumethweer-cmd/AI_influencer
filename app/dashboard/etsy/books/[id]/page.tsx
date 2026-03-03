@@ -3,6 +3,8 @@
 import React, { useState, useEffect, use, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { PDFDocument, rgb } from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
 
 export default function BookEditor({ params }: { params: Promise<{ id: string }> }) {
     const unwrappedParams = use(params)
@@ -13,6 +15,7 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
     const [generatingStory, setGeneratingStory] = useState(false)
     const [saving, setSaving] = useState(false)
     const [uploadingCover, setUploadingCover] = useState(false)
+    const [exportingPDF, setExportingPDF] = useState(false)
     const coverFileRef = useRef<HTMLInputElement>(null)
 
     // For price/sales update
@@ -90,6 +93,96 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             // no alert to be seamless
         } catch (e) {
             console.error(e)
+        }
+    }
+
+    const handleExportPdf = async () => {
+        if (!book.etsy_pages || book.etsy_pages.length === 0) return alert('No pages to export!')
+        setExportingPDF(true)
+        try {
+            const configsReq = await fetch('/api/etsy/configs').then(r => r.json())
+            const configs = configsReq.data || []
+            const widthConfig = configs.find((c: any) => c.key_name === 'ETSY_PDF_WIDTH')?.key_value || '2550'
+            const heightConfig = configs.find((c: any) => c.key_name === 'ETSY_PDF_HEIGHT')?.key_value || '3300'
+            const fontUrl = configs.find((c: any) => c.key_name === 'ETSY_FONT_URL')?.key_value
+
+            // Convert 300 DPI pixels to PDF points (1/72 inch)
+            const pdfWidth = (parseFloat(widthConfig) / 300) * 72
+            const pdfHeight = (parseFloat(heightConfig) / 300) * 72
+
+            const pdfDoc = await PDFDocument.create()
+            pdfDoc.registerFontkit(fontkit)
+
+            let customFont: any = null
+            if (fontUrl) {
+                try {
+                    const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer())
+                    customFont = await pdfDoc.embedFont(fontBytes)
+                } catch (e) {
+                    console.error('Failed to load custom font, using built-in.', e)
+                }
+            }
+
+            // Standard fonts if custom fails
+            const fallbackFont = await pdfDoc.embedFont('Helvetica-Bold')
+            const textFont = customFont || fallbackFont
+
+            const pagesToExport = [...book.etsy_pages].sort((a, b) => a.page_number - b.page_number)
+
+            for (const p of pagesToExport) {
+                const page = pdfDoc.addPage([pdfWidth, pdfHeight])
+
+                // Top text
+                if (p.story_text) {
+                    page.drawText(p.story_text, {
+                        x: 40,
+                        y: pdfHeight - 50,
+                        size: 16,
+                        font: textFont,
+                        color: rgb(0, 0, 0),
+                        maxWidth: pdfWidth - 80,
+                        lineHeight: 24,
+                    })
+                }
+
+                // Image below text
+                if (p.image_url) {
+                    try {
+                        const imgBytes = await fetch(p.image_url).then(res => res.arrayBuffer())
+                        let embeddedImage
+                        if (p.image_url.toLowerCase().endsWith('.png')) {
+                            embeddedImage = await pdfDoc.embedPng(imgBytes)
+                        } else {
+                            embeddedImage = await pdfDoc.embedJpg(imgBytes)
+                        }
+
+                        // Determine image dimensions to fit nicely in the middle
+                        const imgDims = embeddedImage.scaleToFit(pdfWidth - 80, pdfHeight - 150)
+                        page.drawImage(embeddedImage, {
+                            x: pdfWidth / 2 - imgDims.width / 2,
+                            y: 50, // 50 points from bottom
+                            width: imgDims.width,
+                            height: imgDims.height,
+                        })
+                    } catch (e) {
+                        console.error('Failed to embed image for page', p.page_number, e)
+                    }
+                }
+            }
+
+            const pdfBytes = await pdfDoc.save()
+            const blob = new Blob([pdfBytes as any], { type: 'application/pdf' })
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `${book.title}_ColoringBook.pdf`
+            link.click()
+            URL.revokeObjectURL(url)
+
+        } catch (e: any) {
+            alert('Export PDF error: ' + e.message)
+        } finally {
+            setExportingPDF(false)
         }
     }
 
@@ -230,7 +323,13 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                     {book.etsy_pages?.length > 0 && (
                         <div className="flex gap-2">
                             <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-bold border border-slate-700">🎨 Bulk Generate Images</button>
-                            <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-bold shadow-lg shadow-emerald-500/20">📄 Export Final PDF</button>
+                            <button
+                                onClick={handleExportPdf}
+                                disabled={exportingPDF}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-wait rounded-lg text-sm font-bold shadow-lg shadow-emerald-500/20"
+                            >
+                                {exportingPDF ? '📄 Generating PDF...' : '📄 Export Final PDF'}
+                            </button>
                         </div>
                     )}
                 </div>
