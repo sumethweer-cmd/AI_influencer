@@ -110,10 +110,8 @@ export default function SettingsPage() {
                                         onChange={(e) => handleUpdate(config, e.target.value)}
                                         className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm font-mono focus:border-orange-500 outline-none transition-colors"
                                     >
-                                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Default)</option>
-                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (High Quality)</option>
-                                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast)</option>
-                                        <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Experimental)</option>
+                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                        <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
                                     </select>
                                 ) : (
                                     <input

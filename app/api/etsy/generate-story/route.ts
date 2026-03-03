@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         const systemPrompt = promptConfig?.key_value || 'You are an expert children story book author.'
 
         // Call Gemini
-        const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+        const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
         const genAI = new GoogleGenerativeAI(apiKey)
         const model = genAI.getGenerativeModel({ model: modelName })
 

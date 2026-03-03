@@ -78,7 +78,7 @@ export async function generateWeeklyPlan(trends: any, targetPersona: string, bat
   const systemInstruction = await getConfig('PHASE1_SYSTEM_INSTRUCTION') || 'Generate 21 content items following storylines.'
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
   const model = genAI.getGenerativeModel({ model: modelName })
 
   const prompt = `
@@ -168,7 +168,7 @@ export async function generatePlanFromPrompt(userPrompt: string, targetPersona: 
   const systemInstruction = await getConfig('PHASE1_SYSTEM_INSTRUCTION') || 'Generate 21 content items following storylines.'
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
   const model = genAI.getGenerativeModel({ model: modelName })
   const prompt = `
     You are the Creative Director of Nong Kung Agency, managing an AI Influencer.
@@ -253,7 +253,7 @@ export async function generatePlanFromImage(imageBase64: string, mimeType: strin
   const jsonSchema = await getConfig('PHASE1_JSON_SCHEMA') || '{}'
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
   const model = genAI.getGenerativeModel({ model: modelName })
   const prompt = `
     You are the Creative Director of Nong Kung Agency.
@@ -342,7 +342,7 @@ export async function performImageQC(imagePath: string, prompt: string): Promise
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
   const visionModel = genAI.getGenerativeModel({ model: modelName })
 
   // Note: Implementation will require fetching local image and converting to base64
@@ -387,7 +387,7 @@ export async function refillPromptStructure(item: any, targetBatchSize: number):
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
   const model = genAI.getGenerativeModel({ model: modelName })
 
   const currentCount = item.prompt_structure?.poses?.length || 0
@@ -442,7 +442,7 @@ export async function regenerateContentPrompts(item: any, mode: 'SFW' | 'NSFW' |
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
   const model = genAI.getGenerativeModel({ model: modelName })
 
   const batchSize = item.batch_size || 4
@@ -518,7 +518,7 @@ export async function refillSinglePrompt(item: any, index: number, type: 'SFW' |
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
   const model = genAI.getGenerativeModel({ model: modelName })
 
   const prompt = `

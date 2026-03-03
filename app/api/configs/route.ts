@@ -14,7 +14,7 @@ export async function GET() {
         if (!data || data.length === 0) {
             const defaults = [
                 { key_name: 'GEMINI_API_KEY', key_value: '', description: '🔑 ไปที่ Google AI Studio (aistudio.google.com) > Create API Key > Copy มาวางที่นี่ (ใช้สำหรับวิเคราะห์เทรนด์และ QC)', is_secret: true },
-                { key_name: 'GEMINI_MODEL_NAME', key_value: 'gemini-1.5-flash', description: '🤖 รุ่นของ Gemini ที่ต้องการใช้งาน (แนะนำ: gemini-1.5-flash หรือ gemini-2.0-flash)', is_secret: false },
+                { key_name: 'GEMINI_MODEL_NAME', key_value: 'gemini-2.5-flash', description: '🤖 รุ่นของ Gemini ที่ต้องการใช้งาน (แนะนำ: gemini-2.5-flash หรือ gemini-3-flash-preview)', is_secret: false },
                 { key_name: 'APIFY_API_TOKEN', key_value: '', description: '🌐 ไปที่ Apify Console > Settings > Integrations > Copy API Token (ใช้สำหรับขูดข้อมูลเทรนด์)', is_secret: true },
                 { key_name: 'RUNPOD_API_KEY', key_value: '', description: '☁️ ไปที่ Runpod Console > Settings > API Keys > Create New Key (ใช้สำหรับเปิดเครื่อง GPU เจนรูป)', is_secret: true },
                 { key_name: 'RUNPOD_TEMPLATE_ID', key_value: '', description: '📋 ใส่ Template ID ของ ComfyUI (ถ้าไม่มีจะใช้ค่าเริ่มต้นให้)', is_secret: false },
@@ -101,8 +101,8 @@ Generate 21 content items. Return ONLY a valid JSON following this structure:
             if (!hasModelConfig) {
                 await supabaseAdmin.from('system_configs').insert({
                     key_name: 'GEMINI_MODEL_NAME',
-                    key_value: 'gemini-1.5-flash',
-                    description: '🤖 รุ่นของ Gemini ที่ต้องการใช้งาน (แนะนำ: gemini-1.5-flash หรือ gemini-2.0-flash)',
+                    key_value: 'gemini-2.5-flash',
+                    description: '🤖 รุ่นของ Gemini ที่ต้องการใช้งาน (แนะนำ: gemini-2.5-flash หรือ gemini-3-flash-preview)',
                     is_secret: false
                 })
                 // Fetch again
