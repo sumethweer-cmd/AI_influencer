@@ -104,15 +104,29 @@ export default function SettingsPage() {
                             </div>
 
                             <div className="flex flex-col md:flex-row gap-3">
-                                <input
-                                    type={config.is_secret ? "password" : "text"}
-                                    defaultValue={config.key_value}
-                                    onBlur={(e) => {
-                                        if (e.target.value !== config.key_value) handleUpdate(config, e.target.value)
-                                    }}
-                                    placeholder={`Enter ${config.key_name}...`}
-                                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm font-mono focus:border-orange-500 outline-none transition-colors"
-                                />
+                                {config.key_name === 'GEMINI_MODEL_NAME' ? (
+                                    <select
+                                        defaultValue={config.key_value}
+                                        onChange={(e) => handleUpdate(config, e.target.value)}
+                                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm font-mono focus:border-orange-500 outline-none transition-colors"
+                                    >
+                                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast & Stable)</option>
+                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (High Quality)</option>
+                                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Balanced)</option>
+                                        <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
+                                        <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Experimental)</option>
+                                    </select>
+                                ) : (
+                                    <input
+                                        type={config.is_secret ? "password" : "text"}
+                                        defaultValue={config.key_value}
+                                        onBlur={(e) => {
+                                            if (e.target.value !== config.key_value) handleUpdate(config, e.target.value)
+                                        }}
+                                        placeholder={`Enter ${config.key_name}...`}
+                                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm font-mono focus:border-orange-500 outline-none transition-colors"
+                                    />
+                                )}
                                 <button
                                     onClick={() => testConnection(config)}
                                     disabled={saving === config.id || saving === config.id + '-test' || !config.key_value}

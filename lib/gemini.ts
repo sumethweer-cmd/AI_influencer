@@ -78,7 +78,8 @@ export async function generateWeeklyPlan(trends: any, targetPersona: string, bat
   const systemInstruction = await getConfig('PHASE1_SYSTEM_INSTRUCTION') || 'Generate 21 content items following storylines.'
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const model = genAI.getGenerativeModel({ model: modelName })
 
   const prompt = `
     You are the Technical Director of Nong Kung Agency.
@@ -148,7 +149,7 @@ export async function generateWeeklyPlan(trends: any, targetPersona: string, bat
       inputTokens: usage.promptTokenCount,
       outputTokens: usage.candidatesTokenCount,
       totalTokens: usage.totalTokenCount,
-      model: 'gemini-3-flash-preview'
+      model: modelName
     })
   }
 
@@ -167,7 +168,8 @@ export async function generatePlanFromPrompt(userPrompt: string, targetPersona: 
   const systemInstruction = await getConfig('PHASE1_SYSTEM_INSTRUCTION') || 'Generate 21 content items following storylines.'
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const model = genAI.getGenerativeModel({ model: modelName })
   const prompt = `
     You are the Creative Director of Nong Kung Agency, managing an AI Influencer.
     The client has requested the following theme / idea for this week: "${userPrompt}"
@@ -231,7 +233,7 @@ export async function generatePlanFromPrompt(userPrompt: string, targetPersona: 
       inputTokens: usage.promptTokenCount,
       outputTokens: usage.candidatesTokenCount,
       totalTokens: usage.totalTokenCount,
-      model: 'gemini-3-flash-preview'
+      model: modelName
     })
   }
 
@@ -251,10 +253,11 @@ export async function generatePlanFromImage(imageBase64: string, mimeType: strin
   const jsonSchema = await getConfig('PHASE1_JSON_SCHEMA') || '{}'
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const model = genAI.getGenerativeModel({ model: modelName })
   const prompt = `
     You are the Creative Director of Nong Kung Agency.
-    Analyze the provided reference image. Identify the lighting, style, subject's pose, clothing, and overall mood.
+    Analyze the provided reference image. Identify the lighting, style, subject's some, clothing, and overall mood.
     ${customInstruction ? `Additional Instructions: ${customInstruction}` : ''}
 
     Task: Using the extracted style from the image, generate a 'Weekly Content Matrix' for an AI Influencer (21 items).
@@ -321,7 +324,7 @@ export async function generatePlanFromImage(imageBase64: string, mimeType: strin
       inputTokens: usage.promptTokenCount,
       outputTokens: usage.candidatesTokenCount,
       totalTokens: usage.totalTokenCount,
-      model: 'gemini-3-flash-preview'
+      model: modelName
     })
   }
 
@@ -339,7 +342,8 @@ export async function performImageQC(imagePath: string, prompt: string): Promise
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const visionModel = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const visionModel = genAI.getGenerativeModel({ model: modelName })
 
   // Note: Implementation will require fetching local image and converting to base64
   // This is a placeholder for the logic structure
@@ -383,7 +387,8 @@ export async function refillPromptStructure(item: any, targetBatchSize: number):
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const model = genAI.getGenerativeModel({ model: modelName })
 
   const currentCount = item.prompt_structure?.poses?.length || 0
   if (currentCount >= targetBatchSize) return item.prompt_structure
@@ -437,7 +442,8 @@ export async function regenerateContentPrompts(item: any, mode: 'SFW' | 'NSFW' |
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const model = genAI.getGenerativeModel({ model: modelName })
 
   const batchSize = item.batch_size || 4
 
@@ -512,7 +518,8 @@ export async function refillSinglePrompt(item: any, index: number, type: 'SFW' |
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+  const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
+  const model = genAI.getGenerativeModel({ model: modelName })
 
   const prompt = `
       You are the Creative Director. We need to REGENERATE specific elements for image index ${index} of this content:

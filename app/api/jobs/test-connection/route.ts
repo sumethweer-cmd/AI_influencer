@@ -18,8 +18,9 @@ export async function POST(request: Request) {
 
         switch (keyName) {
             case 'GEMINI_API_KEY':
+                const modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-1.5-flash'
                 const genAI = new GoogleGenerativeAI(key)
-                const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+                const model = genAI.getGenerativeModel({ model: modelName })
                 await model.generateContent('Hi')
                 success = true
                 break
