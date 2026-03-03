@@ -1168,6 +1168,28 @@ function PromptEditorModal({
         }
     }
 
+    const [isGeneratingImg, setIsGeneratingImg] = React.useState(false)
+    const handleGenBatch = async (mode: 'SFW' | 'NSFW' | 'ALL') => {
+        setIsGeneratingImg(true)
+        try {
+            const res = await fetch('/api/jobs/generate-batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contentId: item.id, mode })
+            })
+            const data = await res.json()
+            if (data.success) {
+                alert(`🚀 Successfully queued ${data.queuedCount} ${mode} images for generation. They will process in the background.`)
+            } else {
+                alert(`❌ Failed: ${data.error}`)
+            }
+        } catch (e) {
+            alert('❌ Queuing failed')
+        } finally {
+            setIsGeneratingImg(false)
+        }
+    }
+
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
             <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl w-full max-w-5xl shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
@@ -1289,7 +1311,19 @@ function PromptEditorModal({
                     </div>
                 </div>
 
-                <div className="mt-8 pt-4 border-t border-slate-800 flex justify-end gap-3">
+                <div className="mt-8 pt-4 border-t border-slate-800 flex justify-between items-center">
+                    <div className="flex gap-2">
+                        <span className="text-sm font-bold text-slate-400 mr-2 flex items-center">🎨 Queues Images:</span>
+                        <button onClick={() => handleGenBatch('SFW')} disabled={isGeneratingImg} className="px-3 py-2 bg-slate-800 border border-emerald-500/50 hover:bg-emerald-600/20 text-emerald-400 rounded-lg text-xs font-bold transition-all disabled:opacity-50">
+                            GEN SFW ONLY
+                        </button>
+                        <button onClick={() => handleGenBatch('NSFW')} disabled={isGeneratingImg} className="px-3 py-2 bg-slate-800 border border-pink-500/50 hover:bg-pink-600/20 text-pink-400 rounded-lg text-xs font-bold transition-all disabled:opacity-50">
+                            GEN NSFW ONLY
+                        </button>
+                        <button onClick={() => handleGenBatch('ALL')} disabled={isGeneratingImg} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50">
+                            {isGeneratingImg ? 'QUEUEING...' : 'GEN ALL IMAGES'}
+                        </button>
+                    </div>
                     <button onClick={onClose} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-xl text-sm font-bold transition-all shadow-lg active:scale-95 flex items-center gap-2">
                         <span>💾</span> Save & Close
                     </button>
