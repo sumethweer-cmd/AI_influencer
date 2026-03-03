@@ -105,6 +105,8 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             const widthConfig = configs.find((c: any) => c.key_name === 'ETSY_PDF_WIDTH')?.key_value || '2550'
             const heightConfig = configs.find((c: any) => c.key_name === 'ETSY_PDF_HEIGHT')?.key_value || '3300'
             const fontUrl = configs.find((c: any) => c.key_name === 'ETSY_FONT_URL')?.key_value
+            const fontSizeConfig = configs.find((c: any) => c.key_name === 'ETSY_FONT_SIZE')?.key_value || '36'
+            const fontSize = parseInt(fontSizeConfig, 10) || 36
 
             // Convert 300 DPI pixels to PDF points (1/72 inch)
             const pdfWidth = (parseFloat(widthConfig) / 300) * 72
@@ -165,14 +167,17 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                 }
 
                 // Right Half for Book Title
-                coverPage.drawText(book.title || 'Coloring Book', {
-                    x: leftZoneWidth + 20,
-                    y: (pdfHeight / 2) + 40, // Centered vertically
-                    size: 40, // Large size for Title
+                const titleText = book.title || 'Coloring Book'
+                const titleSize = fontSize * 1.5 // Make title 1.5x larger than body
+                const titleWidth = textFont.widthOfTextAtSize(titleText, titleSize)
+                const titleX = leftZoneWidth + (rightZoneWidth / 2) - (titleWidth / 2)
+
+                coverPage.drawText(titleText, {
+                    x: titleX,
+                    y: (pdfHeight / 2), // Centered vertically
+                    size: titleSize,
                     font: textFont,
                     color: rgb(0, 0, 0),
-                    maxWidth: rightZoneWidth - 60,
-                    lineHeight: 48,
                 })
             }
 
@@ -210,15 +215,39 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
 
                 // Text on the Right Half (35%)
                 if (p.story_text) {
-                    page.drawText(p.story_text, {
-                        x: leftZoneWidth + 20,
-                        y: (pdfHeight / 2) + 100, // Starts a bit above the vertical center and flows down
-                        size: 24,
-                        font: textFont,
-                        color: rgb(0, 0, 0),
-                        maxWidth: rightZoneWidth - 60,
-                        lineHeight: 36,
-                    })
+                    const boxWidth = rightZoneWidth - 60;
+                    const boxX = leftZoneWidth + 30; // Center in the right 35% zone
+                    const words = p.story_text.split(/\s+/);
+                    const lines: string[] = [];
+                    let currentLine = words[0] || '';
+
+                    for (let i = 1; i < words.length; i++) {
+                        const word = words[i];
+                        const width = textFont.widthOfTextAtSize(currentLine + " " + word, fontSize);
+                        if (width < boxWidth) {
+                            currentLine += " " + word;
+                        } else {
+                            lines.push(currentLine);
+                            currentLine = word;
+                        }
+                    }
+                    if (currentLine) lines.push(currentLine);
+
+                    const lineHeight = fontSize * 1.5;
+                    const totalTextHeight = lines.length * lineHeight;
+                    let currentY = (pdfHeight / 2) + (totalTextHeight / 2) - lineHeight;
+
+                    for (const line of lines) {
+                        const lineWidth = textFont.widthOfTextAtSize(line, fontSize);
+                        page.drawText(line, {
+                            x: boxX + (boxWidth / 2) - (lineWidth / 2),
+                            y: currentY,
+                            size: fontSize,
+                            font: textFont,
+                            color: rgb(0, 0, 0),
+                        })
+                        currentY -= lineHeight;
+                    }
                 }
             }
 

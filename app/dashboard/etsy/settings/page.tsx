@@ -137,7 +137,7 @@ export default function EtsySettings() {
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
                     <h3 className="text-xl font-bold text-slate-200">📏 Layout & Dimensions</h3>
                     <div className="space-y-4">
-                        {configs.filter(c => c.key_name.includes('WIDTH') || c.key_name.includes('HEIGHT')).map(c => (
+                        {configs.filter(c => c.key_name.includes('WIDTH') || c.key_name.includes('HEIGHT') || c.key_name === 'ETSY_FONT_SIZE').map(c => (
                             <div key={c.id}>
                                 <label className="text-sm font-bold text-slate-400 mb-1 flex justify-between">
                                     {c.key_name}
