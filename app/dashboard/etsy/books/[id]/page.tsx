@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, use, useRef } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
 export default function BookEditor({ params }: { params: Promise<{ id: string }> }) {
     const unwrappedParams = use(params)
@@ -97,28 +98,27 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
         if (!file) return
 
         setUploadingCover(true)
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('folder', 'covers')
 
         try {
-            const res = await fetch('/api/etsy/upload-asset', {
-                method: 'POST',
-                body: formData
-            }).then(r => r.json())
+            const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+            const fileName = `covers/${Date.now()}-${cleanName}`
 
-            if (res.success) {
-                await fetch(`/api/etsy/books/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cover_image_url: res.url })
-                })
-                fetchBook()
-            } else {
-                alert('Upload failed: ' + res.error)
-            }
+            const { data, error } = await supabase.storage
+                .from('etsy-assets')
+                .upload(fileName, file, { upsert: true })
+
+            if (error) throw error
+
+            const { data: { publicUrl } } = supabase.storage.from('etsy-assets').getPublicUrl(fileName)
+
+            await fetch(`/api/etsy/books/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cover_image_url: publicUrl })
+            })
+            fetchBook()
         } catch (e: any) {
-            alert('Error: ' + e.message)
+            alert('Upload Error: ' + e.message)
         } finally {
             setUploadingCover(false)
             if (coverFileRef.current) coverFileRef.current.value = ''
@@ -277,28 +277,27 @@ function PageCard({ page, onSave, onImageUploaded }: { page: any, onSave: (txt: 
         if (!file) return
 
         setUploading(true)
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('folder', 'custom_images')
 
         try {
-            const res = await fetch('/api/etsy/upload-asset', {
-                method: 'POST',
-                body: formData
-            }).then(r => r.json())
+            const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+            const fileName = `custom_images/${Date.now()}-${cleanName}`
 
-            if (res.success) {
-                await fetch(`/api/etsy/pages/${page.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image_url: res.url, status: 'Completed' })
-                })
-                onImageUploaded()
-            } else {
-                alert('Upload failed: ' + res.error)
-            }
+            const { data, error } = await supabase.storage
+                .from('etsy-assets')
+                .upload(fileName, file, { upsert: true })
+
+            if (error) throw error
+
+            const { data: { publicUrl } } = supabase.storage.from('etsy-assets').getPublicUrl(fileName)
+
+            await fetch(`/api/etsy/pages/${page.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image_url: publicUrl, status: 'Completed' })
+            })
+            onImageUploaded()
         } catch (e: any) {
-            alert('Error: ' + e.message)
+            alert('Upload Error: ' + e.message)
         } finally {
             setUploading(false)
             if (fileRef.current) fileRef.current.value = ''
