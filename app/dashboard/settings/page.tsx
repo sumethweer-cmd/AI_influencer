@@ -104,16 +104,15 @@ export default function SettingsPage() {
                             </div>
 
                             <div className="flex flex-col md:flex-row gap-3">
-                                {config.key_name === 'GEMINI_MODEL_NAME' ? (
+                                {config.key_name.trim().toUpperCase() === 'GEMINI_MODEL_NAME' ? (
                                     <select
-                                        defaultValue={config.key_value}
+                                        value={config.key_value}
                                         onChange={(e) => handleUpdate(config, e.target.value)}
                                         className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm font-mono focus:border-orange-500 outline-none transition-colors"
                                     >
-                                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast & Stable)</option>
+                                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Default)</option>
                                         <option value="gemini-1.5-pro">Gemini 1.5 Pro (High Quality)</option>
-                                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Balanced)</option>
-                                        <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
+                                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast)</option>
                                         <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Experimental)</option>
                                     </select>
                                 ) : (
