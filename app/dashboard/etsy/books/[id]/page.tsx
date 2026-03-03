@@ -226,25 +226,32 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             {/* Header section */}
             <header className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
                 {/* Cover Image Area */}
-                <div
-                    className="relative w-24 h-32 shrink-0 bg-slate-950 border border-slate-700 rounded-lg overflow-hidden group cursor-pointer shadow-lg"
-                    onClick={() => coverFileRef.current?.click()}
-                >
-                    {book.cover_image_url ? (
-                        <img src={book.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
-                    ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 p-2">
-                            <span className="text-3xl mb-1 opacity-50">📘</span>
-                            <span className="text-[10px] font-bold text-center leading-tight">Click to Add Cover</span>
-                        </div>
-                    )}
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                    <div
+                        className="relative w-32 h-44 bg-slate-950 border-2 border-dashed border-slate-600 hover:border-purple-500 rounded-lg overflow-hidden group cursor-pointer shadow-lg transition-colors"
+                        onClick={() => coverFileRef.current?.click()}
+                    >
+                        {book.cover_image_url ? (
+                            <img src={book.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 p-2">
+                                <span className="text-4xl mb-2 opacity-50">📘</span>
+                                <span className="text-xs font-bold text-center leading-tight">Click to<br />Upload Cover</span>
+                            </div>
+                        )}
 
-                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2 text-center">
-                        <span className="text-white text-xs font-bold leading-tight">
-                            {uploadingCover ? 'Uploading...' : 'Upload Cover'}
-                        </span>
+                        <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2 text-center">
+                            <span className="text-white text-xs font-bold leading-tight">
+                                {uploadingCover ? 'Uploading...' : 'Change Cover'}
+                            </span>
+                        </div>
+                        <input type="file" ref={coverFileRef} className="hidden" accept="image/*" onChange={handleUploadCover} />
                     </div>
-                    <input type="file" ref={coverFileRef} className="hidden" accept="image/*" onChange={handleUploadCover} />
+                    <div className="text-center">
+                        <span className="text-xs font-bold text-slate-300 block">Cover Image</span>
+                        <span className="text-[10px] text-slate-500 block">Rec. Ratio ~1:1.3</span>
+                        <span className="text-[10px] text-slate-500 block">(e.g. 1024x1350)</span>
+                    </div>
                 </div>
 
                 <div className="flex-1">
@@ -417,30 +424,33 @@ function PageCard({ page, onSave, onImageUploaded }: { page: any, onSave: (txt: 
 
             <div className="p-4 flex-grow flex flex-col gap-4">
                 {/* Image Placeholder / Viewer */}
-                <div className="aspect-square bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center relative group overflow-hidden">
-                    {page.image_url ? (
-                        <img src={page.image_url} alt={`Page ${page.page_number}`} className="w-full h-full object-contain" />
-                    ) : (
-                        <div className="text-center p-4">
-                            <span className="text-3xl opacity-50 block mb-2">🖼️</span>
-                            <span className="text-xs text-slate-500 font-medium">No Image Generated</span>
-                        </div>
-                    )}
+                <div>
+                    <div className="aspect-square bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center relative group overflow-hidden mb-2">
+                        {page.image_url ? (
+                            <img src={page.image_url} alt={`Page ${page.page_number}`} className="w-full h-full object-contain" />
+                        ) : (
+                            <div className="text-center p-4">
+                                <span className="text-3xl opacity-50 block mb-2">🖼️</span>
+                                <span className="text-xs text-slate-500 font-medium pb-2 block border-b border-slate-800">No Image Generated</span>
+                                <span className="text-[10px] text-slate-600 font-medium block mt-2">Recommended: 1:1 Ratio<br />(e.g. 1024x1024)</span>
+                            </div>
+                        )}
 
-                    {/* Hover Action */}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3">
-                        <button className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-bold shadow-lg w-40">
-                            {page.image_url ? 'Regenerate' : 'Generate'}
-                        </button>
-                        <button
-                            onClick={() => fileRef.current?.click()}
-                            disabled={uploading}
-                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg text-sm font-bold shadow-lg w-40"
-                        >
-                            {uploading ? 'Uploading...' : 'Upload Custom'}
-                        </button>
+                        {/* Hover Action */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3">
+                            <button className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-bold shadow-lg w-40">
+                                {page.image_url ? 'Regenerate' : 'Generate AI'}
+                            </button>
+                            <button
+                                onClick={() => fileRef.current?.click()}
+                                disabled={uploading}
+                                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg text-sm font-bold shadow-lg w-40 border border-slate-500"
+                            >
+                                {uploading ? 'Uploading...' : 'Upload Custom'}
+                            </button>
+                        </div>
+                        <input type="file" ref={fileRef} className="hidden" accept="image/*" onChange={handleUpload} />
                     </div>
-                    <input type="file" ref={fileRef} className="hidden" accept="image/*" onChange={handleUpload} />
                 </div>
 
                 {/* Text Editor */}
