@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, use } from 'react'
+import React, { useState, useEffect, use, useRef } from 'react'
 import Link from 'next/link'
 
 export default function BookEditor({ params }: { params: Promise<{ id: string }> }) {
@@ -11,6 +11,8 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
     const [loading, setLoading] = useState(true)
     const [generatingStory, setGeneratingStory] = useState(false)
     const [saving, setSaving] = useState(false)
+    const [uploadingCover, setUploadingCover] = useState(false)
+    const coverFileRef = useRef<HTMLInputElement>(null)
 
     // For price/sales update
     const [isEditingMetrics, setIsEditingMetrics] = useState(false)
@@ -90,6 +92,39 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
         }
     }
 
+    const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setUploadingCover(true)
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('folder', 'covers')
+
+        try {
+            const res = await fetch('/api/etsy/upload-asset', {
+                method: 'POST',
+                body: formData
+            }).then(r => r.json())
+
+            if (res.success) {
+                await fetch(`/api/etsy/books/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cover_image_url: res.url })
+                })
+                fetchBook()
+            } else {
+                alert('Upload failed: ' + res.error)
+            }
+        } catch (e: any) {
+            alert('Error: ' + e.message)
+        } finally {
+            setUploadingCover(false)
+            if (coverFileRef.current) coverFileRef.current.value = ''
+        }
+    }
+
     if (loading) return <div className="p-8">Loading Book Workspace...</div>
     if (!book) return <div className="p-8">Book not found!</div>
 
@@ -97,6 +132,28 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
         <div className="flex flex-col gap-8 max-w-7xl mx-auto pb-20">
             {/* Header section */}
             <header className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
+                {/* Cover Image Area */}
+                <div
+                    className="relative w-24 h-32 shrink-0 bg-slate-950 border border-slate-700 rounded-lg overflow-hidden group cursor-pointer shadow-lg"
+                    onClick={() => coverFileRef.current?.click()}
+                >
+                    {book.cover_image_url ? (
+                        <img src={book.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 p-2">
+                            <span className="text-3xl mb-1 opacity-50">📘</span>
+                            <span className="text-[10px] font-bold text-center leading-tight">Click to Add Cover</span>
+                        </div>
+                    )}
+
+                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2 text-center">
+                        <span className="text-white text-xs font-bold leading-tight">
+                            {uploadingCover ? 'Uploading...' : 'Upload Cover'}
+                        </span>
+                    </div>
+                    <input type="file" ref={coverFileRef} className="hidden" accept="image/*" onChange={handleUploadCover} />
+                </div>
+
                 <div className="flex-1">
                     <Link href="/dashboard/etsy" className="text-sm text-purple-400 hover:text-purple-300 mb-2 inline-block">← Back to Books</Link>
                     <h2 className="text-3xl font-bold flex items-center gap-3">
@@ -192,6 +249,7 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                                     key={page.id}
                                     page={page}
                                     onSave={(txt, pmt) => savePageText(page.id, txt, pmt)}
+                                    onImageUploaded={fetchBook}
                                 />
                             )
                         })}
@@ -202,14 +260,49 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
     )
 }
 
-function PageCard({ page, onSave }: { page: any, onSave: (txt: string, pmt: string) => void }) {
+function PageCard({ page, onSave, onImageUploaded }: { page: any, onSave: (txt: string, pmt: string) => void, onImageUploaded: () => void }) {
     const [text, setText] = useState(page.story_text)
     const [prompt, setPrompt] = useState(page.image_prompt)
     const [isEdited, setIsEdited] = useState(false)
+    const [uploading, setUploading] = useState(false)
+    const fileRef = useRef<HTMLInputElement>(null)
 
     const handleSave = () => {
         onSave(text, prompt)
         setIsEdited(false)
+    }
+
+    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setUploading(true)
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('folder', 'custom_images')
+
+        try {
+            const res = await fetch('/api/etsy/upload-asset', {
+                method: 'POST',
+                body: formData
+            }).then(r => r.json())
+
+            if (res.success) {
+                await fetch(`/api/etsy/pages/${page.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_url: res.url, status: 'Completed' })
+                })
+                onImageUploaded()
+            } else {
+                alert('Upload failed: ' + res.error)
+            }
+        } catch (e: any) {
+            alert('Error: ' + e.message)
+        } finally {
+            setUploading(false)
+            if (fileRef.current) fileRef.current.value = ''
+        }
     }
 
     return (
@@ -237,11 +330,19 @@ function PageCard({ page, onSave }: { page: any, onSave: (txt: string, pmt: stri
                     )}
 
                     {/* Hover Action */}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-bold shadow-lg">
-                            {page.image_url ? 'Regenerate' : 'Generate Image'}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3">
+                        <button className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-bold shadow-lg w-40">
+                            {page.image_url ? 'Regenerate' : 'Generate'}
+                        </button>
+                        <button
+                            onClick={() => fileRef.current?.click()}
+                            disabled={uploading}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg text-sm font-bold shadow-lg w-40"
+                        >
+                            {uploading ? 'Uploading...' : 'Upload Custom'}
                         </button>
                     </div>
+                    <input type="file" ref={fileRef} className="hidden" accept="image/*" onChange={handleUpload} />
                 </div>
 
                 {/* Text Editor */}
