@@ -963,6 +963,14 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                             <span className="text-[10px] text-slate-500 font-bold">#{item.sequence_number}</span>
                         </div>
                         <h3 className="font-bold text-white leading-tight line-clamp-2 min-h-[2.5rem]" title={item.topic}>{item.topic}</h3>
+                        {item.prompt_structure?.outfit && (
+                            <div className="flex items-center gap-1.5 mt-2 overflow-hidden" title={`Outfit: ${item.prompt_structure.outfit}`}>
+                                <span className="text-xs">👘</span>
+                                <span className="text-[10px] font-medium text-slate-400 truncate tracking-wide uppercase italic">
+                                    {item.prompt_structure.outfit}
+                                </span>
+                            </div>
+                        )}
                     </div>
                     {/* Phase 3: Permanent Creative Studio Button - High Fidelity */}
                     <button
