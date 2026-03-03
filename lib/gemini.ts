@@ -430,6 +430,81 @@ export async function refillPromptStructure(item: any, targetBatchSize: number):
 }
 
 /**
+ * Regenerate entire sets of SFW, NSFW, or ALL prompts for a content item
+ */
+export async function regenerateContentPrompts(item: any, mode: 'SFW' | 'NSFW' | 'ALL'): Promise<any> {
+  const apiKey = await getConfig('GEMINI_API_KEY')
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
+
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+
+  const batchSize = item.batch_size || 4
+
+  let taskDescription = ''
+  let jsonFormat = ''
+
+  if (mode === 'ALL') {
+    taskDescription = `Generate EXACTLY ${batchSize} SETS of 'camera_settings', 'poses', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw'.`
+    jsonFormat = `{
+      "camera_settings": ["..."],
+      "poses": ["..."],
+      "nsfw_prompts": ["..."],
+      "vdo_prompts": ["..."],
+      "vdo_prompts_nsfw": ["..."]
+    }`
+  } else if (mode === 'SFW') {
+    taskDescription = `Generate EXACTLY ${batchSize} SETS of 'camera_settings', 'poses', and 'vdo_prompts'. Do not generate NSFW modifiers.`
+    jsonFormat = `{
+      "camera_settings": ["..."],
+      "poses": ["..."],
+      "vdo_prompts": ["..."]
+    }`
+  } else if (mode === 'NSFW') {
+    taskDescription = `Generate EXACTLY ${batchSize} SETS of 'nsfw_prompts' and 'vdo_prompts_nsfw' based on these existing poses: ${JSON.stringify(item.prompt_structure?.poses || [])}.`
+    jsonFormat = `{
+      "nsfw_prompts": ["..."],
+      "vdo_prompts_nsfw": ["..."]
+    }`
+  }
+
+  const prompt = `
+    You are the Creative Director. We are REGENERATING parts of a content series.
+    Context:
+    Topic: "${item.topic || ''}"
+    Theme: "${item.theme || ''}"
+    Persona: "${item.persona || ''}"
+    
+    Task: ${taskDescription}
+    CRITICAL: For 'vdo_prompts' and 'vdo_prompts_nsfw', provide 15-second cinematic motion descriptions.
+    CRITICAL NSFW RULE: When generating 'nsfw_prompts' and 'vdo_prompts_nsfw', they must be extremely provocative, spicy, and explicit.
+
+    Return ONLY the new elements as a JSON object exactly matching this format:
+    ${jsonFormat}
+  `
+
+  const result = await model.generateContent(prompt)
+  const response = await result.response
+  const text = response.text()
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error(`Failed to parse regenerate JSON for mode ${mode}`)
+  const newItems = JSON.parse(jsonMatch[0])
+
+  const ps = { ...item.prompt_structure }
+  if (mode === 'ALL' || mode === 'SFW') {
+    ps.camera_settings = newItems.camera_settings || Array(batchSize).fill('')
+    ps.poses = newItems.poses || Array(batchSize).fill('')
+    ps.vdo_prompts = newItems.vdo_prompts || Array(batchSize).fill('')
+  }
+  if (mode === 'ALL' || mode === 'NSFW') {
+    ps.nsfw_prompts = newItems.nsfw_prompts || Array(batchSize).fill('')
+    ps.vdo_prompts_nsfw = newItems.vdo_prompts_nsfw || Array(batchSize).fill('')
+  }
+
+  return ps
+}
+
+/**
  * Phase 1.9: Regenerate a single specific prompt index
  */
 export async function refillSinglePrompt(item: any, index: number, type: 'SFW' | 'NSFW' | 'VDO'): Promise<any> {
