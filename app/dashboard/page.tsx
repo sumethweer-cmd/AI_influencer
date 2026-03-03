@@ -142,12 +142,12 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 p-4 lg:p-0">
             {/* Left Sidebar Persona Tab */}
             <aside className="w-full lg:w-64 shrink-0 space-y-4">
-                <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-4 sticky top-8">
-                    <h3 className="text-sm font-bold text-slate-400 mb-4 px-2 tracking-wider">PERSONA VIEW</h3>
-                    <div className="flex flex-col gap-2">
+                <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-4 lg:sticky lg:top-8 overflow-x-auto lg:overflow-x-visible hide-scrollbar">
+                    <h3 className="text-[10px] lg:text-sm font-bold text-slate-400 mb-2 lg:mb-4 px-2 tracking-wider whitespace-nowrap">PERSONA VIEW</h3>
+                    <div className="flex flex-row lg:flex-col gap-2 min-w-max lg:min-w-0">
                         <button
                             onClick={() => setActivePersona('All')}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold ${activePersona === 'All' ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30' : 'hover:bg-slate-800 text-slate-300 border border-transparent'
@@ -169,7 +169,7 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                <div className="sticky top-[340px]">
+                <div className="hidden lg:block lg:sticky lg:top-[340px]">
                     <RunpodManager />
                 </div>
             </aside>
@@ -177,49 +177,48 @@ export default function DashboardPage() {
             {/* Main Content Area */}
             <div className="flex-1 space-y-8">
                 <header className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
-                        <div>
-                            <h2 className="text-3xl font-bold">Weekly Approval</h2>
-                            <p className="text-slate-400 mt-1">Review and schedule generated ({activePersona}) content.</p>
+                    <div className="flex items-center gap-4 lg:gap-6">
+                        <div className="min-w-0">
+                            <h2 className="text-2xl lg:text-3xl font-bold truncate">Weekly Approval</h2>
+                            <p className="text-slate-400 mt-1 text-xs lg:text-sm truncate">Review & schedule ({activePersona}) content.</p>
                         </div>
-                        <div className="hidden md:flex flex-col items-center px-6 py-2 bg-orange-600/10 border border-orange-500/20 rounded-2xl">
-                            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Storage & QC</span>
-                            <span className="text-xl font-black text-orange-500">
-                                {items.filter(i => (i.generated_images?.length || 0) > 0).length} <span className="text-xs">STOCKED</span>
+                        <div className="hidden sm:flex flex-col items-center px-4 py-1.5 bg-orange-600/10 border border-orange-500/20 rounded-2xl shrink-0">
+                            <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">STOCK</span>
+                            <span className="text-base lg:text-xl font-black text-orange-500">
+                                {items.filter(i => (i.generated_images?.length || 0) > 0).length}
                             </span>
                         </div>
                     </div>
-                    <div className="flex gap-3 items-center">
+                    <div className="flex flex-wrap gap-2 lg:gap-3 items-center w-full lg:w-auto">
                         {/* Global Blur Toggle */}
                         <button
                             onClick={() => setGlobalUnblur(v => !v)}
-                            className={`px-4 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 transition-all border ${globalUnblur
-                                ? 'bg-rose-600/20 border-rose-500 text-rose-400 shadow-lg shadow-rose-500/20'
+                            className={`flex-1 lg:flex-none px-3 lg:px-4 py-2 lg:py-2.5 rounded-xl text-[10px] lg:text-sm font-black flex items-center justify-center gap-2 transition-all border ${globalUnblur
+                                ? 'bg-rose-600/20 border-rose-500 text-rose-400'
                                 : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
                                 }`}
-                            title={globalUnblur ? 'Click to blur all NSFW content' : 'Click to unblur all NSFW content'}
                         >
-                            {globalUnblur ? '🔓 UNBLURRED' : '🔞 BLUR ON'}
+                            {globalUnblur ? '🔓 UNBLUR' : '🔞 BLUR'}
                         </button>
                         {hasDrafts && (
                             <button
                                 onClick={handleConfirmPlan}
-                                className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-400 hover:to-rose-400 rounded-xl text-sm font-black flex items-center gap-2 transition-all shadow-lg shadow-orange-500/20 animate-pulse border border-orange-400"
+                                className="flex-1 lg:flex-none px-3 lg:px-5 py-2 lg:py-2.5 bg-gradient-to-r from-orange-500 to-rose-500 rounded-xl text-[10px] lg:text-sm font-black flex items-center justify-center gap-2 transition-all border border-orange-400"
                             >
-                                <span>✅</span> Confirm Plan & Start Gen
+                                <span>🚀</span> CONFIRM
                             </button>
                         )}
                         <button
                             onClick={() => setShowSettingsModal(true)}
-                            className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg active:scale-95 border border-slate-700"
+                            className="flex-none p-2 lg:px-5 lg:py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs lg:text-sm font-bold flex items-center gap-2 border border-slate-700"
                         >
-                            <span>⚙️</span> Global Settings
+                            <span>⚙️</span> <span className="hidden lg:inline">Settings</span>
                         </button>
                         <button
                             onClick={() => setShowScoutModal(true)}
-                            className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg active:scale-95 border border-slate-700"
+                            className="flex-1 lg:flex-none px-4 lg:px-5 py-2 lg:py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-[10px] lg:text-sm font-black flex items-center justify-center gap-2 border border-indigo-400 shadow-lg shadow-indigo-500/20"
                         >
-                            <span>🚀</span> Start Phase 1
+                            <span>➕</span> NEW CONTENT
                         </button>
                     </div>
                 </header>
@@ -963,7 +962,7 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                             </span>
                             <span className="text-[10px] text-slate-500 font-bold">#{item.sequence_number}</span>
                         </div>
-                        <h3 className="font-bold text-white leading-tight truncate">{item.topic}</h3>
+                        <h3 className="font-bold text-white leading-tight line-clamp-2 min-h-[2.5rem]" title={item.topic}>{item.topic}</h3>
                     </div>
                     {/* Phase 3: Permanent Creative Studio Button - High Fidelity */}
                     <button
@@ -1193,16 +1192,16 @@ function PromptEditorModal({
     }
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-            <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl w-full max-w-5xl shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
-                <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                    <div>
-                        <h3 className="text-xl font-bold text-orange-400 flex items-center gap-2">
-                            <span>✍️</span> Interactive Prompt Editor
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-0 md:p-4">
+            <div className="bg-slate-900 border-0 md:border md:border-slate-700 p-4 md:p-6 rounded-none md:rounded-2xl w-full max-w-5xl shadow-2xl h-full md:h-auto max-h-[100vh] md:max-h-[90vh] overflow-y-auto animate-in zoom-in-95 flex flex-col">
+                <div className="flex justify-between items-center mb-4 md:mb-6 border-b border-slate-800 pb-4 shrink-0">
+                    <div className="min-w-0">
+                        <h3 className="text-lg md:text-xl font-bold text-orange-400 flex items-center gap-2 truncate">
+                            <span>✍️</span> <span className="truncate">Editor: {item.topic}</span>
                         </h3>
-                        <p className="text-xs text-slate-400 mt-1">✨ Changes to prompts and settings are automatically saved as you type.</p>
+                        <p className="hidden md:block text-[10px] text-slate-400 mt-1">✨ Changes are automatically saved as you type.</p>
                     </div>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white p-2 text-2xl leading-none">&times;</button>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white p-2 text-2xl leading-none shrink-0">&times;</button>
                 </div>
 
                 <div className="space-y-6">
@@ -1211,77 +1210,142 @@ function PromptEditorModal({
                             <span>Fixed Prompt Elements</span>
                             <span className="text-[10px] text-slate-500 font-normal normal-case mt-1">Applied to all 4 images</span>
                         </h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 block mb-1">Mood & Tone</label>
-                                <input value={promptStructure.mood_and_tone || ''} onChange={e => updatePromptStructure('mood_and_tone', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded py-2 px-3 text-sm text-slate-200 focus:border-orange-500 outline-none transition-colors" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 block mb-1">Vibe</label>
-                                <input value={promptStructure.vibe || ''} onChange={e => updatePromptStructure('vibe', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded py-2 px-3 text-sm text-slate-200 focus:border-orange-500 outline-none transition-colors" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 block mb-1">Lighting</label>
-                                <input value={promptStructure.lighting || ''} onChange={e => updatePromptStructure('lighting', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded py-2 px-3 text-sm text-slate-200 focus:border-orange-500 outline-none transition-colors" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 block mb-1">Outfit</label>
-                                <input value={promptStructure.outfit || ''} onChange={e => updatePromptStructure('outfit', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded py-2 px-3 text-sm text-slate-200 focus:border-orange-500 outline-none transition-colors" />
-                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                            {[
+                                { label: 'Mood & Tone', key: 'mood_and_tone' },
+                                { label: 'Vibe', key: 'vibe' },
+                                { label: 'Lighting', key: 'lighting' },
+                                { label: 'Outfit', key: 'outfit' }
+                            ].map(field => (
+                                <div key={field.key}>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="text-[10px] md:text-xs font-bold text-slate-500 uppercase">{field.label}</label>
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText((promptStructure as any)[field.key] || '');
+                                                alert(`Copied ${field.label}!`);
+                                            }}
+                                            className="text-[9px] text-orange-400 hover:text-orange-300 font-bold"
+                                        >
+                                            📋 COPY
+                                        </button>
+                                    </div>
+                                    <input
+                                        value={(promptStructure as any)[field.key] || ''}
+                                        onChange={e => updatePromptStructure(field.key, e.target.value)}
+                                        className="w-full bg-slate-900 border border-slate-700 rounded py-2 px-3 text-xs md:text-sm text-slate-200 focus:border-orange-500 outline-none transition-colors"
+                                    />
+                                </div>
+                            ))}
                         </div>
                     </div>
 
                     <div className="bg-slate-900/50 rounded-xl p-4 border border-orange-500/20 space-y-4 shadow-inner">
-                        <h4 className="text-sm font-bold text-orange-400 uppercase border-b border-orange-500/30 pb-2 flex justify-between items-center">
+                        <h4 className="text-sm font-bold text-orange-400 uppercase border-b border-orange-500/30 pb-2 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
                             <span>Variable Prompt Elements</span>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2 text-[8px] sm:text-[10px]">
                                 <button
                                     onClick={() => handleRegenerate('SFW')}
                                     disabled={isRegenerating}
-                                    className="text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded font-black disabled:opacity-50"
+                                    className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1.5 rounded font-black disabled:opacity-50"
                                 >
                                     REGEN SFW
                                 </button>
                                 <button
                                     onClick={() => handleRegenerate('NSFW')}
                                     disabled={isRegenerating}
-                                    className="text-[10px] bg-pink-600 hover:bg-pink-500 text-white px-2 py-1 rounded font-black disabled:opacity-50"
+                                    className="flex-1 sm:flex-none bg-pink-600 hover:bg-pink-500 text-white px-2 py-1.5 rounded font-black disabled:opacity-50"
                                 >
                                     REGEN NSFW
                                 </button>
                                 <button
                                     onClick={() => handleRegenerate('ALL')}
                                     disabled={isRegenerating}
-                                    className="text-[10px] bg-orange-600 hover:bg-orange-500 text-white px-2 py-1 rounded font-black disabled:opacity-50"
+                                    className="flex-1 sm:flex-none bg-orange-600 hover:bg-orange-500 text-white px-2 py-1.5 rounded font-black disabled:opacity-50"
                                 >
-                                    {isRegenerating ? 'WORKING...' : 'REGEN ALL'}
+                                    {isRegenerating ? '...' : 'REGEN ALL'}
                                 </button>
                             </div>
                         </h4>
-                        <div className={`grid gap-4 ${item.batch_size > 4 ? 'grid-cols-5' : item.batch_size === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
+                        <div className={`grid gap-4 grid-cols-1 ${item.batch_size > 4 ? 'lg:grid-cols-5' : item.batch_size === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-4'}`}>
                             {Array.from({ length: item.batch_size || 4 }).map((_, idx) => (
                                 <div key={idx} className="bg-slate-800 border border-slate-700/50 rounded-xl p-3 space-y-3">
                                     <div className="text-xs font-bold text-slate-400 text-center mb-2 bg-slate-900/80 rounded py-1 border border-slate-700/50">IMAGE {idx + 1}</div>
                                     <div>
-                                        <label className="text-[10px] font-bold text-slate-500 block mb-1">CAMERA</label>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase">CAMERA</label>
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText((promptStructure.camera_settings && promptStructure.camera_settings[idx]) || '');
+                                                    alert('Copied Camera settings!');
+                                                }}
+                                                className="text-[9px] text-orange-400 hover:text-orange-300 font-bold"
+                                            >
+                                                📋 COPY
+                                            </button>
+                                        </div>
                                         <textarea value={(promptStructure.camera_settings && promptStructure.camera_settings[idx]) || ''} onChange={e => updatePromptStructure('camera_settings', e.target.value, idx)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-slate-300 focus:border-orange-500 outline-none resize-none h-16 transition-colors" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-bold text-slate-500 block mb-1">POSE</label>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase">POSE</label>
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText((promptStructure.poses && promptStructure.poses[idx]) || '');
+                                                    alert('Copied Pose description!');
+                                                }}
+                                                className="text-[9px] text-orange-400 hover:text-orange-300 font-bold"
+                                            >
+                                                📋 COPY
+                                            </button>
+                                        </div>
                                         <textarea value={(promptStructure.poses && promptStructure.poses[idx]) || ''} onChange={e => updatePromptStructure('poses', e.target.value, idx)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-slate-300 focus:border-orange-500 outline-none resize-none h-24 transition-colors" />
                                     </div>
                                     <div className="space-y-4 pt-4 border-t border-pink-900/20">
                                         <div>
-                                            <label className="text-[10px] font-bold text-pink-500/70 block mb-1">NSFW MODIFIERS (SPICY)</label>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-[10px] font-bold text-pink-500/70 uppercase">NSFW MODIFIERS (SPICY)</label>
+                                                <button
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText((promptStructure.nsfw_prompts && promptStructure.nsfw_prompts[idx]) || '');
+                                                        alert('Copied NSFW modifiers!');
+                                                    }}
+                                                    className="text-[9px] text-pink-400 hover:text-pink-300 font-bold"
+                                                >
+                                                    📋 COPY
+                                                </button>
+                                            </div>
                                             <textarea value={(promptStructure.nsfw_prompts && promptStructure.nsfw_prompts[idx]) || ''} onChange={e => updatePromptStructure('nsfw_prompts', e.target.value, idx)} className="w-full bg-slate-900 border border-pink-900/50 rounded p-2 text-xs text-pink-200 focus:border-pink-500 outline-none resize-none h-20 transition-colors shadow-[0_0_10px_rgba(236,72,153,0.05)]" />
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-bold text-rose-500 block mb-1">NSFW VIDEO PROMPT (15S)</label>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-[10px] font-bold text-rose-500 uppercase">NSFW VIDEO PROMPT (15S)</label>
+                                                <button
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText((promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]) || '');
+                                                        alert('Copied NSFW Video prompt!');
+                                                    }}
+                                                    className="text-[9px] text-rose-400 hover:text-rose-300 font-bold"
+                                                >
+                                                    📋 COPY
+                                                </button>
+                                            </div>
                                             <textarea value={(promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]) || ''} onChange={e => updatePromptStructure('vdo_prompts_nsfw', e.target.value, idx)} className="w-full bg-slate-900 border border-rose-900/50 rounded p-2 text-xs text-rose-200 focus:border-rose-500 outline-none resize-none h-20 transition-colors shadow-[0_0_10px_rgba(244,63,94,0.05)]" />
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-bold text-indigo-400 block mb-1">VIDEO PROMPT (15S)</label>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-[10px] font-bold text-indigo-400 uppercase">VIDEO PROMPT (15S)</label>
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText((promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]) || '');
+                                                    alert('Copied Video prompt!');
+                                                }}
+                                                className="text-[9px] text-indigo-400 hover:text-indigo-300 font-bold"
+                                            >
+                                                📋 COPY
+                                            </button>
+                                        </div>
                                         <textarea value={(promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]) || ''} onChange={e => updatePromptStructure('vdo_prompts', e.target.value, idx)} className="w-full bg-slate-900 border border-indigo-900/50 rounded p-2 text-xs text-indigo-200 focus:border-indigo-500 outline-none resize-none h-20 transition-colors shadow-[0_0_10px_rgba(99,102,241,0.05)]" />
                                     </div>
                                     <div className="pt-2 mt-2 border-t border-slate-700/50">
@@ -1313,20 +1377,20 @@ function PromptEditorModal({
                     </div>
                 </div>
 
-                <div className="mt-8 pt-4 border-t border-slate-800 flex justify-between items-center">
-                    <div className="flex gap-2">
-                        <span className="text-sm font-bold text-slate-400 mr-2 flex items-center">🎨 Queues Images:</span>
-                        <button onClick={() => handleGenBatch('SFW')} disabled={isGeneratingImg} className="px-3 py-2 bg-slate-800 border border-emerald-500/50 hover:bg-emerald-600/20 text-emerald-400 rounded-lg text-xs font-bold transition-all disabled:opacity-50">
-                            GEN SFW ONLY
+                <div className="mt-auto pt-4 border-t border-slate-800 flex flex-col md:flex-row gap-4 md:justify-between md:items-center shrink-0">
+                    <div className="flex flex-wrap gap-2 order-2 md:order-1">
+                        <span className="hidden lg:flex text-sm font-bold text-slate-400 mr-2 items-center">🎨 Queues:</span>
+                        <button onClick={() => handleGenBatch('SFW')} disabled={isGeneratingImg} className="flex-1 md:flex-none px-3 py-2 bg-slate-800 border border-emerald-500/50 text-emerald-400 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50">
+                            GEN SFW
                         </button>
-                        <button onClick={() => handleGenBatch('NSFW')} disabled={isGeneratingImg} className="px-3 py-2 bg-slate-800 border border-pink-500/50 hover:bg-pink-600/20 text-pink-400 rounded-lg text-xs font-bold transition-all disabled:opacity-50">
-                            GEN NSFW ONLY
+                        <button onClick={() => handleGenBatch('NSFW')} disabled={isGeneratingImg} className="flex-1 md:flex-none px-3 py-2 bg-slate-800 border border-pink-500/50 text-pink-400 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50">
+                            GEN NSFW
                         </button>
-                        <button onClick={() => handleGenBatch('ALL')} disabled={isGeneratingImg} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50">
-                            {isGeneratingImg ? 'QUEUEING...' : 'GEN ALL IMAGES'}
+                        <button onClick={() => handleGenBatch('ALL')} disabled={isGeneratingImg} className="w-full md:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold transition-all shadow-lg disabled:opacity-50">
+                            {isGeneratingImg ? '...' : 'GEN ALL'}
                         </button>
                     </div>
-                    <button onClick={onClose} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-xl text-sm font-bold transition-all shadow-lg active:scale-95 flex items-center gap-2">
+                    <button onClick={onClose} className="w-full md:w-auto order-1 md:order-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-xl text-sm font-bold transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
                         <span>💾</span> Save & Close
                     </button>
                 </div>

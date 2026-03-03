@@ -316,13 +316,13 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-4 bg-black/90 backdrop-blur-3xl animate-in fade-in duration-500">
-            <div className="relative w-full max-w-[95vw] h-[95vh] bg-slate-900/40 border border-slate-700/50 rounded-[40px] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.8)] glassmorphism border-t-white/10">
+            <div className="relative w-full md:max-w-[95vw] h-full md:h-[95vh] bg-slate-900/40 border-0 md:border md:border-slate-700/50 rounded-none md:rounded-[40px] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.8)] glassmorphism border-t-white/10">
                 {/* Header - Compact */}
-                <div className="px-6 py-3 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                    <div className="flex items-center gap-3">
-                        <span className="text-xl">💎</span>
-                        <h2 className="text-lg font-black text-white truncate max-w-md">
-                            Asset Hub: <span className="text-indigo-400">{item.topic}</span>
+                <div className="px-4 md:px-6 py-3 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
+                    <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                        <span className="text-lg shrink-0">💎</span>
+                        <h2 className="text-sm md:text-lg font-black text-white truncate">
+                            Studio: <span className="text-indigo-400">{item.topic}</span>
                         </h2>
                     </div>
                     <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white">
@@ -332,24 +332,24 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                     </button>
                 </div>
                 {/* Tabs & Filters - Very Compact */}
-                <div className="px-6 py-2 flex items-center gap-4 bg-slate-900/50 border-b border-slate-800/50">
-                    <div className="flex bg-slate-800 p-1 rounded-full border border-slate-700">
+                <div className="px-4 md:px-6 py-2 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4 bg-slate-900/50 border-b border-slate-800/50 shrink-0">
+                    <div className="flex bg-slate-800 p-0.5 md:p-1 rounded-full border border-slate-700 w-full md:w-auto">
                         <button
                             onClick={() => setActiveTab('SFW')}
-                            className={`px-4 py-1 rounded-full font-bold text-[10px] transition-all ${activeTab === 'SFW' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`flex-1 md:flex-none px-4 py-1.5 md:py-1 rounded-full font-bold text-[10px] transition-all ${activeTab === 'SFW' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             😇 SFW
                         </button>
                         <button
                             onClick={() => setActiveTab('NSFW')}
-                            className={`px-4 py-1 rounded-full font-bold text-[10px] transition-all ${activeTab === 'NSFW' ? 'bg-pink-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`flex-1 md:flex-none px-4 py-1.5 md:py-1 rounded-full font-bold text-[10px] transition-all ${activeTab === 'NSFW' ? 'bg-pink-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             🔞 NSFW
                         </button>
                     </div>
 
-                    <div className="ml-auto flex items-center gap-3">
-                        <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                    <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto overflow-x-auto hide-scrollbar pb-1 md:pb-0">
+                        <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700 shrink-0">
                             {['Post', 'Carousel', 'Story'].map(t => (
                                 <button
                                     key={t}
@@ -364,7 +364,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                             type="datetime-local"
                             value={localScheduledAt}
                             onChange={e => setLocalScheduledAt(e.target.value)}
-                            className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[10px] text-white focus:border-orange-500 outline-none"
+                            className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[10px] text-white focus:border-orange-500 outline-none shrink-0"
                         />
                     </div>
                 </div>
@@ -585,35 +585,34 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                 </div>
 
                 {/* Footer Actions - Ultra Thin */}
-                <div className="px-6 py-3 bg-slate-900 border-t border-slate-800 flex justify-between items-center bg-gradient-to-t from-slate-950 to-slate-900">
-                    <div className="flex items-center gap-6">
-                        <p className="text-[9px] text-slate-500 italic max-w-xs">⚠️ Changes are only permanent after clicking Save.</p>
+                <div className="px-4 md:px-6 py-3 bg-slate-900 border-t border-slate-800 flex flex-col md:flex-row gap-4 md:justify-between md:items-center bg-gradient-to-t from-slate-950 to-slate-900 shrink-0">
+                    <div className="flex items-center justify-between md:justify-start gap-4 lg:gap-6">
+                        <p className="hidden sm:block text-[9px] text-slate-500 italic max-w-[120px] md:max-w-xs truncate">⚠️ Auto-save on save button click.</p>
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="py-1 px-4 bg-slate-800/50 hover:bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black rounded-lg flex items-center gap-2 border border-slate-700/50 transition-all"
+                            className="flex-1 md:flex-none py-2 px-4 bg-slate-800/50 hover:bg-slate-800 text-slate-400 hover:text-white text-[10px] font-black rounded-lg flex items-center justify-center gap-2 border border-slate-700/50 transition-all"
                         >
-                            ☁️ UPLOAD NEW
+                            ☁️ UPLOAD
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <button onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-[10px] font-black transition-all">
+                    <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
+                        <button onClick={onClose} className="flex-1 md:flex-none px-4 py-2.5 text-slate-400 hover:text-white text-[10px] font-black transition-all">
                             CANCEL
                         </button>
-                        <div className="h-4 w-px bg-slate-800 mx-2" />
                         <button
                             onClick={handleSaveChanges}
                             disabled={saving}
-                            className="px-6 py-2 bg-slate-800 text-slate-300 text-[10px] font-black rounded-xl border border-white/5 hover:bg-slate-700 transition-all"
+                            className="flex-1 md:flex-none px-4 lg:px-6 py-2.5 bg-slate-800 text-slate-300 text-[10px] font-black rounded-xl border border-white/5 hover:bg-slate-700 transition-all"
                         >
-                            {saving ? '...' : '💾 SAVE DRAFT'}
+                            {saving ? '...' : '💾 DRAFT'}
                         </button>
                         <button
                             onClick={handleApproveAndSchedule}
                             disabled={saving}
-                            className="px-8 py-2.5 bg-white text-black text-[11px] font-black rounded-xl shadow-xl hover:bg-indigo-600 hover:text-white transition-all active:scale-95"
+                            className="flex-[2] md:flex-none px-6 lg:px-8 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-[10px] md:text-[11px] font-black rounded-xl shadow-xl hover:shadow-indigo-500/20 transition-all active:scale-95"
                         >
-                            {saving ? 'WAIT...' : '✅ APPROVE & SCHEDULE'}
+                            {saving ? 'WAIT...' : '✅ APPROVE'}
                         </button>
                     </div>
                 </div>
