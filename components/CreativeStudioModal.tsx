@@ -21,6 +21,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
     const [localContentType, setLocalContentType] = useState(item.content_type || 'Post')
     const [localScheduledAt, setLocalScheduledAt] = useState(item.scheduled_at ? new Date(item.scheduled_at).toISOString().slice(0, 16) : '')
     const [editingImage, setEditingImage] = useState<GeneratedImage | null>(null)
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const sfwImages = localImages.filter(img => img.image_type === 'SFW')
@@ -407,8 +408,13 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                             ) : (
                                                 <img
                                                     src={img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')}
-                                                    className={`w-full h-full object-cover transition-all duration-700 ${img.image_type === 'NSFW' && !unblurList[img.id] ? 'blur-3xl' : 'blur-0'}`}
+                                                    className={`w-full h-full object-cover transition-all duration-700 cursor-pointer ${img.image_type === 'NSFW' && !unblurList[img.id] ? 'blur-3xl' : 'blur-0'}`}
                                                     alt={`Variant ${idx + 1}.${subIdx + 1}`}
+                                                    onClick={() => {
+                                                        if (img.image_type !== 'NSFW' || unblurList[img.id]) {
+                                                            setFullscreenImage(img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/'))
+                                                        }
+                                                    }}
                                                 />
                                             )}
                                             {img.image_type === 'NSFW' && !unblurList[img.id] && img.media_type !== 'video' && (
@@ -620,6 +626,28 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                     />
                 )}
             </div>
+
+            {/* Fullscreen Image Zoom Modal */}
+            {fullscreenImage && (
+                <div
+                    className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-sm cursor-zoom-out animate-in fade-in duration-300"
+                    onClick={() => setFullscreenImage(null)}
+                >
+                    <div className="relative w-full h-full p-4 md:p-12 flex items-center justify-center">
+                        <img
+                            src={fullscreenImage}
+                            alt="Fullscreen Asset"
+                            className="max-w-full max-h-full object-contain drop-shadow-2xl rounded-sm"
+                        />
+                        <button
+                            className="absolute top-6 right-6 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full transition-colors font-bold"
+                            onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+                        >
+                            ✕
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <style jsx>{`
                 .glassmorphism {
