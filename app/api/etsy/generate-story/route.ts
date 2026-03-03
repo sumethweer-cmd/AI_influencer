@@ -14,9 +14,15 @@ export async function POST(req: Request) {
         const { data: book, error: bookErr } = await supabase.from('etsy_books').select('*').eq('id', book_id).single()
         if (bookErr || !book) throw new Error('Book not found')
 
-        // Get Gemini API Key
-        const apiKey = await getConfig('GEMINI_API_KEY')
-        if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
+        // Get Gemini API Key (Priority: ETSY_GEMINI_API_KEY -> Global GEMINI_API_KEY)
+        const { data: apiKeyConfig } = await supabase.from('etsy_configs').select('key_value').eq('key_name', 'ETSY_GEMINI_API_KEY').single()
+        let apiKey = apiKeyConfig?.key_value?.trim()
+
+        if (!apiKey) {
+            apiKey = await getConfig('GEMINI_API_KEY')
+        }
+
+        if (!apiKey) throw new Error('ETSY_GEMINI_API_KEY is not configured in Settings')
 
         // Get Etsy Story Prompt Config
         const { data: promptConfig } = await supabase.from('etsy_configs').select('key_value').eq('key_name', 'ETSY_GEMINI_STORY_PROMPT').single()

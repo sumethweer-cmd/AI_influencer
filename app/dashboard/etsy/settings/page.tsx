@@ -195,7 +195,32 @@ export default function EtsySettings() {
             {/* AI Prompts Settings */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
                 <h3 className="text-xl font-bold text-slate-200">🧠 AI Story Prompts (Gemini)</h3>
-                <div className="space-y-4">
+                <div className="space-y-6">
+                    {configs.filter(c => c.key_name === 'ETSY_GEMINI_API_KEY').map(c => (
+                        <div key={c.id} className="pb-6 border-b border-slate-800">
+                            <label className="text-sm font-bold text-slate-400 mb-2 flex justify-between">
+                                Custom Gemini API Key
+                                <span className="text-xs font-normal text-slate-500">{c.description || 'Separate API Key for Etsy'}</span>
+                            </label>
+                            <input
+                                type="password"
+                                value={c.key_value || ''}
+                                onChange={e => handleConfigChange(c.key_name, e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm focus:border-purple-500 outline-none font-mono tracking-widest text-slate-300"
+                                placeholder="AIzaSy..."
+                            />
+                            <div className="flex justify-end mt-2">
+                                <button
+                                    onClick={() => saveConfig(c)}
+                                    disabled={savingKey === c.key_name}
+                                    className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold text-sm shadow-lg shadow-emerald-500/20"
+                                >
+                                    {savingKey === c.key_name ? 'Saving...' : 'Save API Key'}
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+
                     {configs.filter(c => c.key_name.includes('GEMINI_STORY_PROMPT')).map(c => (
                         <div key={c.id}>
                             <label className="text-sm font-bold text-slate-400 mb-2 flex justify-between">
