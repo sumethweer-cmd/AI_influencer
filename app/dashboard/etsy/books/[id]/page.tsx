@@ -1,9 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 
-export default function BookEditor({ params }: { params: { id: string } }) {
+export default function BookEditor({ params }: { params: Promise<{ id: string }> }) {
+    const unwrappedParams = use(params)
+    const id = unwrappedParams.id
+
     const [book, setBook] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [generatingStory, setGeneratingStory] = useState(false)
@@ -16,11 +19,11 @@ export default function BookEditor({ params }: { params: { id: string } }) {
 
     useEffect(() => {
         fetchBook()
-    }, [params.id])
+    }, [id])
 
     const fetchBook = async () => {
         try {
-            const res = await fetch(`/api/etsy/books/${params.id}`).then(r => r.json())
+            const res = await fetch(`/api/etsy/books/${id}`).then(r => r.json())
             if (res.success) {
                 setBook(res.data)
                 setEditPrice(res.data.price || '0')
@@ -40,7 +43,7 @@ export default function BookEditor({ params }: { params: { id: string } }) {
             const res = await fetch('/api/etsy/generate-story', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ book_id: params.id })
+                body: JSON.stringify({ book_id: id })
             }).then(r => r.json())
 
             if (res.success) {
@@ -58,7 +61,7 @@ export default function BookEditor({ params }: { params: { id: string } }) {
     const saveMetrics = async () => {
         setSaving(true)
         try {
-            const res = await fetch(`/api/etsy/books/${params.id}`, {
+            const res = await fetch(`/api/etsy/books/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ price: parseFloat(editPrice), total_sales: parseInt(editSales) })
@@ -99,9 +102,9 @@ export default function BookEditor({ params }: { params: { id: string } }) {
                     <h2 className="text-3xl font-bold flex items-center gap-3">
                         📖 {book.title}
                         <span className={`text-xs px-2 py-1 rounded font-bold ${book.status === 'Draft' ? 'bg-slate-800 text-slate-300' :
-                                book.status === 'Generating' ? 'bg-amber-900/50 text-amber-400' :
-                                    book.status === 'Completed' ? 'bg-emerald-900/50 text-emerald-400' :
-                                        'bg-purple-900/50 text-purple-400'
+                            book.status === 'Generating' ? 'bg-amber-900/50 text-amber-400' :
+                                book.status === 'Completed' ? 'bg-emerald-900/50 text-emerald-400' :
+                                    'bg-purple-900/50 text-purple-400'
                             }`}>
                             {book.status}
                         </span>
@@ -214,8 +217,8 @@ function PageCard({ page, onSave }: { page: any, onSave: (txt: string, pmt: stri
             <div className="p-3 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
                 <span className="font-black text-slate-300">Page {page.page_number}</span>
                 <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${page.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-400' :
-                        page.status === 'Queued' ? 'bg-amber-500/20 text-amber-400' :
-                            'bg-slate-800 text-slate-400'
+                    page.status === 'Queued' ? 'bg-amber-500/20 text-amber-400' :
+                        'bg-slate-800 text-slate-400'
                     }`}>
                     {page.status}
                 </span>

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const id = params.id
+        const id = (await params).id
         const body = await req.json()
         
         const { story_text, image_prompt, image_url, status } = body
@@ -21,9 +21,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const id = params.id
+        const id = (await params).id
         const { error } = await supabase.from('etsy_pages').delete().eq('id', id)
         if (error) throw error
         return NextResponse.json({ success: true })
