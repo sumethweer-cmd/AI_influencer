@@ -129,10 +129,57 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
 
             const pagesToExport = [...book.etsy_pages].sort((a, b) => a.page_number - b.page_number)
 
+            // Layout Zones
+            const leftZoneWidth = pdfWidth * 0.65
+            const rightZoneWidth = pdfWidth * 0.35
+
+            // Make Cover Page as the First Page if Cover Image Exists
+            if (book.cover_image_url) {
+                const coverPage = pdfDoc.addPage([pdfWidth, pdfHeight])
+
+                // Left Half for Cover Image
+                try {
+                    const imgBytes = await fetch(book.cover_image_url).then(res => res.arrayBuffer())
+                    let embeddedImage
+                    if (book.cover_image_url.toLowerCase().endsWith('.png')) {
+                        embeddedImage = await pdfDoc.embedPng(imgBytes)
+                    } else {
+                        embeddedImage = await pdfDoc.embedJpg(imgBytes)
+                    }
+
+                    const maxImgWidth = leftZoneWidth - 60
+                    const maxImgHeight = pdfHeight - 100
+                    const imgDims = embeddedImage.scaleToFit(maxImgWidth, maxImgHeight)
+
+                    const imgX = 30 + (maxImgWidth / 2) - (imgDims.width / 2)
+                    const imgY = 50 + (maxImgHeight / 2) - (imgDims.height / 2)
+
+                    coverPage.drawImage(embeddedImage, {
+                        x: imgX,
+                        y: imgY,
+                        width: imgDims.width,
+                        height: imgDims.height,
+                    })
+                } catch (e) {
+                    console.error('Failed to embed cover image', e)
+                }
+
+                // Right Half for Book Title
+                coverPage.drawText(book.title || 'Coloring Book', {
+                    x: leftZoneWidth + 20,
+                    y: (pdfHeight / 2) + 40, // Centered vertically
+                    size: 40, // Large size for Title
+                    font: textFont,
+                    color: rgb(0, 0, 0),
+                    maxWidth: rightZoneWidth - 60,
+                    lineHeight: 48,
+                })
+            }
+
             for (const p of pagesToExport) {
                 const page = pdfDoc.addPage([pdfWidth, pdfHeight])
 
-                // Image on the Left Half
+                // Image on the Left Half (65%)
                 if (p.image_url) {
                     try {
                         const imgBytes = await fetch(p.image_url).then(res => res.arrayBuffer())
@@ -143,14 +190,12 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                             embeddedImage = await pdfDoc.embedJpg(imgBytes)
                         }
 
-                        // Fit inside the left half
-                        const maxImgWidth = (pdfWidth / 2) - 80
+                        const maxImgWidth = leftZoneWidth - 60
                         const maxImgHeight = pdfHeight - 100
                         const imgDims = embeddedImage.scaleToFit(maxImgWidth, maxImgHeight)
 
-                        // Center in the left half
-                        const imgX = (pdfWidth / 4) - (imgDims.width / 2)
-                        const imgY = (pdfHeight / 2) - (imgDims.height / 2)
+                        const imgX = 30 + (maxImgWidth / 2) - (imgDims.width / 2)
+                        const imgY = 50 + (maxImgHeight / 2) - (imgDims.height / 2)
 
                         page.drawImage(embeddedImage, {
                             x: imgX,
@@ -163,15 +208,15 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                     }
                 }
 
-                // Text on the Right Half (Starting around horizontal and vertical middle)
+                // Text on the Right Half (35%)
                 if (p.story_text) {
                     page.drawText(p.story_text, {
-                        x: (pdfWidth / 2) + 40,
+                        x: leftZoneWidth + 20,
                         y: (pdfHeight / 2) + 100, // Starts a bit above the vertical center and flows down
-                        size: 24, // Larger size for landscape presentation
+                        size: 24,
                         font: textFont,
                         color: rgb(0, 0, 0),
-                        maxWidth: (pdfWidth / 2) - 80,
+                        maxWidth: rightZoneWidth - 60,
                         lineHeight: 36,
                     })
                 }
@@ -256,8 +301,8 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                     </div>
                     <div className="text-center">
                         <span className="text-xs font-bold text-slate-300 block">Cover Image</span>
-                        <span className="text-[10px] text-slate-500 block">Rec. Ratio ~1:1.3</span>
-                        <span className="text-[10px] text-slate-500 block">(e.g. 1024x1350)</span>
+                        <span className="text-[10px] text-slate-500 block">Rec: 1:1 or 4:3</span>
+                        <span className="text-[10px] text-slate-500 block">(e.g. 1024x1024)</span>
                     </div>
                 </div>
 
@@ -439,7 +484,7 @@ function PageCard({ page, onSave, onImageUploaded }: { page: any, onSave: (txt: 
                             <div className="text-center p-4">
                                 <span className="text-3xl opacity-50 block mb-2">🖼️</span>
                                 <span className="text-xs text-slate-500 font-medium pb-2 block border-b border-slate-800">No Image Generated</span>
-                                <span className="text-[10px] text-slate-600 font-medium block mt-2">Recommended: 1:1 Ratio<br />(e.g. 1024x1024)</span>
+                                <span className="text-[10px] text-slate-600 font-medium block mt-2">Recommended: 1:1 or 4:3<br />(e.g. 1024x1024)</span>
                             </div>
                         )}
 
