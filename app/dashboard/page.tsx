@@ -654,10 +654,11 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
     const [selectedImageId, setSelectedImageId] = useState<string | null>(item.selected_image_id || (displayImages.length > 0 ? displayImages[0].id : null))
     const displayImage = displayImages.find(img => img.id === selectedImageId) || displayImages[0]
 
-    const getImageUrl = (path: string) => {
+    const getImageUrl = (path: string, width?: number) => {
         if (!path) return ''
         if (path.startsWith('http')) return path
-        return path.replace('/storage/', '/api/')
+        const base = path.replace('/storage/', '/api/')
+        return width ? `${base}?w=${width}` : base
     }
 
     const statusColors = {
@@ -897,9 +898,10 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                                 />
                             ) : (
                                 <img
-                                    src={getImageUrl(displayImage.file_path)}
+                                    src={getImageUrl(displayImage.file_path, 600)}
                                     alt={item.topic}
                                     className={`w-full h-full object-cover transition-all duration-500 ${item.nsfw_option && !isUnblurred ? 'blur-3xl' : 'blur-0'}`}
+                                    loading="lazy"
                                 />
                             )}
                             {item.nsfw_option && !isUnblurred && (
@@ -927,7 +929,7 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                                         {img.media_type === 'video' ? (
                                             <video src={getImageUrl(img.file_path)} className="w-full h-full object-cover" />
                                         ) : (
-                                            <img src={getImageUrl(img.file_path)} className="w-full h-full object-cover" />
+                                            <img src={getImageUrl(img.file_path, 200)} className="w-full h-full object-cover" loading="lazy" />
                                         )}
                                         {selectedImageId === img.id && (
                                             <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
