@@ -124,6 +124,14 @@ async function submitJobToComfyUI(jobId: string, isMock: boolean = false, mockDe
             selectedWf = data
         }
 
+        if (!selectedWf && item.persona) {
+            const { data: personaData } = await supabase.from('ai_personas').select('default_workflow_id').eq('name', item.persona).single()
+            if (personaData && personaData.default_workflow_id) {
+                const { data } = await supabase.from('comfyui_workflows').select('*').eq('id', personaData.default_workflow_id).single()
+                selectedWf = data
+            }
+        }
+
         if (!selectedWf) {
             const { data: workflows } = await supabase.from('comfyui_workflows').select('*')
             const matches = workflows?.filter((w: any) => w.persona === item.persona)
@@ -135,21 +143,34 @@ async function submitJobToComfyUI(jobId: string, isMock: boolean = false, mockDe
         const posNodeId = selectedWf.prompt_node_id
 
         // 3. Prepare ComfyUI Workflow
-        if (workflowObj[posNodeId]?.inputs) workflowObj[posNodeId].inputs.text = job.prompt_text
+        
+        // --- KEYWORD INJECTION ---
+        let finalPrompt = job.prompt_text || ''
+        if (job.image_type === 'SFW' && !finalPrompt.toUpperCase().includes('SFW')) {
+            finalPrompt += ', SFW'
+        } else if (job.image_type === 'NSFW' && !finalPrompt.toUpperCase().includes('NSFW')) {
+            finalPrompt += ', NSFW'
+        }
+
+        if (workflowObj[posNodeId]?.inputs) {
+            workflowObj[posNodeId].inputs.text = finalPrompt
+        }
         
         const widthNode = selectedWf.width_node_id
         const heightNode = selectedWf.height_node_id
         if (widthNode && workflowObj[widthNode]?.inputs) workflowObj[widthNode].inputs.width = item.image_width || 896
         if (heightNode && workflowObj[heightNode]?.inputs) workflowObj[heightNode].inputs.height = item.image_height || 1152
 
-        // Seed injection
-        const seed = Math.floor(Math.random() * 1000000000)
+        // --- SEED INJECTION ---
+        // Generate a large random integer for true uniqueness per ComfyUI request
+        const seed = Math.floor(Math.random() * 100000000000000)
         for (const key in workflowObj) {
             if (workflowObj[key].class_type === 'KSampler' && workflowObj[key].inputs) {
                 workflowObj[key].inputs.seed = seed
                 workflowObj[key].inputs.noise_seed = seed
             }
         }
+
 
         if (isMock) {
             // In mock mode, we jump straight to Polling loop by faking a prompt_id

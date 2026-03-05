@@ -458,26 +458,13 @@ export async function regenerateContentPrompts(item: any, mode: 'SFW' | 'NSFW' |
 
   if (mode === 'ALL') {
     taskDescription = `Generate EXACTLY ${batchSize} SETS of 'camera_settings', 'poses', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw'.`
-    jsonFormat = `{
-      "camera_settings": ["..."],
-      "poses": ["..."],
-      "nsfw_prompts": ["..."],
-      "vdo_prompts": ["..."],
-      "vdo_prompts_nsfw": ["..."]
-    }`
+    jsonFormat = `{"camera_settings": ["..."], "poses": ["..."], "nsfw_prompts": ["..."], "vdo_prompts": ["..."], "vdo_prompts_nsfw": ["..."]}`
   } else if (mode === 'SFW') {
     taskDescription = `Generate EXACTLY ${batchSize} SETS of 'camera_settings', 'poses', and 'vdo_prompts'. Do not generate NSFW modifiers.`
-    jsonFormat = `{
-      "camera_settings": ["..."],
-      "poses": ["..."],
-      "vdo_prompts": ["..."]
-    }`
+    jsonFormat = `{"camera_settings": ["..."], "poses": ["..."], "vdo_prompts": ["..."]}`
   } else if (mode === 'NSFW') {
     taskDescription = `Generate EXACTLY ${batchSize} SETS of 'nsfw_prompts' and 'vdo_prompts_nsfw' based on these existing poses: ${JSON.stringify(item.prompt_structure?.poses || [])}.`
-    jsonFormat = `{
-      "nsfw_prompts": ["..."],
-      "vdo_prompts_nsfw": ["..."]
-    }`
+    jsonFormat = `{"nsfw_prompts": ["..."], "vdo_prompts_nsfw": ["..."]}`
   }
 
   const prompt = `
@@ -491,16 +478,30 @@ export async function regenerateContentPrompts(item: any, mode: 'SFW' | 'NSFW' |
     CRITICAL: For 'vdo_prompts' and 'vdo_prompts_nsfw', provide 15-second cinematic motion descriptions.
     CRITICAL NSFW RULE: When generating 'nsfw_prompts' and 'vdo_prompts_nsfw', they must be extremely provocative, spicy, and explicit.
 
-    Return ONLY the new elements as a JSON object exactly matching this format:
+    Return ONLY a raw JSON object string exactly matching this schema. NO MARKDOWN, NO COMMENTS, NO BACKTICKS:
     ${jsonFormat}
   `
 
   const result = await model.generateContent(prompt)
   const response = await result.response
   const text = response.text()
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error(`Failed to parse regenerate JSON for mode ${mode}`)
-  const newItems = JSON.parse(jsonMatch[0])
+  
+  // Clean up potential markdown or malformed json
+  const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim()
+  const jsonMatch = cleanText.match(/\{[\s\S]*\}/)
+  
+  if (!jsonMatch) {
+      console.error('Failed regen AI text:', text)
+      throw new Error(`Failed to parse regenerate JSON for mode ${mode}. AI returned: ${text.substring(0, 100)}...`)
+  }
+  
+  let newItems
+  try {
+      newItems = JSON.parse(jsonMatch[0])
+  } catch (e) {
+      console.error('JSON Parse error on:', jsonMatch[0])
+      throw new Error(`Syntax error in AI generated JSON for mode ${mode}.`)
+  }
 
   const ps = { ...item.prompt_structure }
   if (mode === 'ALL' || mode === 'SFW') {

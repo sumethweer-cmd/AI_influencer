@@ -5,7 +5,7 @@ export async function GET() {
     try {
         const { data, error } = await supabaseAdmin
             .from('ai_personas')
-            .select('id, name, display_name, trigger_word, lora_triggers, role_prompt, persona_rules, sfw_critical, nsfw_critical, system_prompt, instruction_rule')
+            .select('id, name, display_name, trigger_word, lora_triggers, role_prompt, persona_rules, sfw_critical, nsfw_critical, system_prompt, instruction_rule, default_workflow_id')
             .order('name', { ascending: true })
 
         if (error) throw error
@@ -40,13 +40,13 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
     try {
         const body = await request.json()
-        const { id, role_prompt, persona_rules, sfw_critical, nsfw_critical, lora_triggers, system_prompt, instruction_rule } = body
+        const { id, role_prompt, persona_rules, sfw_critical, nsfw_critical, lora_triggers, system_prompt, instruction_rule, default_workflow_id } = body
 
         if (!id) return NextResponse.json({ success: false, error: 'Missing id' }, { status: 400 })
 
         const { error } = await supabaseAdmin
             .from('ai_personas')
-            .update({ role_prompt, persona_rules, sfw_critical, nsfw_critical, lora_triggers, system_prompt, instruction_rule })
+            .update({ role_prompt, persona_rules, sfw_critical, nsfw_critical, lora_triggers, system_prompt, instruction_rule, default_workflow_id })
             .eq('id', id)
 
         if (error) throw error

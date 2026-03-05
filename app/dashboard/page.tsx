@@ -22,6 +22,7 @@ export default function DashboardPage() {
     const [globalUnblur, setGlobalUnblur] = useState(false)
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
     const [contentFilter, setContentFilter] = useState<'All' | 'SFW' | 'NSFW'>('All')
+    const [isDownloadingZip, setIsDownloadingZip] = useState(false)
 
     useEffect(() => {
         Promise.all([fetchItems(), fetchWorkflows(), fetchPersonas()])
@@ -164,6 +165,52 @@ export default function DashboardPage() {
         } catch (e) {
             alert('Bulk update error')
         }
+    }
+
+    const handleBulkDownloadZip = async () => {
+        setIsDownloadingZip(true)
+        try {
+            const JSZip = (await import('jszip')).default
+            const { saveAs } = await import('file-saver')
+
+            const zip = new JSZip()
+            let count = 0
+
+            const selectedItems = items.filter(i => selectedIds.includes(i.id))
+
+            for (const item of selectedItems) {
+                if (item.generated_images && item.generated_images.length > 0) {
+                    const safeName = item.topic ? item.topic.substring(0, 30).replace(/[^a-z0-9]/gi, '_') : 'Untitled'
+                    const folder = zip.folder(`${item.persona || 'Unknown'}_${safeName.trim()}`)
+
+                    for (const img of item.generated_images) {
+                        try {
+                            const res = await fetch(img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/'))
+                            if (res.ok) {
+                                const blob = await res.blob()
+                                const extension = img.media_type === 'video' ? 'mp4' : 'png'
+                                const filename = `${img.image_type || 'image'}_${img.id.substring(0, 8)}.${extension}`
+                                folder?.file(filename, blob)
+                                count++
+                            }
+                        } catch (e) {
+                            console.error('Failed to download image', img.file_path)
+                        }
+                    }
+                }
+            }
+
+            if (count > 0) {
+                const content = await zip.generateAsync({ type: 'blob' })
+                saveAs(content, `Influencer_Content_${new Date().toISOString().slice(0, 10)}.zip`)
+            } else {
+                alert('No images found in selected content.')
+            }
+        } catch (error) {
+            console.error(error)
+            alert('Failed to generate ZIP file')
+        }
+        setIsDownloadingZip(false)
     }
 
     const toggleSelectAll = () => {
@@ -360,6 +407,13 @@ export default function DashboardPage() {
                                         className="px-3 py-1 bg-rose-950/50 text-rose-500 rounded-lg text-[10px] font-black border border-rose-900/30 hover:bg-rose-900/60 transition-all animate-in fade-in slide-in-from-right-2"
                                     >
                                         🗑️ DELETE {selectedIds.length} SELECTED
+                                    </button>
+                                    <button
+                                        onClick={handleBulkDownloadZip}
+                                        disabled={isDownloadingZip}
+                                        className="px-3 py-1 bg-blue-950/50 text-blue-400 rounded-lg text-[10px] font-black border border-blue-900/30 hover:bg-blue-900/60 transition-all animate-in fade-in slide-in-from-right-2"
+                                    >
+                                        {isDownloadingZip ? '📦 PACKING ZIP...' : '📦 DOWNLOAD ZIP'}
                                     </button>
                                 </div>
                             )}
@@ -706,8 +760,8 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
     const sfwImages = item.generated_images?.filter(img => img.image_type === 'SFW') || []
     const nsfwImages = item.generated_images?.filter(img => img.image_type === 'NSFW') || []
 
-    // Default to SFW, fallback to NSFW if SFW is not generated
-    const displayImages = sfwImages.length > 0 ? sfwImages : nsfwImages
+    // Display all generated images together
+    const displayImages = item.generated_images || []
 
     // Default to the first image if not selected yet, or strictly the selected one once approved
     const [selectedImageId, setSelectedImageId] = useState<string | null>(item.selected_image_id || (displayImages.length > 0 ? displayImages[0].id : null))
@@ -976,14 +1030,14 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                             )}
                         </div>
 
-                        {/* Grid Selection for Awaiting Approval (if multiple images exist) */}
-                        {(item.status === 'Awaiting Approval' || item.status === 'QC Pending') && displayImages.length > 1 && (
+                        {/* Display Grid Selection for Awaiting Approval (if multiple images exist) is HIDDEN to save EGRESS bandwidth */}
+                        {false && (item.status === 'Awaiting Approval' || item.status === 'QC Pending') && displayImages.length > 1 && (
                             <div className="h-24 bg-slate-900 border-t border-slate-700/50 p-2 overflow-x-auto flex gap-2 shrink-0 hide-scrollbar">
                                 {displayImages.map((img, idx) => (
                                     <button
                                         key={img.id}
                                         onClick={() => setSelectedImageId(img.id)}
-                                        className={`relative h-full aspect-[3/4] shrink-0 rounded-md overflow-hidden border-2 transition-all ${selectedImageId === img.id ? 'border-orange-500 scale-100 shadow-lg' : 'border-transparent scale-95 opacity-50 hover:opacity-100 hover:scale-100'}`}
+                                        className={`relative h-full aspect-[3/4] shrink-0 rounded-md overflow-hidden border-2 transition-all \${selectedImageId === img.id ? 'border-orange-500 scale-100 shadow-lg' : 'border-transparent scale-95 opacity-50 hover:opacity-100 hover:scale-100'}`}
                                     >
                                         {img.media_type === 'video' ? (
                                             <video src={getImageUrl(img.file_path)} className="w-full h-full object-cover" />
@@ -1031,13 +1085,32 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                             )}
                             <span className="text-[9px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded flex items-center gap-1" title="Target Workflow">
                                 ⚙️ {
-                                    item.selected_workflow_id 
-                                        ? (workflows?.find(w => w.id === item.selected_workflow_id)?.name || 'Unknown') 
-                                        : (workflows?.find(w => !w.persona || w.persona === item.persona)?.name || 'Auto')
+                                    item.selected_workflow_id
+                                        ? (workflows?.find(w => w.id === item.selected_workflow_id)?.name || 'Unknown')
+                                        : (() => {
+                                            const personaData = personas?.find(p => p.name === item.persona);
+                                            if (personaData && personaData.default_workflow_id) {
+                                                return workflows?.find(w => w.id === personaData.default_workflow_id)?.name || 'Auto';
+                                            }
+                                            return workflows?.find(w => !w.persona || w.persona === item.persona)?.name || 'Auto';
+                                        })()
                                 }
                             </span>
                         </div>
                         <h3 className="font-bold text-white leading-tight line-clamp-2 min-h-[2.5rem]" title={item.topic}>{item.topic}</h3>
+
+                        {/* URL to open origin image bucket */}
+                        {displayImage && displayImage.file_path && (
+                            <a
+                                href={displayImage.file_path}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                            >
+                                🔗 Open Original Image in Bucket
+                            </a>
+                        )}
+
                         {item.prompt_structure?.outfit && (
                             <div className="flex items-center gap-1.5 mt-2 overflow-hidden" title={`Outfit: ${item.prompt_structure.outfit}`}>
                                 <span className="text-xs">👘</span>

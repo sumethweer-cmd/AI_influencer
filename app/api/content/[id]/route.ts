@@ -36,8 +36,39 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     try {
         const { id } = await context.params
 
-        // Supabase usually has ON DELETE CASCADE, but let's be explicit if needed
-        // For this project, we assume cascade is handled by DB schema
+        // 1. Fetch the content item to get its generated images
+        const { data: item } = await supabaseAdmin
+            .from('content_items')
+            .select(`
+                id,
+                generated_images (
+                    file_path
+                )
+            `)
+            .eq('id', id)
+            .single()
+
+        // 2. Extract filenames and delete from Storage
+        if (item && item.generated_images && item.generated_images.length > 0) {
+            const filesToRemove = item.generated_images
+                .map((img: any) => {
+                    const url = img.file_path
+                    if (!url) return null
+                    // Extract filename from public URL (e.g., https://.../content/filename.png)
+                    const parts = url.split('/')
+                    return parts[parts.length - 1]
+                })
+                .filter(Boolean)
+
+            if (filesToRemove.length > 0) {
+                const { error: storageErr } = await supabaseAdmin.storage.from('content').remove(filesToRemove)
+                if (storageErr) {
+                    console.error('Error deleting files from storage:', storageErr)
+                }
+            }
+        }
+
+        // 3. Delete the database record (cascade should handle related tables)
         const { error } = await supabaseAdmin
             .from('content_items')
             .delete()

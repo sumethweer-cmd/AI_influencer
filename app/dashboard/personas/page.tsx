@@ -14,6 +14,12 @@ interface Persona {
     nsfw_critical: string
     system_prompt: string
     instruction_rule: string
+    default_workflow_id?: string | null
+}
+
+export interface ComfyUIWorkflow {
+    id: string
+    name: string
 }
 
 const SECTION_META = [
@@ -71,10 +77,24 @@ export default function PersonasPage() {
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
     const [loading, setLoading] = useState(true)
+    const [workflows, setWorkflows] = useState<ComfyUIWorkflow[]>([])
 
     useEffect(() => {
         fetchPersonas()
+        fetchWorkflows()
     }, [])
+
+    async function fetchWorkflows() {
+        try {
+            const res = await fetch('/api/workflows')
+            const json = await res.json()
+            if (json.success) {
+                setWorkflows(json.data)
+            }
+        } catch (e) {
+            console.error('Failed to fetch workflows', e)
+        }
+    }
 
     async function fetchPersonas() {
         setLoading(true)
@@ -249,6 +269,33 @@ export default function PersonasPage() {
                                 </div>
                             </div>
                         </details>
+
+                        {/* Default Workflow Config */}
+                        <div className="bg-slate-900 border border-indigo-500/30 rounded-xl p-6">
+                            <label className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2 mb-4">
+                                ⚙️ Default ComfyUI Workflow
+                            </label>
+                            <p className="text-xs text-slate-500 mb-4 block">
+                                เลือก Workflow เบื้องต้นที่จะนำไปใช้เสมอ เมื่อสั่งสุ่มจาก Persona นี้ หากผู้ใช้ไม่ได้คลิกเลือกอันไหนเป็นพิเศษในหน้าคิวสร้างภาพ
+                            </p>
+                            <div className="relative">
+                                <select
+                                    value={form.default_workflow_id || ''}
+                                    onChange={(e) => handleChange('default_workflow_id', e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 pr-10 text-sm font-bold text-slate-200 focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="" className="text-slate-500">⚡ (Automatic) เลือก Workflow ล่าสุดในระบบอัตโนมัติ</option>
+                                    {workflows.map(wf => (
+                                        <option key={wf.id} value={wf.id}>
+                                            {wf.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-500">
+                                    ▼
+                                </div>
+                            </div>
+                        </div>
 
                         {/* Bottom save */}
                         <div className="flex justify-end pb-8">

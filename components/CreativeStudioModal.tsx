@@ -22,6 +22,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
     const [localScheduledAt, setLocalScheduledAt] = useState(item.scheduled_at ? new Date(item.scheduled_at).toISOString().slice(0, 16) : '')
     const [editingImage, setEditingImage] = useState<GeneratedImage | null>(null)
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
+    const [isDownloadingZip, setIsDownloadingZip] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const sfwImages = localImages.filter(img => img.image_type === 'SFW')
@@ -45,6 +46,47 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
         } catch (e) {
             alert('❌ Download failed')
         }
+    }
+
+    async function handleDownloadAllZip() {
+        setIsDownloadingZip(true)
+        try {
+            const JSZip = (await import('jszip')).default
+            const { saveAs } = await import('file-saver')
+
+            const zip = new JSZip()
+            let count = 0
+
+            const safeName = item.topic ? item.topic.substring(0, 30).replace(/[^a-z0-9]/gi, '_') : 'Untitled'
+            const folder = zip.folder(`${item.persona || 'Unknown'}_${safeName.trim()}`)
+
+            for (const img of currentImages) {
+                try {
+                    const url = img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')
+                    const response = await fetch(url)
+                    if (response.ok) {
+                        const blob = await response.blob()
+                        const ext = img.media_type === 'video' ? 'mp4' : 'png'
+                        const filename = `${item.persona || 'image'}_${img.image_type}_${img.slot_index ?? ''}.${ext}`
+                        folder?.file(filename, blob)
+                        count++
+                    }
+                } catch (e) {
+                    console.error('Failed to download image for ZIP', img.file_path)
+                }
+            }
+
+            if (count > 0) {
+                const content = await zip.generateAsync({ type: 'blob' })
+                saveAs(content, `Studio_${activeTab}_${safeName}.zip`)
+            } else {
+                alert('No images available to download.')
+            }
+        } catch (error) {
+            console.error(error)
+            alert('❌ Failed to generate ZIP file')
+        }
+        setIsDownloadingZip(false)
     }
 
     async function handleTogglePlatform(platform: string, imageId: string | null) {
@@ -594,9 +636,16 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                         >
                             ☁️ UPLOAD
                         </button>
+                        <button
+                            onClick={handleDownloadAllZip}
+                            disabled={isDownloadingZip || currentImages.length === 0}
+                            className="flex-[2] md:flex-none py-2 px-4 bg-blue-900/50 hover:bg-blue-800 text-blue-400 hover:text-white text-[10px] font-black rounded-lg flex items-center justify-center gap-2 border border-blue-700/50 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            📦 {isDownloadingZip ? 'PACKING...' : 'DOWNLOAD ALL ZIP'}
+                        </button>
                     </div>
 
-                    <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
+                    <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto mt-4 md:mt-0">
                         <button onClick={onClose} className="flex-1 md:flex-none px-4 py-2.5 text-slate-400 hover:text-white text-[10px] font-black transition-all">
                             CANCEL
                         </button>
