@@ -1021,16 +1021,21 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                                 {item.status}
                             </span>
                             <span className="text-[10px] text-slate-500 font-bold">#{item.sequence_number}</span>
+                            <span className="text-[9px] text-slate-500 font-medium bg-slate-800/50 px-1.5 py-0.5 rounded" title="Creation Date">
+                                📅 {new Date(item.created_at).toLocaleDateString()}
+                            </span>
                             {item.gen_nsfw && (
                                 <span className="text-[9px] font-black bg-pink-900/40 text-pink-400 border border-pink-500/30 px-1.5 py-0.5 rounded shadow-sm" title="NSFW Generation Enabled">
                                     🔞 NSFW
                                 </span>
                             )}
-                            {item.selected_workflow_id && (
-                                <span className="text-[9px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded" title="Target Workflow">
-                                    {workflows?.find(w => w.id === item.selected_workflow_id)?.name || 'Auto'}
-                                </span>
-                            )}
+                            <span className="text-[9px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded flex items-center gap-1" title="Target Workflow">
+                                ⚙️ {
+                                    item.selected_workflow_id 
+                                        ? (workflows?.find(w => w.id === item.selected_workflow_id)?.name || 'Unknown') 
+                                        : (workflows?.find(w => !w.persona || w.persona === item.persona)?.name || 'Auto')
+                                }
+                            </span>
                         </div>
                         <h3 className="font-bold text-white leading-tight line-clamp-2 min-h-[2.5rem]" title={item.topic}>{item.topic}</h3>
                         {item.prompt_structure?.outfit && (
