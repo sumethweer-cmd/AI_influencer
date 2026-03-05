@@ -20,6 +20,8 @@ export default function DashboardPage() {
     const [statusFilter, setStatusFilter] = useState<string>('All')
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [globalUnblur, setGlobalUnblur] = useState(false)
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
+    const [contentFilter, setContentFilter] = useState<'All' | 'SFW' | 'NSFW'>('All')
 
     useEffect(() => {
         Promise.all([fetchItems(), fetchWorkflows(), fetchPersonas()])
@@ -87,9 +89,21 @@ export default function DashboardPage() {
         ? items
         : items.filter(item => item.persona === activePersona)
 
-    const filteredItems = baseItems.filter(item =>
+    let filteredItems = baseItems.filter(item =>
         statusFilter === 'All' ? true : item.status === statusFilter
     )
+
+    if (contentFilter === 'SFW') {
+        filteredItems = filteredItems.filter(i => i.gen_sfw && !i.gen_nsfw)
+    } else if (contentFilter === 'NSFW') {
+        filteredItems = filteredItems.filter(i => i.gen_nsfw)
+    }
+
+    filteredItems.sort((a, b) => {
+        const d1 = new Date(a.created_at).getTime()
+        const d2 = new Date(b.created_at).getTime()
+        return sortOrder === 'desc' ? d2 - d1 : d1 - d2
+    })
 
     const draftItems = filteredItems.filter(item => item.status === 'Draft')
     const hasDrafts = draftItems.length > 0
@@ -130,6 +144,25 @@ export default function DashboardPage() {
             }
         } catch (e) {
             alert('Bulk delete failed')
+        }
+    }
+
+    const handleBulkEnableNsfw = async () => {
+        if (!confirm(`Are you sure you want to enable NSFW generation for ${selectedIds.length} items?`)) return
+        try {
+            const res = await fetch('/api/content/bulk-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selectedIds, updates: { gen_nsfw: true } })
+            })
+            if (res.ok) {
+                fetchItems()
+                alert('Successfully enabled NSFW for selected items.')
+            } else {
+                alert('Bulk update failed')
+            }
+        } catch (e) {
+            alert('Bulk update error')
         }
     }
 
@@ -271,7 +304,26 @@ export default function DashboardPage() {
                     </div>
 
                     {activeTab === 'workspace' && (
-                        <div className="pb-4 flex items-center gap-4">
+                        <div className="pb-4 flex flex-wrap items-center gap-4">
+                            <select
+                                value={sortOrder}
+                                onChange={e => setSortOrder(e.target.value as any)}
+                                className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-300 focus:border-orange-500 outline-none cursor-pointer"
+                            >
+                                <option value="desc">Newest First</option>
+                                <option value="asc">Oldest First</option>
+                            </select>
+
+                            <select
+                                value={contentFilter}
+                                onChange={e => setContentFilter(e.target.value as any)}
+                                className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-300 focus:border-orange-500 outline-none cursor-pointer"
+                            >
+                                <option value="All">All Content</option>
+                                <option value="SFW">SFW Only</option>
+                                <option value="NSFW">Includes NSFW</option>
+                            </select>
+
                             <select
                                 value={statusFilter}
                                 onChange={e => setStatusFilter(e.target.value)}
@@ -296,12 +348,20 @@ export default function DashboardPage() {
                             </button>
 
                             {selectedIds.length > 0 && (
-                                <button
-                                    onClick={handleBulkDelete}
-                                    className="px-3 py-1 bg-rose-950/50 text-rose-500 rounded-lg text-[10px] font-black border border-rose-900/30 hover:bg-rose-900/60 transition-all animate-in fade-in slide-in-from-right-2"
-                                >
-                                    🗑️ DELETE {selectedIds.length} SELECTED
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleBulkEnableNsfw}
+                                        className="px-3 py-1 bg-pink-950/50 text-pink-500 rounded-lg text-[10px] font-black border border-pink-900/30 hover:bg-pink-900/60 transition-all animate-in fade-in slide-in-from-right-2"
+                                    >
+                                        🔞 ENABLE NSFW ({selectedIds.length})
+                                    </button>
+                                    <button
+                                        onClick={handleBulkDelete}
+                                        className="px-3 py-1 bg-rose-950/50 text-rose-500 rounded-lg text-[10px] font-black border border-rose-900/30 hover:bg-rose-900/60 transition-all animate-in fade-in slide-in-from-right-2"
+                                    >
+                                        🗑️ DELETE {selectedIds.length} SELECTED
+                                    </button>
+                                </div>
                             )}
                         </div>
                     )}
@@ -956,11 +1016,21 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
             <div className="p-5 space-y-4">
                 <div className="flex justify-between items-start gap-4">
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${statusColors[item.status as keyof typeof statusColors]}`}>
                                 {item.status}
                             </span>
                             <span className="text-[10px] text-slate-500 font-bold">#{item.sequence_number}</span>
+                            {item.gen_nsfw && (
+                                <span className="text-[9px] font-black bg-pink-900/40 text-pink-400 border border-pink-500/30 px-1.5 py-0.5 rounded shadow-sm" title="NSFW Generation Enabled">
+                                    🔞 NSFW
+                                </span>
+                            )}
+                            {item.selected_workflow_id && (
+                                <span className="text-[9px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded" title="Target Workflow">
+                                    {workflows?.find(w => w.id === item.selected_workflow_id)?.name || 'Auto'}
+                                </span>
+                            )}
                         </div>
                         <h3 className="font-bold text-white leading-tight line-clamp-2 min-h-[2.5rem]" title={item.topic}>{item.topic}</h3>
                         {item.prompt_structure?.outfit && (
