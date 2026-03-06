@@ -250,6 +250,18 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="hidden lg:block lg:sticky lg:top-[340px]">
+                    <h3 className="text-[10px] lg:text-sm font-bold text-slate-400 mb-2 px-2 tracking-wider">WORKSPACE TOOLS</h3>
+                    <div className="space-y-2">
+                        <a href="/dashboard/personas" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 transition-colors font-bold border border-transparent">
+                            <span>🎭</span> Manage Personas
+                        </a>
+                        <a href="/dashboard/prompts" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 transition-colors font-bold border border-transparent">
+                            <span>📝</span> Prompt Gallery
+                        </a>
+                    </div>
+                </div>
+
+                <div className="hidden lg:block lg:sticky lg:top-[460px]">
                     <RunpodManager />
                 </div>
             </aside>
@@ -288,6 +300,12 @@ export default function DashboardPage() {
                                 <span>🚀</span> CONFIRM
                             </button>
                         )}
+                        <a
+                            href="/dashboard/personas"
+                            className="flex-none p-2 lg:px-4 lg:py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs lg:text-sm font-bold flex items-center gap-2 border border-slate-700 transition-colors"
+                        >
+                            <span>👱‍♀️</span> <span className="hidden lg:inline">Personas</span>
+                        </a>
                         <button
                             onClick={() => setShowSettingsModal(true)}
                             className="flex-none p-2 lg:px-5 lg:py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs lg:text-sm font-bold flex items-center gap-2 border border-slate-700"
@@ -352,6 +370,17 @@ export default function DashboardPage() {
 
                     {activeTab === 'workspace' && (
                         <div className="pb-4 flex flex-wrap items-center gap-4">
+                            <select
+                                value={activePersona}
+                                onChange={e => setActivePersona(e.target.value)}
+                                className="block lg:hidden bg-slate-900 border border-indigo-500/50 rounded-lg px-3 py-1.5 text-xs font-black text-indigo-400 focus:border-indigo-500 outline-none cursor-pointer shadow-sm"
+                            >
+                                <option value="All">🌟 All Personas</option>
+                                {personas.map(p => (
+                                    <option key={p.id} value={p.name}>{p.name}</option>
+                                ))}
+                            </select>
+
                             <select
                                 value={sortOrder}
                                 onChange={e => setSortOrder(e.target.value as any)}
@@ -769,7 +798,13 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
 
     const getImageUrl = (path: string, width?: number) => {
         if (!path) return ''
-        if (path.startsWith('http')) return path
+        if (path.startsWith('http')) {
+            if (path.includes('supabase.co/storage/v1/object/public/') && width) {
+                // Implement Supabase Native Image Transformations for drastic Egress reduction
+                return path.replace('/object/public/', '/render/image/public/') + `?width=${width}&format=webp&quality=80`
+            }
+            return path
+        }
         const base = path.replace('/storage/', '/api/')
         return width ? `${base}?w=${width}` : base
     }

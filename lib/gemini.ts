@@ -563,3 +563,55 @@ export async function refillSinglePrompt(item: any, index: number, type: 'SFW' |
 
   return ps
 }
+
+/**
+ * Auto-Split Video Prompts into 3 parts based on SFW/NSFW configs.
+ */
+export async function generateVideoPrompts(basePrompt: string, imageType: string): Promise<string[]> {
+  const apiKey = await getConfig('GEMINI_API_KEY')
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
+
+  const systemConfigKey = imageType === 'NSFW' ? 'VDO_PROMPT_STYLE_NSFW' : 'VDO_PROMPT_STYLE_SFW'
+  const styleInstruction = await getConfig(systemConfigKey) || 
+    'Create a continuous narrative spanning 3 exactly 5-second parts. Output exactly 3 prompts in JSON format ["prompt1", "prompt2", "prompt3"].'
+
+  const genAI = new GoogleGenerativeAI(apiKey)
+  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
+  if (modelName === 'gemini-1.5-flash') modelName = 'gemini-2.5-flash'
+  const model = genAI.getGenerativeModel({ model: modelName })
+
+  const prompt = `
+    You are an AI Video Director.
+    Your task is to take this base concept/storyline and expand it into exactly 3 continuous cinematic video prompts.
+    Base Concept: "${basePrompt}"
+    
+    Style & Instructions:
+    ${styleInstruction}
+    
+    CRITICAL: Output ONLY a valid JSON array containing exactly 3 string elements. Do not include markdown codeblocks, labels, or any other text.
+    Example:
+    [
+      "Part 1 description...",
+      "Part 2 description...",
+      "Part 3 description..."
+    ]
+  `
+
+  const result = await model.generateContent(prompt)
+  const response = await result.response
+  const text = response.text()
+  
+  try {
+    const jsonMatch = text.match(/\[[\s\S]*\]/)
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0])
+      if (Array.isArray(parsed) && parsed.length >= 3) {
+        return [parsed[0], parsed[1], parsed[2]]
+      }
+    }
+    return [basePrompt, basePrompt, basePrompt]
+  } catch (e) {
+    console.error('Failed to parse Gemini video split output', e)
+    return [basePrompt, basePrompt, basePrompt]
+  }
+}

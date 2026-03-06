@@ -79,14 +79,24 @@ export async function generateVideoFromImage(imageId: string, userPrompt?: strin
         // 5. Prepare Workflow
         const workflowObj = JSON.parse(JSON.stringify(workflow.workflow_json))
         const imageNodeId = workflow.video_image_node_id || 'load_image_node' // Fallback or convention
-        const promptNodeId = workflow.video_prompt_node_id || 'prompt_node'
+        const promptNodeId = workflow.video_prompt_node_id
+        const promptNodeId2 = workflow.video_prompt_2_node_id
+        const promptNodeId3 = workflow.video_prompt_3_node_id
 
         if (workflowObj[imageNodeId]) {
             workflowObj[imageNodeId].inputs.image = comfyFilename
         }
 
-        if (workflowObj[promptNodeId]) {
-            workflowObj[promptNodeId].inputs.text = userPrompt || img.vdo_prompt || ''
+        if (promptNodeId && workflowObj[promptNodeId]) {
+            workflowObj[promptNodeId].inputs.text = img.vdo_prompt_1 || userPrompt || img.vdo_prompt || 'Begin the scene'
+        }
+        
+        if (promptNodeId2 && workflowObj[promptNodeId2]) {
+            workflowObj[promptNodeId2].inputs.text = img.vdo_prompt_2 || userPrompt || img.vdo_prompt || 'Continue the scene'
+        }
+
+        if (promptNodeId3 && workflowObj[promptNodeId3]) {
+            workflowObj[promptNodeId3].inputs.text = img.vdo_prompt_3 || userPrompt || img.vdo_prompt || 'Conclude the scene'
         }
 
         // 6. Queue and Wait

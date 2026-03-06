@@ -25,6 +25,8 @@ export default function WorkflowsPage() {
     const [outputNodeId, setOutputNodeId] = useState('')
     const [videoImageNodeId, setVideoImageNodeId] = useState('')
     const [videoPromptNodeId, setVideoPromptNodeId] = useState('')
+    const [videoPrompt2NodeId, setVideoPrompt2NodeId] = useState('')
+    const [videoPrompt3NodeId, setVideoPrompt3NodeId] = useState('')
 
     useEffect(() => {
         fetchWorkflows()
@@ -109,6 +111,8 @@ export default function WorkflowsPage() {
         setOutputNodeId('')
         setVideoImageNodeId('')
         setVideoPromptNodeId('')
+        setVideoPrompt2NodeId('')
+        setVideoPrompt3NodeId('')
         if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
@@ -132,7 +136,9 @@ export default function WorkflowsPage() {
                     batch_size_node_id: batchSizeNodeId || null,
                     output_node_id: outputNodeId || null,
                     video_image_node_id: videoImageNodeId || null,
-                    video_prompt_node_id: videoPromptNodeId || null
+                    video_prompt_node_id: videoPromptNodeId || null,
+                    video_prompt_2_node_id: videoPrompt2NodeId || null,
+                    video_prompt_3_node_id: videoPrompt3NodeId || null
                 })
             })
 
@@ -318,9 +324,33 @@ export default function WorkflowsPage() {
                                                     </select>
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-bold text-slate-400 mb-1">Video Motion Prompt Node</label>
+                                                    <label className="block text-xs font-bold text-slate-400 mb-1">Video Motion Prompt 1 Node (0-5s)</label>
                                                     <select
                                                         value={videoPromptNodeId} onChange={e => setVideoPromptNodeId(e.target.value)}
+                                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none hover:cursor-pointer font-mono"
+                                                    >
+                                                        <option value="">Select the Text Encode node</option>
+                                                        {availableNodes.map(n => (
+                                                            <option key={n.id} value={n.id}>[{n.id}] {n.title} ({n.type})</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-400 mb-1">Video Motion Prompt 2 Node (5-10s)</label>
+                                                    <select
+                                                        value={videoPrompt2NodeId} onChange={e => setVideoPrompt2NodeId(e.target.value)}
+                                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none hover:cursor-pointer font-mono"
+                                                    >
+                                                        <option value="">Select the Text Encode node</option>
+                                                        {availableNodes.map(n => (
+                                                            <option key={n.id} value={n.id}>[{n.id}] {n.title} ({n.type})</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-400 mb-1">Video Motion Prompt 3 Node (10-15s)</label>
+                                                    <select
+                                                        value={videoPrompt3NodeId} onChange={e => setVideoPrompt3NodeId(e.target.value)}
                                                         className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none hover:cursor-pointer font-mono"
                                                     >
                                                         <option value="">Select the Text Encode node</option>
@@ -407,8 +437,8 @@ export default function WorkflowsPage() {
                                     </div>
                                     <div className="space-y-1 text-slate-500">
                                         <span className="text-[10px] uppercase font-bold tracking-widest block">Video Mapping</span>
-                                        <span className="text-[10px] font-mono block">Img: {wf.video_image_node_id || '-'}</span>
-                                        <span className="text-[10px] font-mono block">Pmt: {wf.video_prompt_node_id || '-'}</span>
+                                        <span className="text-[10px] font-mono block truncate">Img: {wf.video_image_node_id || '-'}</span>
+                                        <span className="text-[10px] font-mono block truncate">P1: {wf.video_prompt_node_id || '-'} | P2: {wf.video_prompt_2_node_id || '-'} | P3: {wf.video_prompt_3_node_id || '-'}</span>
                                     </div>
                                 </div>
                                 <div className="w-full mt-3 text-xs text-slate-500 flex justify-end">

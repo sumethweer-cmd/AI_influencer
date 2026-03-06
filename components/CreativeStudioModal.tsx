@@ -23,7 +23,25 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
     const [editingImage, setEditingImage] = useState<GeneratedImage | null>(null)
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
     const [isDownloadingZip, setIsDownloadingZip] = useState(false)
+    const [isSplittingVDO, setIsSplittingVDO] = useState<{ [key: string]: boolean }>({})
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    const getOptimizedUrl = (path: string, width?: number) => {
+        if (!path) return ''
+        if (path.startsWith('http')) {
+            if (path.includes('supabase.co/storage/v1/object/public/') && width) {
+                return path.replace('/object/public/', '/render/image/public/') + `?width=${width}&format=webp&quality=80`
+            }
+            return path
+        }
+        const base = path.replace('/storage/', '/api/')
+        return width ? `${base}?w=${width}` : base
+    }
+
+    const getOriginalUrl = (path: string) => {
+        if (!path) return ''
+        return path.startsWith('http') ? path : path.replace('/storage/', '/api/')
+    }
 
     const sfwImages = localImages.filter(img => img.image_type === 'SFW')
     const nsfwImages = localImages.filter(img => img.image_type === 'NSFW')
@@ -62,7 +80,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
 
             for (const img of currentImages) {
                 try {
-                    const url = img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')
+                    const url = getOriginalUrl(img.file_path)
                     const response = await fetch(url)
                     if (response.ok) {
                         const blob = await response.blob()
@@ -87,6 +105,37 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
             alert('❌ Failed to generate ZIP file')
         }
         setIsDownloadingZip(false)
+    }
+
+    async function handleAutoSplitVDO(img: GeneratedImage) {
+        setIsSplittingVDO(prev => ({ ...prev, [img.id]: true }))
+        try {
+            const res = await fetch('/api/jobs/generate-video-prompts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    imageId: img.id,
+                    basePrompt: img.vdo_prompt || item.storyline || item.caption_draft || item.topic || 'A beautiful scene',
+                    imageType: img.image_type
+                })
+            })
+            const data = await res.json()
+            if (data.success && data.prompts) {
+                const newImages = [...localImages]
+                const found = newImages.find(ni => ni.id === img.id)
+                if (found) {
+                    found.vdo_prompt_1 = data.prompts[0] || ''
+                    found.vdo_prompt_2 = data.prompts[1] || ''
+                    found.vdo_prompt_3 = data.prompts[2] || ''
+                }
+                setLocalImages(newImages)
+            } else {
+                alert('✨ AI Split Failed: ' + data.error)
+            }
+        } catch (e) {
+            alert('Error splitting video prompt via AI.')
+        }
+        setIsSplittingVDO(prev => ({ ...prev, [img.id]: false }))
     }
 
     async function handleTogglePlatform(platform: string, imageId: string | null) {
@@ -442,19 +491,19 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                         <div className="relative aspect-[4/5] bg-black overflow-hidden flex items-center justify-center">
                                             {img.media_type === 'video' ? (
                                                 <video
-                                                    src={img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')}
+                                                    src={getOriginalUrl(img.file_path)}
                                                     className="w-full h-full object-cover"
                                                     controls
                                                     muted
                                                 />
                                             ) : (
                                                 <img
-                                                    src={img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')}
+                                                    src={getOptimizedUrl(img.file_path, 400)}
                                                     className={`w-full h-full object-cover transition-all duration-700 cursor-pointer ${img.image_type === 'NSFW' && !unblurList[img.id] ? 'blur-3xl' : 'blur-0'}`}
                                                     alt={`Variant ${idx + 1}.${subIdx + 1}`}
                                                     onClick={() => {
                                                         if (img.image_type !== 'NSFW' || unblurList[img.id]) {
-                                                            setFullscreenImage(img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/'))
+                                                            setFullscreenImage(getOriginalUrl(img.file_path))
                                                         }
                                                     }}
                                                 />
@@ -565,22 +614,56 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                                 {/* Video Controls Area */}
                                                 <div className="space-y-2 border-t border-slate-800 pt-3">
                                                     <div className="flex justify-between items-center text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                                                        <span>Video Prompt</span>
-                                                        <span className={`px-1.5 py-0.5 rounded ${img.vdo_status === 'completed' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-slate-800 text-slate-400'}`}>
-                                                            {img.vdo_status ? img.vdo_status.toUpperCase() : 'NONE'}
-                                                        </span>
+                                                        <span>Video Motion Prompts (15s Total)</span>
+                                                        <div className="flex gap-2 items-center">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleAutoSplitVDO(img) }}
+                                                                disabled={isSplittingVDO[img.id]}
+                                                                className="px-2 py-0.5 bg-gradient-to-r from-orange-500 to-rose-500 text-white rounded hover:opacity-80 transition-opacity disabled:opacity-50"
+                                                                title="Use AI to auto-split your storyline into 3 cinematic parts based on SFW/NSFW style configs."
+                                                            >
+                                                                {isSplittingVDO[img.id] ? '✨ THINKING...' : '✨ AUTO-SPLIT'}
+                                                            </button>
+                                                            <span className={`px-1.5 py-0.5 rounded ${img.vdo_status === 'completed' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-slate-800 text-slate-400'}`}>
+                                                                {img.vdo_status ? img.vdo_status.toUpperCase() : 'NONE'}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <textarea
-                                                        className="w-full bg-black/40 border border-slate-800 rounded-lg p-2 text-[10px] text-slate-300 focus:border-indigo-500 outline-none resize-none h-16"
-                                                        placeholder="Describe the motion..."
-                                                        value={img.vdo_prompt || ''}
-                                                        onChange={(e) => {
-                                                            const newImages = [...localImages]
-                                                            const found = newImages.find(ni => ni.id === img.id)
-                                                            if (found) found.vdo_prompt = e.target.value
-                                                            setLocalImages(newImages)
-                                                        }}
-                                                    />
+                                                    <div className="space-y-1">
+                                                        <textarea
+                                                            className="w-full bg-black/40 border border-slate-800 rounded-lg p-2 text-[10px] text-slate-300 focus:border-indigo-500 outline-none resize-none h-12"
+                                                            placeholder="Part 1 (0-5s): Describe initial motion..."
+                                                            value={img.vdo_prompt_1 || ''}
+                                                            onChange={(e) => {
+                                                                const newImages = [...localImages]
+                                                                const found = newImages.find(ni => ni.id === img.id)
+                                                                if (found) found.vdo_prompt_1 = e.target.value
+                                                                setLocalImages(newImages)
+                                                            }}
+                                                        />
+                                                        <textarea
+                                                            className="w-full bg-black/40 border border-slate-800 rounded-lg p-2 text-[10px] text-slate-300 focus:border-indigo-500 outline-none resize-none h-12"
+                                                            placeholder="Part 2 (5-10s): Describe continuation..."
+                                                            value={img.vdo_prompt_2 || ''}
+                                                            onChange={(e) => {
+                                                                const newImages = [...localImages]
+                                                                const found = newImages.find(ni => ni.id === img.id)
+                                                                if (found) found.vdo_prompt_2 = e.target.value
+                                                                setLocalImages(newImages)
+                                                            }}
+                                                        />
+                                                        <textarea
+                                                            className="w-full bg-black/40 border border-slate-800 rounded-lg p-2 text-[10px] text-slate-300 focus:border-indigo-500 outline-none resize-none h-12"
+                                                            placeholder="Part 3 (10-15s): Describe conclusion..."
+                                                            value={img.vdo_prompt_3 || ''}
+                                                            onChange={(e) => {
+                                                                const newImages = [...localImages]
+                                                                const found = newImages.find(ni => ni.id === img.id)
+                                                                if (found) found.vdo_prompt_3 = e.target.value
+                                                                setLocalImages(newImages)
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-2">
@@ -668,7 +751,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
 
                 {editingImage && (
                     <ImageEditorModal
-                        imageUrl={editingImage.file_path.startsWith('http') ? editingImage.file_path : editingImage.file_path.replace('/storage/', '/api/')}
+                        imageUrl={getOriginalUrl(editingImage.file_path)}
                         onClose={() => setEditingImage(null)}
                         onSave={handleEditSave}
                     />
