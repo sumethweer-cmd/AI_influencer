@@ -131,18 +131,8 @@ export async function generateWeeklyPlan(trends: any, targetPersona: string, bat
             "camera_settings": ["", "", "", ""],
             "poses": ["", "", "", ""],
             "nsfw_prompts": ["", "", "", ""],
-            "vdo_prompts": [
-              {"clip_1": "Opening 5s scene...", "clip_2": "Mid 5s scene...", "clip_3": "Closing 5s scene..."},
-              {"clip_1": "Opening 5s scene...", "clip_2": "Mid 5s scene...", "clip_3": "Closing 5s scene..."},
-              {"clip_1": "Opening 5s scene...", "clip_2": "Mid 5s scene...", "clip_3": "Closing 5s scene..."},
-              {"clip_1": "Opening 5s scene...", "clip_2": "Mid 5s scene...", "clip_3": "Closing 5s scene..."}
-            ],
-            "vdo_prompts_nsfw": [
-              {"clip_1": "Explicit opening 5s...", "clip_2": "Explicit mid 5s...", "clip_3": "Explicit closing 5s..."},
-              {"clip_1": "Explicit opening 5s...", "clip_2": "Explicit mid 5s...", "clip_3": "Explicit closing 5s..."},
-              {"clip_1": "Explicit opening 5s...", "clip_2": "Explicit mid 5s...", "clip_3": "Explicit closing 5s..."},
-              {"clip_1": "Explicit opening 5s...", "clip_2": "Explicit mid 5s...", "clip_3": "Explicit closing 5s..."}
-            ]
+            "vdo_prompts": ["Video 1 (15s cinematic motion)", "Video 2 (15s cinematic motion)", "Video 3 (15s cinematic motion)", "Video 4 (15s cinematic motion)"],
+            "vdo_prompts_nsfw": ["Provocative 1 (15s)", "Provocative 2 (15s)", "Provocative 3 (15s)", "Provocative 4 (15s)"]
           },
           "nsfw_option": true,
           "caption_draft": "..."
@@ -226,18 +216,8 @@ export async function generatePlanFromPrompt(userPrompt: string, targetPersona: 
             "camera_settings": ["", "", "", ""],
             "poses": ["", "", "", ""],
             "nsfw_prompts": ["", "", "", ""],
-            "vdo_prompts": [
-              {"clip_1": "Opening 5s scene...", "clip_2": "Mid 5s scene...", "clip_3": "Closing 5s scene..."},
-              {"clip_1": "Opening 5s scene...", "clip_2": "Mid 5s scene...", "clip_3": "Closing 5s scene..."},
-              {"clip_1": "Opening 5s scene...", "clip_2": "Mid 5s scene...", "clip_3": "Closing 5s scene..."},
-              {"clip_1": "Opening 5s scene...", "clip_2": "Mid 5s scene...", "clip_3": "Closing 5s scene..."}
-            ],
-            "vdo_prompts_nsfw": [
-              {"clip_1": "Explicit opening 5s...", "clip_2": "Explicit mid 5s...", "clip_3": "Explicit closing 5s..."},
-              {"clip_1": "Explicit opening 5s...", "clip_2": "Explicit mid 5s...", "clip_3": "Explicit closing 5s..."},
-              {"clip_1": "Explicit opening 5s...", "clip_2": "Explicit mid 5s...", "clip_3": "Explicit closing 5s..."},
-              {"clip_1": "Explicit opening 5s...", "clip_2": "Explicit mid 5s...", "clip_3": "Explicit closing 5s..."}
-            ]
+            "vdo_prompts": ["Video 1 (15s cinematic motion)", "Video 2 (15s cinematic motion)", "Video 3 (15s cinematic motion)", "Video 4 (15s cinematic motion)"],
+            "vdo_prompts_nsfw": ["Provocative 1 (15s)", "Provocative 2 (15s)", "Provocative 3 (15s)", "Provocative 4 (15s)"]
           },
           "nsfw_option": true,
           "caption_draft": "..."
