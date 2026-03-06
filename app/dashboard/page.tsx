@@ -1268,8 +1268,18 @@ function PromptEditorModal({
         const pose = (promptStructure?.poses && promptStructure.poses.length > idx) ? promptStructure.poses[idx] : ''
         const camera = (promptStructure?.camera_settings && promptStructure.camera_settings.length > idx) ? promptStructure.camera_settings[idx] : ''
         const nsfwPrompt = (promptStructure?.nsfw_prompts && promptStructure.nsfw_prompts.length > idx) ? promptStructure.nsfw_prompts[idx] : ''
-        const vdoPrompt = (promptStructure?.vdo_prompts && promptStructure.vdo_prompts.length > idx) ? promptStructure.vdo_prompts[idx] : ''
-        const vdoPromptNsfw = (promptStructure?.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw.length > idx) ? promptStructure.vdo_prompts_nsfw[idx] : ''
+        const vdoPromptRaw = (promptStructure?.vdo_prompts && promptStructure.vdo_prompts.length > idx) ? promptStructure.vdo_prompts[idx] : ''
+        const vdoPromptNsfwRaw = (promptStructure?.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw.length > idx) ? promptStructure.vdo_prompts_nsfw[idx] : ''
+
+        // Handle possible object structure { clip_1, clip_2, clip_3 }
+        const formatVdo = (v: any) => {
+            if (!v) return ''
+            if (typeof v === 'string') return v
+            return [v.clip_1, v.clip_2, v.clip_3].filter(c => c && c.trim() !== '').join(', ')
+        }
+
+        const vdoPrompt = formatVdo(vdoPromptRaw)
+        const vdoPromptNsfw = formatVdo(vdoPromptNsfwRaw)
 
         const hasFixedElements = promptStructure?.mood_and_tone || promptStructure?.vibe || promptStructure?.lighting || promptStructure?.outfit
 
@@ -1289,6 +1299,11 @@ function PromptEditorModal({
             camera,
             pose
         ]
+
+        // For video previews, we might want to prioritize the vdo prompt if it exists
+        if (vdoPrompt && type === 'SFW') parts.push(vdoPrompt)
+        if (vdoPromptNsfw && type === 'NSFW') parts.push(vdoPromptNsfw)
+
         if (type === 'NSFW' && nsfwPrompt) parts.push(nsfwPrompt)
 
         const dynamicPrompt = parts
@@ -1472,7 +1487,9 @@ function PromptEditorModal({
                                             <label className="text-[10px] font-bold text-teal-400 uppercase">✅ SFW VIDEO PROMPT (15S)</label>
                                             <button
                                                 onClick={() => {
-                                                    navigator.clipboard.writeText((promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]) || '');
+                                                    const v = promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx];
+                                                    const text = typeof v === 'string' ? v : `${v?.clip_1 || ''}\n${v?.clip_2 || ''}\n${v?.clip_3 || ''}`;
+                                                    navigator.clipboard.writeText(text);
                                                     alert('Copied SFW Video prompt!');
                                                 }}
                                                 className="text-[9px] text-teal-400 hover:text-teal-300 font-bold"
@@ -1480,7 +1497,34 @@ function PromptEditorModal({
                                                 📋 COPY
                                             </button>
                                         </div>
-                                        <textarea value={(promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]) || ''} onChange={e => updatePromptStructure('vdo_prompts', e.target.value, idx)} className="w-full bg-slate-900 border border-teal-900/50 rounded p-2 text-xs text-teal-200 focus:border-teal-500 outline-none resize-none h-20 transition-colors shadow-[0_0_10px_rgba(20,184,166,0.05)]" />
+                                        {typeof (promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]) === 'string' ? (
+                                            <textarea
+                                                value={(promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]) || ''}
+                                                onChange={e => updatePromptStructure('vdo_prompts', e.target.value, idx)}
+                                                className="w-full bg-slate-900 border border-teal-900/50 rounded p-2 text-xs text-teal-200 focus:border-teal-500 outline-none resize-none h-20 transition-colors shadow-[0_0_10px_rgba(20,184,166,0.05)]"
+                                            />
+                                        ) : (
+                                            <div className="space-y-1.5">
+                                                <textarea
+                                                    value={(promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]?.clip_1) || ''}
+                                                    onChange={e => updatePromptStructure('vdo_prompts', { ...promptStructure.vdo_prompts[idx], clip_1: e.target.value }, idx)}
+                                                    placeholder="Clip 1 (0-5s)"
+                                                    className="w-full bg-slate-900 border border-teal-900/30 rounded p-2 text-[10px] text-teal-200 focus:border-teal-500 outline-none resize-none h-12"
+                                                />
+                                                <textarea
+                                                    value={(promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]?.clip_2) || ''}
+                                                    onChange={e => updatePromptStructure('vdo_prompts', { ...promptStructure.vdo_prompts[idx], clip_2: e.target.value }, idx)}
+                                                    placeholder="Clip 2 (5-10s)"
+                                                    className="w-full bg-slate-900 border border-teal-900/30 rounded p-2 text-[10px] text-teal-200 focus:border-teal-500 outline-none resize-none h-12"
+                                                />
+                                                <textarea
+                                                    value={(promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]?.clip_3) || ''}
+                                                    onChange={e => updatePromptStructure('vdo_prompts', { ...promptStructure.vdo_prompts[idx], clip_3: e.target.value }, idx)}
+                                                    placeholder="Clip 3 (10-15s)"
+                                                    className="w-full bg-slate-900 border border-teal-900/30 rounded p-2 text-[10px] text-teal-200 focus:border-teal-500 outline-none resize-none h-12"
+                                                />
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="space-y-4 pt-4 border-t border-pink-900/20">
@@ -1504,7 +1548,9 @@ function PromptEditorModal({
                                                 <label className="text-[10px] font-bold text-rose-500 uppercase">🔞 NSFW VIDEO PROMPT (15S)</label>
                                                 <button
                                                     onClick={() => {
-                                                        navigator.clipboard.writeText((promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]) || '');
+                                                        const v = promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx];
+                                                        const text = typeof v === 'string' ? v : `${v?.clip_1 || ''}\n${v?.clip_2 || ''}\n${v?.clip_3 || ''}`;
+                                                        navigator.clipboard.writeText(text);
                                                         alert('Copied NSFW Video prompt!');
                                                     }}
                                                     className="text-[9px] text-rose-400 hover:text-rose-300 font-bold"
@@ -1512,7 +1558,34 @@ function PromptEditorModal({
                                                     📋 COPY
                                                 </button>
                                             </div>
-                                            <textarea value={(promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]) || ''} onChange={e => updatePromptStructure('vdo_prompts_nsfw', e.target.value, idx)} className="w-full bg-slate-900 border border-rose-900/50 rounded p-2 text-xs text-rose-200 focus:border-rose-500 outline-none resize-none h-20 transition-colors shadow-[0_0_10px_rgba(244,63,94,0.05)]" />
+                                            {typeof (promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]) === 'string' ? (
+                                                <textarea
+                                                    value={(promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]) || ''}
+                                                    onChange={e => updatePromptStructure('vdo_prompts_nsfw', e.target.value, idx)}
+                                                    className="w-full bg-slate-900 border border-rose-900/50 rounded p-2 text-xs text-rose-200 focus:border-rose-500 outline-none resize-none h-20 transition-colors shadow-[0_0_10px_rgba(244,63,94,0.05)]"
+                                                />
+                                            ) : (
+                                                <div className="space-y-1.5">
+                                                    <textarea
+                                                        value={(promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]?.clip_1) || ''}
+                                                        onChange={e => updatePromptStructure('vdo_prompts_nsfw', { ...promptStructure.vdo_prompts_nsfw[idx], clip_1: e.target.value }, idx)}
+                                                        placeholder="Clip 1 (0-5s)"
+                                                        className="w-full bg-slate-900 border border-rose-900/30 rounded p-2 text-[10px] text-rose-200 focus:border-rose-500 outline-none resize-none h-12"
+                                                    />
+                                                    <textarea
+                                                        value={(promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]?.clip_2) || ''}
+                                                        onChange={e => updatePromptStructure('vdo_prompts_nsfw', { ...promptStructure.vdo_prompts_nsfw[idx], clip_2: e.target.value }, idx)}
+                                                        placeholder="Clip 2 (5-10s)"
+                                                        className="w-full bg-slate-900 border border-rose-900/30 rounded p-2 text-[10px] text-rose-200 focus:border-rose-500 outline-none resize-none h-12"
+                                                    />
+                                                    <textarea
+                                                        value={(promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]?.clip_3) || ''}
+                                                        onChange={e => updatePromptStructure('vdo_prompts_nsfw', { ...promptStructure.vdo_prompts_nsfw[idx], clip_3: e.target.value }, idx)}
+                                                        placeholder="Clip 3 (10-15s)"
+                                                        className="w-full bg-slate-900 border border-rose-900/30 rounded p-2 text-[10px] text-rose-200 focus:border-rose-500 outline-none resize-none h-12"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
