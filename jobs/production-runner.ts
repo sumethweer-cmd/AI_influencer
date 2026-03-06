@@ -5,6 +5,7 @@ import { sendNotification } from '@/lib/telegram'
 import { ContentItem } from '@/types'
 import { getConfig } from '@/lib/config'
 import path from 'path'
+import sharp from 'sharp'
 
 /**
  * Phase 2 & 2.5: The Master Orchestrator for Image Production
@@ -124,7 +125,7 @@ export async function runProductionBatch(itemIds?: string[], specificIndex?: num
                         const loopSeed = Math.floor(Math.random() * 1000000000)
                         const sfwRes = await runSingleWorkflow(comfy, item, 'SFW', loopSeed, item.persona, poseIdx)
                         for (const fileObj of sfwRes.fileNames) {
-                            await recordGeneratedImage(item.id, 'SFW', fileObj.filename, fileObj.url, loopSeed, podId, sfwRes.workflowSnapshot, sfwRes.vdoPrompt, poseIdx)
+                            await recordGeneratedImage(item.id, 'SFW', fileObj.filename, fileObj.url, loopSeed, podId, sfwRes.workflowSnapshot, sfwRes.vdoPrompt, poseIdx, fileObj.originalPath)
                         }
                     }
                     await updateJob('Generating', item.id, 1)
@@ -143,7 +144,7 @@ export async function runProductionBatch(itemIds?: string[], specificIndex?: num
                         const loopSeed = Math.floor(Math.random() * 1000000000)
                         const nsfwRes = await runSingleWorkflow(comfy, item, 'NSFW', loopSeed, item.persona, poseIdx)
                         for (const fileObj of nsfwRes.fileNames) {
-                            await recordGeneratedImage(item.id, 'NSFW', fileObj.filename, fileObj.url, loopSeed, podId, nsfwRes.workflowSnapshot, nsfwRes.vdoPrompt, poseIdx)
+                            await recordGeneratedImage(item.id, 'NSFW', fileObj.filename, fileObj.url, loopSeed, podId, nsfwRes.workflowSnapshot, nsfwRes.vdoPrompt, poseIdx, fileObj.originalPath)
                         }
                     }
                     await updateJob('Generating', item.id, 1)
@@ -337,15 +338,27 @@ async function runSingleWorkflow(comfy: ComfyUIClient, item: ContentItem, type: 
     for (let i = 0; i < images.length; i++) {
         const imgItem = images[i]
         const originalFilename = typeof imgItem === 'string' ? imgItem : imgItem.filename
-        const storageFilename = `${item.id}_${type}_${Date.now()}_${i}.png`
-        const storageBucketPath = `images/${item.id}/${type}/${storageFilename}`
+        const timestamp = Date.now()
 
-        const imageBuffer = await comfy.downloadImageAsBuffer(imgItem)
+        // Download raw buffer from ComfyUI
+        const rawBuffer = await comfy.downloadImageAsBuffer(imgItem)
 
-        // Upload to Supabase 'content' bucket
-        const publicUrl = await uploadToStorage('content', storageBucketPath, imageBuffer, 'image/png')
+        // --- Convert to WebP for Supabase (saves ~60-70% egress) ---
+        const webpBuffer = await sharp(rawBuffer as Buffer)
+            .webp({ quality: 85 })
+            .toBuffer()
 
-        downloadedFiles.push({ filename: storageFilename, url: publicUrl })
+        const webpFilename = `${item.id}_${type}_${timestamp}_${i}.webp`
+        const storageBucketPath = `images/${item.id}/${type}/${webpFilename}`
+
+        // Upload WebP to Supabase 'content' bucket
+        const publicUrl = await uploadToStorage('content', storageBucketPath, webpBuffer, 'image/webp')
+
+        // Original PNG path on RunPod Network Volume (for archival/re-processing)
+        // ComfyUI saves originals at /workspace/ComfyUI/output/ by default
+        const originalPath = `/workspace/ComfyUI/output/${originalFilename}`
+
+        downloadedFiles.push({ filename: webpFilename, url: publicUrl, originalPath })
     }
 
     const vdoPrompts = type === 'NSFW' ? struct.vdo_prompts_nsfw : struct.vdo_prompts
@@ -357,12 +370,13 @@ async function runSingleWorkflow(comfy: ComfyUIClient, item: ContentItem, type: 
 /**
  * Helper to record image in DB
  */
-async function recordGeneratedImage(contentId: string, type: 'SFW' | 'NSFW', fileName: string, fileUrl: string, seed: number, podId: string, workflow: any, vdoPrompt?: string, slotIndex?: number) {
+async function recordGeneratedImage(contentId: string, type: 'SFW' | 'NSFW', fileName: string, fileUrl: string, seed: number, podId: string, workflow: any, vdoPrompt?: string, slotIndex?: number, originalPath?: string) {
     await supabaseAdmin.from('generated_images').insert({
         content_item_id: contentId,
         image_type: type,
         file_path: fileUrl,
         file_name: fileName,
+        original_path: originalPath || null, // Path on RunPod Network Volume
         seed,
         workflow_json: workflow,
         runpod_job_id: podId,

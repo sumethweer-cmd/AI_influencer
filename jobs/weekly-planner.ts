@@ -13,6 +13,14 @@ export interface ScoutPayload {
     mimeType?: string
 }
 
+/** Extracts a clip text from either old string format or new {clip_1, clip_2, clip_3} object format */
+function extractClip(slot: any, clipKey: 'clip_1' | 'clip_2' | 'clip_3'): string {
+    if (!slot) return ''
+    if (typeof slot === 'string') return slot
+    if (typeof slot === 'object') return slot[clipKey] || ''
+    return ''
+}
+
 /**
  * Main Job: The Strategic Scout
  * Runs weekly to plan content based on current trends or AI brainstorm
@@ -115,8 +123,9 @@ export async function runWeeklyPlanner(method: ScoutMethod = 'apify', payload: S
                 image_height: globalHeight,
                 status: 'Draft',
                 image_prompts: item.prompt_structure || {},
-                vdo_prompt: (item.prompt_structure?.vdo_prompts?.[0]) || '',
-                vdo_prompt_nsfw: (item.prompt_structure?.vdo_prompts_nsfw?.[0]) || ''
+                // Handle new clip_1/2/3 object format — extract first clip as the base summary vdo_prompt
+                vdo_prompt: extractClip(item.prompt_structure?.vdo_prompts?.[0], 'clip_1') || '',
+                vdo_prompt_nsfw: extractClip(item.prompt_structure?.vdo_prompts_nsfw?.[0], 'clip_1') || ''
             }
         })
 

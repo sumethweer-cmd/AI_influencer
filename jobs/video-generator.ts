@@ -1,6 +1,7 @@
 import { getActivePods, waitForComfyUI } from '@/lib/runpod'
 import { ComfyUIClient } from '@/lib/comfyui'
 import { supabaseAdmin, logSystem, uploadToStorage } from '@/lib/supabase'
+import { generateVideoPrompts } from '@/lib/gemini'
 import path from 'path'
 
 /**
@@ -76,7 +77,27 @@ export async function generateVideoFromImage(imageId: string, userPrompt?: strin
         const comfyFilename = `input_for_vdo_${imageId}.${fileExt}`
         await comfy.uploadImageFromUrl(img.file_path, comfyFilename)
 
-        // 5. Prepare Workflow
+        // 4.5. AUTO-SPLIT: If vdo_prompt_1/2/3 are null but base prompt exists, auto-generate them
+        if (!img.vdo_prompt_1 && img.vdo_prompt) {
+            await logSystem('INFO', 'Video Queue', `No split prompts for ${imageId} — auto-splitting with AI...`)
+            try {
+                const splitPrompts = await generateVideoPrompts(img.vdo_prompt, img.image_type || 'SFW')
+                if (splitPrompts && splitPrompts.length >= 3) {
+                    await supabaseAdmin.from('generated_images').update({
+                        vdo_prompt_1: splitPrompts[0],
+                        vdo_prompt_2: splitPrompts[1],
+                        vdo_prompt_3: splitPrompts[2]
+                    }).eq('id', imageId)
+                    // Update local img object so nodes get the new prompts below
+                    img.vdo_prompt_1 = splitPrompts[0]
+                    img.vdo_prompt_2 = splitPrompts[1]
+                    img.vdo_prompt_3 = splitPrompts[2]
+                    await logSystem('INFO', 'Video Queue', `Auto-split complete for ${imageId}`, { prompts: splitPrompts })
+                }
+            } catch (splitErr: any) {
+                await logSystem('WARNING', 'Video Queue', `Auto-split failed for ${imageId}, using base prompt`, { error: splitErr.message })
+            }
+        }
         const workflowObj = JSON.parse(JSON.stringify(workflow.workflow_json))
         const imageNodeId = workflow.video_image_node_id || 'load_image_node' // Fallback or convention
         const promptNodeId = workflow.video_prompt_node_id

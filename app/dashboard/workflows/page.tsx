@@ -170,7 +170,12 @@ export default function WorkflowsPage() {
         <div className="space-y-8 pb-32">
             <header>
                 <h2 className="text-3xl font-bold">ComfyUI Workflows</h2>
-                <p className="text-slate-400 mt-1">Manage your JSON templates. Upload your <span className="text-orange-400 font-mono">Save (API Format)</span> workflows here.</p>
+                <div className="text-slate-400 mt-1 space-y-1">
+                    <p>Manage your JSON templates. Upload your <span className="text-orange-400 font-mono">Save (API Format)</span> workflows here.</p>
+                    <p className="text-sm text-indigo-400 bg-indigo-950/30 p-2 rounded-lg border border-indigo-500/20 inline-block">
+                        💡 <b>For VDO Workflows:</b> You must select <b>Type = Video</b> during upload to map the 3 Motion Prompt nodes. If updating an existing VDO workflow, please delete it and re-upload.
+                    </p>
+                </div>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

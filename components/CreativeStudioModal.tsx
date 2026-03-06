@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
+import Image from 'next/image'
 import { ContentItem, GeneratedImage } from '@/types'
 import ImageEditorModal from './ImageEditorModal'
 
@@ -28,12 +29,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
 
     const getOptimizedUrl = (path: string, width?: number) => {
         if (!path) return ''
-        if (path.startsWith('http')) {
-            if (path.includes('supabase.co/storage/v1/object/public/') && width) {
-                return path.replace('/object/public/', '/render/image/public/') + `?width=${width}&format=webp&quality=80`
-            }
-            return path
-        }
+        if (path.startsWith('http')) return path
         const base = path.replace('/storage/', '/api/')
         return width ? `${base}?w=${width}` : base
     }
@@ -49,14 +45,30 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
 
     async function handleDownload(img: GeneratedImage) {
         try {
-            const url = img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')
-            const response = await fetch(url)
+            let downloadUrl: string
+            let filename: string
+
+            if (img.media_type === 'video') {
+                // Videos: download directly from Supabase file_path
+                downloadUrl = img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')
+                filename = `${item.persona || 'video'}_${img.image_type}_${img.slot_index ?? ''}.mp4`
+            } else {
+                // Images: try RunPod original PNG first, fallback to Supabase WebP
+                downloadUrl = `/api/media/download-original?imageId=${img.id}`
+                const ext = img.original_path ? 'png' : (img.file_path?.split('.').pop() || 'webp')
+                filename = `${item.persona || 'image'}_${img.image_type}_${img.slot_index ?? ''}.${ext}`
+            }
+
+            const response = await fetch(downloadUrl)
+            const source = response.headers.get('X-Source')
+            if (source === 'supabase-webp-fallback') {
+                console.info('Pod offline — downloaded WebP from Supabase instead of original PNG')
+            }
             const blob = await response.blob()
             const objectUrl = URL.createObjectURL(blob)
             const a = document.createElement('a')
             a.href = objectUrl
-            const ext = img.media_type === 'video' ? 'mp4' : 'png'
-            a.download = `${item.persona || 'image'}_${img.image_type}_${img.slot_index ?? ''}.${ext}`
+            a.download = filename
             document.body.appendChild(a)
             a.click()
             document.body.removeChild(a)
@@ -65,6 +77,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
             alert('❌ Download failed')
         }
     }
+
 
     async function handleDownloadAllZip() {
         setIsDownloadingZip(true)
@@ -498,7 +511,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                                 />
                                             ) : (
                                                 <img
-                                                    src={getOptimizedUrl(img.file_path, 400)}
+                                                    src={getOptimizedUrl(img.file_path)}
                                                     className={`w-full h-full object-cover transition-all duration-700 cursor-pointer ${img.image_type === 'NSFW' && !unblurList[img.id] ? 'blur-3xl' : 'blur-0'}`}
                                                     alt={`Variant ${idx + 1}.${subIdx + 1}`}
                                                     onClick={() => {
@@ -765,10 +778,12 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                     onClick={() => setFullscreenImage(null)}
                 >
                     <div className="relative w-full h-full p-4 md:p-12 flex items-center justify-center">
-                        <img
+                        <Image
                             src={fullscreenImage}
                             alt="Fullscreen Asset"
-                            className="max-w-full max-h-full object-contain drop-shadow-2xl rounded-sm"
+                            fill
+                            className="object-contain drop-shadow-2xl rounded-sm"
+                            unoptimized={true}
                         />
                         <button
                             className="absolute top-6 right-6 p-3 bg-black/50 hover:bg-black/80 text-white rounded-full transition-colors font-bold"

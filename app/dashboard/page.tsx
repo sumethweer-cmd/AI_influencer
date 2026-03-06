@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { ContentItem } from '@/types'
 import RunpodManager from './components/RunpodManager'
@@ -24,9 +25,19 @@ export default function DashboardPage() {
     const [contentFilter, setContentFilter] = useState<'All' | 'SFW' | 'NSFW'>('All')
     const [isDownloadingZip, setIsDownloadingZip] = useState(false)
 
+    // Pagination States
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(1)
+    const [totalCount, setTotalCount] = useState(0)
+    const limit = 20
+
     useEffect(() => {
-        Promise.all([fetchItems(), fetchWorkflows(), fetchPersonas()])
+        Promise.all([fetchWorkflows(), fetchPersonas()])
     }, [])
+
+    useEffect(() => {
+        fetchItems()
+    }, [activePersona, statusFilter, contentFilter, sortOrder, currentPage])
 
     async function fetchPersonas() {
         try {
@@ -51,9 +62,22 @@ export default function DashboardPage() {
     async function fetchItems() {
         setLoading(true)
         try {
-            const res = await fetch('/api/content')
+            const params = new URLSearchParams({
+                page: currentPage.toString(),
+                limit: limit.toString(),
+                persona: activePersona,
+                status: statusFilter,
+                contentFilter: contentFilter,
+                sortOrder: sortOrder
+            })
+
+            const res = await fetch(`/api/content?${params.toString()}`)
             const json = await res.json()
-            if (json.success) setItems(json.data)
+            if (json.success) {
+                setItems(json.data)
+                setTotalPages(json.pagination.totalPages)
+                setTotalCount(json.pagination.totalCount)
+            }
         } catch (e) {
             console.error('Failed to fetch items:', e)
         }
@@ -86,27 +110,7 @@ export default function DashboardPage() {
         return () => clearInterval(interval)
     }, [items, jobStats])
 
-    const baseItems = activePersona === 'All'
-        ? items
-        : items.filter(item => item.persona === activePersona)
-
-    let filteredItems = baseItems.filter(item =>
-        statusFilter === 'All' ? true : item.status === statusFilter
-    )
-
-    if (contentFilter === 'SFW') {
-        filteredItems = filteredItems.filter(i => i.gen_sfw && !i.gen_nsfw)
-    } else if (contentFilter === 'NSFW') {
-        filteredItems = filteredItems.filter(i => i.gen_nsfw)
-    }
-
-    filteredItems.sort((a, b) => {
-        const d1 = new Date(a.created_at).getTime()
-        const d2 = new Date(b.created_at).getTime()
-        return sortOrder === 'desc' ? d2 - d1 : d1 - d2
-    })
-
-    const draftItems = filteredItems.filter(item => item.status === 'Draft')
+    const draftItems = items.filter(item => item.status === 'Draft')
     const hasDrafts = draftItems.length > 0
 
     const handleConfirmPlan = async () => {
@@ -214,10 +218,10 @@ export default function DashboardPage() {
     }
 
     const toggleSelectAll = () => {
-        if (selectedIds.length === filteredItems.length) {
+        if (selectedIds.length === items.length) {
             setSelectedIds([])
         } else {
-            setSelectedIds(filteredItems.map(i => i.id))
+            setSelectedIds(items.map(i => i.id))
         }
     }
 
@@ -420,7 +424,7 @@ export default function DashboardPage() {
                                 onClick={toggleSelectAll}
                                 className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-orange-500 transition-colors"
                             >
-                                {selectedIds.length === filteredItems.length ? 'Deselect All' : 'Select All'}
+                                {selectedIds.length === items.length ? 'Deselect All' : 'Select All'}
                             </button>
 
                             {selectedIds.length > 0 && (
@@ -458,8 +462,8 @@ export default function DashboardPage() {
                     </div>
                 ) : activeTab === 'workspace' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {filteredItems.length > 0 ? (
-                            filteredItems.map(item => (
+                        {items.length > 0 ? (
+                            items.map(item => (
                                 <ContentCard
                                     key={item.id}
                                     item={item}
@@ -500,56 +504,32 @@ export default function DashboardPage() {
                             </div>
                         )}
                     </div>
-                ) : (
-                    /* Calendar View Implementation */
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-                        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center">
-                            <h3 className="text-xl font-bold text-slate-300 flex items-center justify-center gap-3">
-                                <span>📅</span> Schedule & Published Posts
-                            </h3>
-                            <p className="text-slate-500 mt-2 text-sm italic">Tracking all posts across Instagram, Twitter, and Fanvue.</p>
-                        </div>
+                ) : null}
 
-                        <div className="grid grid-cols-1 gap-4">
-                            {filteredItems.filter(i => i.status === 'Scheduled' || i.status === 'Published').length === 0 ? (
-                                <div className="py-20 text-center text-slate-600 font-mono text-sm uppercase tracking-widest">
-                                    -- No scheduled activities found --
-                                </div>
-                            ) : (
-                                filteredItems.filter(i => i.status === 'Scheduled' || i.status === 'Published')
-                                    .sort((a: any, b: any) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime())
-                                    .map(item => (
-                                        <div key={item.id} className="bg-slate-800/50 border border-slate-800 p-4 rounded-2xl flex items-center gap-6 hover:border-indigo-500/30 transition-all group">
-                                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-900 shrink-0">
-                                                {item.generated_images?.[0] && (
-                                                    <img src={item.generated_images[0].file_path.startsWith('http') ? item.generated_images[0].file_path : item.generated_images[0].file_path.replace('/storage/', '/api/')} className="w-full h-full object-cover" />
-                                                )}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-3">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${item.status === 'Published' ? 'bg-purple-900 text-purple-300' : 'bg-emerald-900 text-emerald-300'}`}>
-                                                        {item.status}
-                                                    </span>
-                                                    <h4 className="font-bold text-slate-200">{item.topic}</h4>
-                                                </div>
-                                                <p className="text-xs text-slate-500 mt-1">
-                                                    Scheduled for: {new Date(item.scheduled_at!).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                {item.post_to_ig && <span title="Instagram" className="text-xl">📸</span>}
-                                                {item.post_to_x && <span title="X / Twitter" className="text-xl">𝕏</span>}
-                                                {item.post_to_fanvue && <span title="Fanvue" className="text-xl">💎</span>}
-                                            </div>
-                                            <button
-                                                onClick={() => { setActiveTab('workspace'); /* Focus logic */ }}
-                                                className="opacity-0 group-hover:opacity-100 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-[10px] font-black transition-all"
-                                            >
-                                                VIEW IN WORKSPACE
-                                            </button>
-                                        </div>
-                                    ))
-                            )}
+                {/* Pagination Controls */}
+                {activeTab === 'workspace' && items.length > 0 && totalPages > 1 && (
+                    <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl p-4 mt-8">
+                        <div className="text-xs text-slate-400 font-medium">
+                            Showing <span className="text-white font-bold">{items.length}</span> of <span className="text-white font-bold">{totalCount}</span> items
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-slate-300 rounded-lg transition-colors border border-slate-700"
+                            >
+                                ← PREV
+                            </button>
+                            <div className="flex items-center px-4 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-orange-400">
+                                Page {currentPage} of {totalPages}
+                            </div>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-slate-300 rounded-lg transition-colors border border-slate-700"
+                            >
+                                NEXT →
+                            </button>
                         </div>
                     </div>
                 )}
@@ -562,6 +542,7 @@ export default function DashboardPage() {
             {showSettingsModal && (
                 <GlobalSettingsModal onClose={() => setShowSettingsModal(false)} onUpdate={fetchItems} />
             )}
+
         </div>
     )
 }
@@ -798,13 +779,7 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
 
     const getImageUrl = (path: string, width?: number) => {
         if (!path) return ''
-        if (path.startsWith('http')) {
-            if (path.includes('supabase.co/storage/v1/object/public/') && width) {
-                // Implement Supabase Native Image Transformations for drastic Egress reduction
-                return path.replace('/object/public/', '/render/image/public/') + `?width=${width}&format=webp&quality=80`
-            }
-            return path
-        }
+        if (path.startsWith('http')) return path
         const base = path.replace('/storage/', '/api/')
         return width ? `${base}?w=${width}` : base
     }
@@ -1047,7 +1022,7 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                             ) : (
                                 <img
                                     src={getImageUrl(displayImage.file_path, 600)}
-                                    alt={item.topic}
+                                    alt={item.topic || 'Image preview'}
                                     className={`w-full h-full object-cover transition-all duration-500 ${item.nsfw_option && !isUnblurred ? 'blur-3xl' : 'blur-0'}`}
                                     loading="lazy"
                                 />
@@ -1077,7 +1052,7 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                                         {img.media_type === 'video' ? (
                                             <video src={getImageUrl(img.file_path)} className="w-full h-full object-cover" />
                                         ) : (
-                                            <img src={getImageUrl(img.file_path, 200)} className="w-full h-full object-cover" loading="lazy" />
+                                            <img src={getImageUrl(img.file_path, 200)} className="w-full h-full object-cover" alt="preview thumbnail" loading="lazy" />
                                         )}
                                         {selectedImageId === img.id && (
                                             <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">

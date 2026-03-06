@@ -54,7 +54,11 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
                 .map((img: any) => {
                     const url = img.file_path
                     if (!url) return null
-                    // Extract filename from public URL (e.g., https://.../content/filename.png)
+                    // Extract path after bucket name
+                    const match = url.match(/\/public\/content\/(.+)$/)
+                    if (match && match[1]) {
+                        return match[1]
+                    }
                     const parts = url.split('/')
                     return parts[parts.length - 1]
                 })

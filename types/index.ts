@@ -96,6 +96,7 @@ export interface GeneratedImage {
   slot_index?: number
   gen_attempt: number
   runpod_job_id?: string
+  original_path?: string // Path on RunPod Network Volume e.g. /workspace/ComfyUI/output/filename.png
   created_at: string
 }
 
