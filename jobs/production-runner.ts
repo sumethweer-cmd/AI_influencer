@@ -125,7 +125,12 @@ export async function runProductionBatch(itemIds?: string[], specificIndex?: num
                         const loopSeed = Math.floor(Math.random() * 1000000000)
                         const sfwRes = await runSingleWorkflow(comfy, item, 'SFW', loopSeed, item.persona, poseIdx)
                         for (const fileObj of sfwRes.fileNames) {
-                            await recordGeneratedImage(item.id, 'SFW', fileObj.filename, fileObj.url, loopSeed, podId, sfwRes.workflowSnapshot, sfwRes.vdoPrompt, poseIdx, fileObj.originalPath)
+                            const vdoObj = typeof sfwRes.vdoPrompt === 'object' ? sfwRes.vdoPrompt : { clip_1: sfwRes.vdoPrompt || '', clip_2: '', clip_3: '' }
+                            await recordGeneratedImage(
+                                item.id, 'SFW', fileObj.filename, fileObj.url, loopSeed, podId, 
+                                sfwRes.workflowSnapshot, sfwRes.vdoPrompt, poseIdx, fileObj.originalPath,
+                                vdoObj.clip_1, vdoObj.clip_2, vdoObj.clip_3
+                            )
                         }
                     }
                     await updateJob('Generating', item.id, 1)
@@ -144,7 +149,12 @@ export async function runProductionBatch(itemIds?: string[], specificIndex?: num
                         const loopSeed = Math.floor(Math.random() * 1000000000)
                         const nsfwRes = await runSingleWorkflow(comfy, item, 'NSFW', loopSeed, item.persona, poseIdx)
                         for (const fileObj of nsfwRes.fileNames) {
-                            await recordGeneratedImage(item.id, 'NSFW', fileObj.filename, fileObj.url, loopSeed, podId, nsfwRes.workflowSnapshot, nsfwRes.vdoPrompt, poseIdx, fileObj.originalPath)
+                            const vdoObj = typeof nsfwRes.vdoPrompt === 'object' ? nsfwRes.vdoPrompt : { clip_1: nsfwRes.vdoPrompt || '', clip_2: '', clip_3: '' }
+                            await recordGeneratedImage(
+                                item.id, 'NSFW', fileObj.filename, fileObj.url, loopSeed, podId, 
+                                nsfwRes.workflowSnapshot, nsfwRes.vdoPrompt, poseIdx, fileObj.originalPath,
+                                vdoObj.clip_1, vdoObj.clip_2, vdoObj.clip_3
+                            )
                         }
                     }
                     await updateJob('Generating', item.id, 1)
@@ -370,18 +380,35 @@ async function runSingleWorkflow(comfy: ComfyUIClient, item: ContentItem, type: 
 /**
  * Helper to record image in DB
  */
-async function recordGeneratedImage(contentId: string, type: 'SFW' | 'NSFW', fileName: string, fileUrl: string, seed: number, podId: string, workflow: any, vdoPrompt?: string, slotIndex?: number, originalPath?: string) {
+async function recordGeneratedImage(
+    contentId: string, 
+    type: 'SFW' | 'NSFW', 
+    fileName: string, 
+    fileUrl: string, 
+    seed: number, 
+    podId: string, 
+    workflow: any, 
+    vdoPrompt?: any, 
+    slotIndex?: number, 
+    originalPath?: string,
+    v1?: string,
+    v2?: string,
+    v3?: string
+) {
     await supabaseAdmin.from('generated_images').insert({
         content_item_id: contentId,
         image_type: type,
         file_path: fileUrl,
         file_name: fileName,
-        original_path: originalPath || null, // Path on RunPod Network Volume
+        original_path: originalPath || null, 
         seed,
         workflow_json: workflow,
         runpod_job_id: podId,
-        vdo_prompt: vdoPrompt || '',
-        vdo_status: vdoPrompt ? 'pending' : 'none',
+        vdo_prompt: typeof vdoPrompt === 'string' ? vdoPrompt : (vdoPrompt?.clip_1 || ''),
+        vdo_prompt_1: v1 || null,
+        vdo_prompt_2: v2 || null,
+        vdo_prompt_3: v3 || null,
+        vdo_status: (vdoPrompt || v1) ? 'pending' : 'none',
         slot_index: slotIndex,
         status: 'Generated'
     })

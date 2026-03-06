@@ -1467,6 +1467,22 @@ function PromptEditorModal({
                                         </div>
                                         <textarea value={(promptStructure.poses && promptStructure.poses[idx]) || ''} onChange={e => updatePromptStructure('poses', e.target.value, idx)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-slate-300 focus:border-orange-500 outline-none resize-none h-24 transition-colors" />
                                     </div>
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-[10px] font-bold text-teal-400 uppercase">✅ SFW VIDEO PROMPT (15S)</label>
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText((promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]) || '');
+                                                    alert('Copied SFW Video prompt!');
+                                                }}
+                                                className="text-[9px] text-teal-400 hover:text-teal-300 font-bold"
+                                            >
+                                                📋 COPY
+                                            </button>
+                                        </div>
+                                        <textarea value={(promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]) || ''} onChange={e => updatePromptStructure('vdo_prompts', e.target.value, idx)} className="w-full bg-slate-900 border border-teal-900/50 rounded p-2 text-xs text-teal-200 focus:border-teal-500 outline-none resize-none h-20 transition-colors shadow-[0_0_10px_rgba(20,184,166,0.05)]" />
+                                    </div>
+
                                     <div className="space-y-4 pt-4 border-t border-pink-900/20">
                                         <div>
                                             <div className="flex justify-between items-center mb-1">
@@ -1485,7 +1501,7 @@ function PromptEditorModal({
                                         </div>
                                         <div>
                                             <div className="flex justify-between items-center mb-1">
-                                                <label className="text-[10px] font-bold text-rose-500 uppercase">NSFW VIDEO PROMPT (15S)</label>
+                                                <label className="text-[10px] font-bold text-rose-500 uppercase">🔞 NSFW VIDEO PROMPT (15S)</label>
                                                 <button
                                                     onClick={() => {
                                                         navigator.clipboard.writeText((promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]) || '');
@@ -1499,21 +1515,7 @@ function PromptEditorModal({
                                             <textarea value={(promptStructure.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw[idx]) || ''} onChange={e => updatePromptStructure('vdo_prompts_nsfw', e.target.value, idx)} className="w-full bg-slate-900 border border-rose-900/50 rounded p-2 text-xs text-rose-200 focus:border-rose-500 outline-none resize-none h-20 transition-colors shadow-[0_0_10px_rgba(244,63,94,0.05)]" />
                                         </div>
                                     </div>
-                                    <div>
-                                        <div className="flex justify-between items-center mb-1">
-                                            <label className="text-[10px] font-bold text-indigo-400 uppercase">VIDEO PROMPT (15S)</label>
-                                            <button
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText((promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]) || '');
-                                                    alert('Copied Video prompt!');
-                                                }}
-                                                className="text-[9px] text-indigo-400 hover:text-indigo-300 font-bold"
-                                            >
-                                                📋 COPY
-                                            </button>
-                                        </div>
-                                        <textarea value={(promptStructure.vdo_prompts && promptStructure.vdo_prompts[idx]) || ''} onChange={e => updatePromptStructure('vdo_prompts', e.target.value, idx)} className="w-full bg-slate-900 border border-indigo-900/50 rounded p-2 text-xs text-indigo-200 focus:border-indigo-500 outline-none resize-none h-20 transition-colors shadow-[0_0_10px_rgba(99,102,241,0.05)]" />
-                                    </div>
+
                                     <div className="pt-2 mt-2 border-t border-slate-700/50">
                                         <label className="text-[9px] font-bold text-emerald-500/80 block mb-1 uppercase">Final SFW Prompt Preview</label>
                                         <div className="text-[9px] text-slate-400 bg-slate-900/80 p-2 rounded-lg border border-slate-700/30 max-h-32 overflow-y-auto font-mono scrollbar-thin">

@@ -1,7 +1,59 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai'
 import { WeeklyPlanJSON, QCFeedback } from '@/types'
 import { getConfig } from './config'
 import { logSystem, supabaseAdmin } from './supabase'
+
+// ---- HELPER: Model Initialization with Safety Settings ----
+async function getGeminiModel(genAI: GoogleGenerativeAI) {
+  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
+  
+  // Strict Enforcement: Only allow gemini-2.5-flash or gemini-3-flash-preview
+  const allowedModels = ['gemini-2.5-flash', 'gemini-3-flash-preview']
+  if (!allowedModels.includes(modelName)) {
+    modelName = 'gemini-2.5-flash'
+  }
+  
+  return genAI.getGenerativeModel({
+    model: modelName,
+    safetySettings: [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    ]
+  })
+}
+
+// ---- HELPER: Robust JSON Extraction ----
+async function parseAIJson(text: string, context: string) {
+  const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/)
+  if (!jsonMatch) {
+    await logSystem('ERROR', context, 'JSON Extraction Failed', { 
+      rawText: text.substring(0, 1000) + (text.length > 1000 ? '...' : ''),
+      textLength: text.length
+    })
+    throw new Error('Failed to extract JSON from AI response')
+  }
+
+  let jsonStr = jsonMatch[0]
+  
+  // Basic balance check/fix if truncated (very common with large outputs)
+  try {
+    return JSON.parse(jsonStr)
+  } catch (err: any) {
+    // If it fails, try to trim it (handles "Unexpected non-whitespace character after JSON")
+    try {
+      return JSON.parse(jsonStr.trim())
+    } catch (e2) {
+      await logSystem('ERROR', context, 'JSON Parse Failed', { 
+        error: err.message,
+        matchLength: jsonStr.length,
+        sample: jsonStr.substring(jsonStr.length - 100)
+      })
+      throw err
+    }
+  }
+}
 
 async function getPersonaSystemPrompt(targetPersona: string): Promise<string> {
   const { data } = await supabaseAdmin
@@ -76,11 +128,8 @@ export async function generateWeeklyPlan(trends: any, targetPersona: string, bat
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const systemInstruction = await getConfig('PHASE1_SYSTEM_INSTRUCTION') || 'Generate 21 content items following storylines.'
-
   const genAI = new GoogleGenerativeAI(apiKey)
-  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
-  if (modelName === 'gemini-1.5-flash') modelName = 'gemini-2.5-flash'
-  const model = genAI.getGenerativeModel({ model: modelName })
+  const model = await getGeminiModel(genAI)
 
   const prompt = `
     You are the Technical Director of Nong Kung Agency.
@@ -94,8 +143,9 @@ export async function generateWeeklyPlan(trends: any, targetPersona: string, bat
 
     ${systemInstruction}
     
-    CRITICAL: For 'camera_settings', 'poses', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw' in 'prompt_structure', you MUST provide EXACTLY ${batchSize} strings for each. 
-    Each string must be a 15-second cinematic motion prompt.
+    CRITICAL: For 'camera_settings', 'poses', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw' in 'prompt_structure', you MUST provide EXACTLY ${batchSize} elements for each.
+    
+    CRITICAL VIDEO SPLIT RULE: For 'vdo_prompts' and 'vdo_prompts_nsfw', each element must be an OBJECT containing 3 cinematic clips (5 seconds each) to form a 15-second sequence.
     
     CRITICAL NSFW RULE: When 'nsfw_option' is true, the 'nsfw_prompts' and 'vdo_prompts_nsfw' MUST be highly explicit, provocative, and detailed. 
     
@@ -124,15 +174,23 @@ export async function generateWeeklyPlan(trends: any, targetPersona: string, bat
           "prompt_structure": {
             "mood_and_tone": "...",
             "vibe": "...",
-            "time_of_day": "e.g. golden hour, midday sun, blue hour, late night, 3am dim room",
-            "location": "e.g. messy bedroom, rooftop bar, beach shoreline, gym locker room, hotel bathroom mirror",
-            "lighting": "MUST be real-world ambient light only (e.g. bedside lamp glow, window sunlight, phone screen light, neon sign reflection, bathroom vanity bulb, streetlight through curtains). NEVER studio lighting, NEVER chiaroscuro, NEVER ring light, NEVER professional spotlight.",
+            "lighting": "Natural lighting only (e.g. lamp, sun, phone screen). NEVER studio lighting.",
             "outfit": "...",
             "camera_settings": ["", "", "", ""],
             "poses": ["", "", "", ""],
             "nsfw_prompts": ["", "", "", ""],
-            "vdo_prompts": ["Video 1 (15s cinematic motion)", "Video 2 (15s cinematic motion)", "Video 3 (15s cinematic motion)", "Video 4 (15s cinematic motion)"],
-            "vdo_prompts_nsfw": ["Provocative 1 (15s)", "Provocative 2 (15s)", "Provocative 3 (15s)", "Provocative 4 (15s)"]
+            "vdo_prompts": [
+              { "clip_1": "0-5s description", "clip_2": "5-10s description", "clip_3": "10-15s description" },
+              { "clip_1": "0-5s description", "clip_2": "5-10s description", "clip_3": "10-15s description" },
+              { "clip_1": "0-5s description", "clip_2": "5-10s description", "clip_3": "10-15s description" },
+              { "clip_1": "0-5s description", "clip_2": "5-10s description", "clip_3": "10-15s description" }
+            ],
+            "vdo_prompts_nsfw": [
+              { "clip_1": "NSFW 0-5s", "clip_2": "NSFW 5-10s", "clip_3": "NSFW 10-15s" },
+              { "clip_1": "NSFW 0-5s", "clip_2": "NSFW 5-10s", "clip_3": "NSFW 10-15s" },
+              { "clip_1": "NSFW 0-5s", "clip_2": "NSFW 5-10s", "clip_3": "NSFW 10-15s" },
+              { "clip_1": "NSFW 0-5s", "clip_2": "NSFW 5-10s", "clip_3": "NSFW 10-15s" }
+            ]
           },
           "nsfw_option": true,
           "caption_draft": "..."
@@ -144,19 +202,8 @@ export async function generateWeeklyPlan(trends: any, targetPersona: string, bat
   const result = await model.generateContent(prompt)
   const response = await result.response
   const text = response.text()
-  const usage = response.usageMetadata
-  if (usage) {
-    await logSystem('INFO', 'Phase1_Planner', 'Tokens Used (Trend)', {
-      inputTokens: usage.promptTokenCount,
-      outputTokens: usage.candidatesTokenCount,
-      totalTokens: usage.totalTokenCount,
-      model: modelName
-    })
-  }
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('Failed to parse JSON')
-  return JSON.parse(jsonMatch[0])
+  
+  return await parseAIJson(text, 'Phase1_Planner')
 }
 
 /**
@@ -167,11 +214,9 @@ export async function generatePlanFromPrompt(userPrompt: string, targetPersona: 
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const systemInstruction = await getConfig('PHASE1_SYSTEM_INSTRUCTION') || 'Generate 21 content items following storylines.'
-
   const genAI = new GoogleGenerativeAI(apiKey)
-  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
-  if (modelName === 'gemini-1.5-flash') modelName = 'gemini-2.5-flash'
-  const model = genAI.getGenerativeModel({ model: modelName })
+  const model = await getGeminiModel(genAI)
+
   const prompt = `
     You are the Creative Director of Nong Kung Agency, managing an AI Influencer.
     The client has requested the following theme / idea for this week: "${userPrompt}"
@@ -182,9 +227,10 @@ export async function generatePlanFromPrompt(userPrompt: string, targetPersona: 
     
     ${systemInstruction}
     
-    CRITICAL: For 'camera_settings', 'poses', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw' in 'prompt_structure', you MUST provide EXACTLY ${batchSize} strings for each. 
-    Each string must be a 15-second cinematic motion prompt.
+    CRITICAL: For 'camera_settings', 'poses', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw' in 'prompt_structure', you MUST provide EXACTLY ${batchSize} elements for each. 
     
+    CRITICAL VIDEO SPLIT RULE: For 'vdo_prompts' and 'vdo_prompts_nsfw', each element must be an OBJECT containing 3 cinematic clips (clip_1, clip_2, clip_3) to form a 15-second sequence.
+
     CRITICAL NSFW RULE: When 'nsfw_option' is true, 'nsfw_prompts' and 'vdo_prompts_nsfw' must be extremely provocative, spicy, and explicit.
 
     CRITICAL PERSONA DNA & RULES:
@@ -209,15 +255,23 @@ export async function generatePlanFromPrompt(userPrompt: string, targetPersona: 
           "prompt_structure": {
             "mood_and_tone": "...",
             "vibe": "...",
-            "time_of_day": "e.g. golden hour, midday sun, blue hour, late night, 3am dim room",
-            "location": "e.g. messy bedroom, rooftop bar, beach shoreline, gym locker room, hotel bathroom mirror",
-            "lighting": "MUST be real-world ambient light only (e.g. bedside lamp glow, window sunlight, phone screen light, neon sign reflection, bathroom vanity bulb, streetlight through curtains). NEVER studio lighting, NEVER chiaroscuro, NEVER ring light, NEVER professional spotlight.",
+            "lighting": "Natural lighting only (e.g. lamp, sun, phone screen). NEVER studio lighting.",
             "outfit": "...",
             "camera_settings": ["", "", "", ""],
             "poses": ["", "", "", ""],
             "nsfw_prompts": ["", "", "", ""],
-            "vdo_prompts": ["Video 1 (15s cinematic motion)", "Video 2 (15s cinematic motion)", "Video 3 (15s cinematic motion)", "Video 4 (15s cinematic motion)"],
-            "vdo_prompts_nsfw": ["Provocative 1 (15s)", "Provocative 2 (15s)", "Provocative 3 (15s)", "Provocative 4 (15s)"]
+            "vdo_prompts": [
+              { "clip_1": "desc...", "clip_2": "desc...", "clip_3": "desc..." },
+              { "clip_1": "desc...", "clip_2": "desc...", "clip_3": "desc..." },
+              { "clip_1": "desc...", "clip_2": "desc...", "clip_3": "desc..." },
+              { "clip_1": "desc...", "clip_2": "desc...", "clip_3": "desc..." }
+            ],
+            "vdo_prompts_nsfw": [
+              { "clip_1": "NSFW...", "clip_2": "NSFW...", "clip_3": "NSFW..." },
+              { "clip_1": "NSFW...", "clip_2": "NSFW...", "clip_3": "NSFW..." },
+              { "clip_1": "NSFW...", "clip_2": "NSFW...", "clip_3": "NSFW..." },
+              { "clip_1": "NSFW...", "clip_2": "NSFW...", "clip_3": "NSFW..." }
+            ]
           },
           "nsfw_option": true,
           "caption_draft": "..."
@@ -229,19 +283,8 @@ export async function generatePlanFromPrompt(userPrompt: string, targetPersona: 
   const result = await model.generateContent(prompt)
   const response = await result.response
   const text = response.text()
-  const usage = response.usageMetadata
-  if (usage) {
-    await logSystem('INFO', 'Phase1_Planner', 'Tokens Used (Brainstorm)', {
-      inputTokens: usage.promptTokenCount,
-      outputTokens: usage.candidatesTokenCount,
-      totalTokens: usage.totalTokenCount,
-      model: modelName
-    })
-  }
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('Failed to parse JSON')
-  return JSON.parse(jsonMatch[0])
+  
+  return await parseAIJson(text, 'Phase1_Brainstorm')
 }
 
 /**
@@ -252,12 +295,9 @@ export async function generatePlanFromImage(imageBase64: string, mimeType: strin
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const systemInstruction = await getConfig('PHASE1_SYSTEM_INSTRUCTION') || 'Generate 21 content items following storylines.'
-  const jsonSchema = await getConfig('PHASE1_JSON_SCHEMA') || '{}'
-
   const genAI = new GoogleGenerativeAI(apiKey)
-  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
-  if (modelName === 'gemini-1.5-flash') modelName = 'gemini-2.5-flash'
-  const model = genAI.getGenerativeModel({ model: modelName })
+  const model = await getGeminiModel(genAI)
+
   const prompt = `
     You are the Creative Director of Nong Kung Agency.
     Analyze the provided reference image. Identify the lighting, style, subject's some, clothing, and overall mood.
@@ -268,7 +308,9 @@ export async function generatePlanFromImage(imageBase64: string, mimeType: strin
 
     ${systemInstruction}
 
-    CRITICAL: For 'camera_settings', 'poses', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw' in 'prompt_structure', you MUST provide EXACTLY ${batchSize} strings for each. 
+    CRITICAL: For 'camera_settings', 'poses', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw' in 'prompt_structure', you MUST provide EXACTLY ${batchSize} elements for each. 
+    
+    CRITICAL VIDEO SPLIT RULE: For 'vdo_prompts' and 'vdo_prompts_nsfw', each element must be an OBJECT containing 3 cinematic clips (clip_1, clip_2, clip_3) to form a 15-second sequence.
     
     CRITICAL NSFW RULE: If allowed, generate highly explicit and spicy motion prompts.
 
@@ -294,15 +336,23 @@ export async function generatePlanFromImage(imageBase64: string, mimeType: strin
           "prompt_structure": {
             "mood_and_tone": "...",
             "vibe": "...",
-            "time_of_day": "e.g. golden hour, midday sun, blue hour, late night, 3am dim room",
-            "location": "e.g. messy bedroom, rooftop bar, beach shoreline, gym locker room, hotel bathroom mirror",
-            "lighting": "MUST be real-world ambient light only (e.g. bedside lamp glow, window sunlight, phone screen light, neon sign reflection, bathroom vanity bulb, streetlight through curtains). NEVER studio lighting, NEVER chiaroscuro, NEVER ring light, NEVER professional spotlight.",
+            "lighting": "Natural lighting only (e.g. lamp, sun, phone screen). NEVER studio lighting.",
             "outfit": "...",
             "camera_settings": ["", "", "", ""],
             "poses": ["", "", "", ""],
             "nsfw_prompts": ["", "", "", ""],
-            "vdo_prompts": ["Video 1", "Video 2", "Video 3", "Video 4"],
-            "vdo_prompts_nsfw": ["Explicit 1", "Explicit 2", "Explicit 3", "Explicit 4"]
+            "vdo_prompts": [
+              { "clip_1": "desc...", "clip_2": "desc...", "clip_3": "desc..." },
+              { "clip_1": "desc...", "clip_2": "desc...", "clip_3": "desc..." },
+              { "clip_1": "desc...", "clip_2": "desc...", "clip_3": "desc..." },
+              { "clip_1": "desc...", "clip_2": "desc...", "clip_3": "desc..." }
+            ],
+            "vdo_prompts_nsfw": [
+              { "clip_1": "NSFW...", "clip_2": "NSFW...", "clip_3": "NSFW..." },
+              { "clip_1": "NSFW...", "clip_2": "NSFW...", "clip_3": "NSFW..." },
+              { "clip_1": "NSFW...", "clip_2": "NSFW...", "clip_3": "NSFW..." },
+              { "clip_1": "NSFW...", "clip_2": "NSFW...", "clip_3": "NSFW..." }
+            ]
           },
           "nsfw_option": true,
           "caption_draft": "..."
@@ -321,58 +371,41 @@ export async function generatePlanFromImage(imageBase64: string, mimeType: strin
   const result = await model.generateContent([prompt, imagePart])
   const response = await result.response
   const text = response.text()
-  const usage = response.usageMetadata
-  if (usage) {
-    await logSystem('INFO', 'Phase1_Planner', 'Tokens Used (Image)', {
-      inputTokens: usage.promptTokenCount,
-      outputTokens: usage.candidatesTokenCount,
-      totalTokens: usage.totalTokenCount,
-      model: modelName
-    })
-  }
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('Failed to parse JSON')
-  return JSON.parse(jsonMatch[0])
+  
+  return await parseAIJson(text, 'Phase1_Image')
 }
 
 /**
  * Phase 3: Quality Control check for generated images
-
  */
 export async function performImageQC(imagePath: string, prompt: string): Promise<QCFeedback> {
   const apiKey = await getConfig('GEMINI_API_KEY')
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
-  if (modelName === 'gemini-1.5-flash') modelName = 'gemini-2.5-flash'
-  const visionModel = genAI.getGenerativeModel({ model: modelName })
+  const model = await getGeminiModel(genAI)
 
-  // Note: Implementation will require fetching local image and converting to base64
-  // This is a placeholder for the logic structure
   const visionPrompt = `
     Analyze this AI - generated image for quality and realism.
     Original Prompt: ${prompt}
 
     Check for:
-  - Artifacts(mangled fingers, weird proportions)
+    - Artifacts (mangled fingers, weird proportions)
     - Face proportions and symmetry
-      - Realism and lighting consistency
+    - Realism and lighting consistency
 
     Return ONLY a JSON:
-{
-  "artifacts_detected": ["list of issues"],
-    "face_proportion_score": 0 - 100,
+    {
+      "artifacts_detected": ["list of issues"],
+      "face_proportion_score": 0 - 100,
       "realism_score": 0 - 100,
-        "overall_score": 0 - 100,
-          "issues": ["what went wrong"],
-            "recommendation": "pass" or "regenerate"
-}
-`
+      "overall_score": 0 - 100,
+      "issues": ["what went wrong"],
+      "recommendation": "pass" or "regenerate"
+    }
+  `
 
   console.log('QC check starting for:', imagePath)
-  // Logic to send image + prompt to Gemini Vision will be implemented in the Job runner
   return {
     overall_score: 90,
     recommendation: 'pass',
@@ -391,9 +424,7 @@ export async function refillPromptStructure(item: any, targetBatchSize: number):
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
-  if (modelName === 'gemini-1.5-flash') modelName = 'gemini-2.5-flash'
-  const model = genAI.getGenerativeModel({ model: modelName })
+  const model = await getGeminiModel(genAI)
 
   const currentCount = item.prompt_structure?.poses?.length || 0
   if (currentCount >= targetBatchSize) return item.prompt_structure
@@ -425,9 +456,7 @@ export async function refillPromptStructure(item: any, targetBatchSize: number):
   const result = await model.generateContent(prompt)
   const response = await result.response
   const text = response.text()
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('Failed to parse refill JSON')
-  const newItems = JSON.parse(jsonMatch[0])
+  const newItems = await parseAIJson(text, 'Phase1_Refill')
 
   const ps = { ...item.prompt_structure }
   ps.camera_settings = [...(ps.camera_settings || []), ...(newItems.new_camera_settings || [])]
@@ -447,9 +476,7 @@ export async function regenerateContentPrompts(item: any, mode: 'SFW' | 'NSFW' |
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
-  if (modelName === 'gemini-1.5-flash') modelName = 'gemini-2.5-flash'
-  const model = genAI.getGenerativeModel({ model: modelName })
+  const model = await getGeminiModel(genAI)
 
   const batchSize = item.batch_size || 4
 
@@ -486,22 +513,7 @@ export async function regenerateContentPrompts(item: any, mode: 'SFW' | 'NSFW' |
   const response = await result.response
   const text = response.text()
   
-  // Clean up potential markdown or malformed json
-  const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim()
-  const jsonMatch = cleanText.match(/\{[\s\S]*\}/)
-  
-  if (!jsonMatch) {
-      console.error('Failed regen AI text:', text)
-      throw new Error(`Failed to parse regenerate JSON for mode ${mode}. AI returned: ${text.substring(0, 100)}...`)
-  }
-  
-  let newItems
-  try {
-      newItems = JSON.parse(jsonMatch[0])
-  } catch (e) {
-      console.error('JSON Parse error on:', jsonMatch[0])
-      throw new Error(`Syntax error in AI generated JSON for mode ${mode}.`)
-  }
+  const newItems = await parseAIJson(text, `Phase1_Regen_${mode}`)
 
   const ps = { ...item.prompt_structure }
   if (mode === 'ALL' || mode === 'SFW') {
@@ -525,9 +537,7 @@ export async function refillSinglePrompt(item: any, index: number, type: 'SFW' |
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
-  if (modelName === 'gemini-1.5-flash') modelName = 'gemini-2.5-flash'
-  const model = genAI.getGenerativeModel({ model: modelName })
+  const model = await getGeminiModel(genAI)
 
   const prompt = `
       You are the Creative Director. We need to REGENERATE specific elements for image index ${index} of this content:
@@ -550,9 +560,7 @@ export async function refillSinglePrompt(item: any, index: number, type: 'SFW' |
   const result = await model.generateContent(prompt)
   const response = await result.response
   const text = response.text()
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('Failed to parse single refill JSON')
-  const fresh = JSON.parse(jsonMatch[0])
+  const fresh = await parseAIJson(text, 'Phase1_SingleRefill')
 
   const ps = { ...item.prompt_structure }
   if (ps.camera_settings) ps.camera_settings[index] = fresh.camera_setting
@@ -576,9 +584,7 @@ export async function generateVideoPrompts(basePrompt: string, imageType: string
     'Create a continuous narrative spanning 3 exactly 5-second parts. Output exactly 3 prompts in JSON format ["prompt1", "prompt2", "prompt3"].'
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
-  if (modelName === 'gemini-1.5-flash') modelName = 'gemini-2.5-flash'
-  const model = genAI.getGenerativeModel({ model: modelName })
+  const model = await getGeminiModel(genAI)
 
   const prompt = `
     You are an AI Video Director.
@@ -601,17 +607,9 @@ export async function generateVideoPrompts(basePrompt: string, imageType: string
   const response = await result.response
   const text = response.text()
   
-  try {
-    const jsonMatch = text.match(/\[[\s\S]*\]/)
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0])
-      if (Array.isArray(parsed) && parsed.length >= 3) {
-        return [parsed[0], parsed[1], parsed[2]]
-      }
-    }
-    return [basePrompt, basePrompt, basePrompt]
-  } catch (e) {
-    console.error('Failed to parse Gemini video split output', e)
-    return [basePrompt, basePrompt, basePrompt]
+  const parsed = await parseAIJson(text, 'VideoSplitter')
+  if (Array.isArray(parsed) && parsed.length >= 3) {
+    return [parsed[0], parsed[1], parsed[2]]
   }
+  return []
 }

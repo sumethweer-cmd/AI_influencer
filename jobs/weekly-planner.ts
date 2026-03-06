@@ -107,8 +107,8 @@ export async function runWeeklyPlanner(method: ScoutMethod = 'apify', payload: S
                     camera_settings: padArray(item.prompt_structure?.camera_settings, globalBatchSize),
                     poses: padArray(item.prompt_structure?.poses, globalBatchSize),
                     nsfw_prompts: padArray(item.prompt_structure?.nsfw_prompts, globalBatchSize),
-                    vdo_prompts: padArray((item.prompt_structure as any)?.vdo_prompts, globalBatchSize),
-                    vdo_prompts_nsfw: padArray((item.prompt_structure as any)?.vdo_prompts_nsfw, globalBatchSize)
+                    vdo_prompts: padArray((item.prompt_structure as any)?.vdo_prompts, globalBatchSize, { clip_1: '', clip_2: '', clip_3: '' }),
+                    vdo_prompts_nsfw: padArray((item.prompt_structure as any)?.vdo_prompts_nsfw, globalBatchSize, { clip_1: '', clip_2: '', clip_3: '' })
                 },
                 nsfw_option: !!item.nsfw_option,
                 gen_sfw: true,
@@ -146,8 +146,8 @@ export async function runWeeklyPlanner(method: ScoutMethod = 'apify', payload: S
     }
 }
 
-function padArray(arr: any[] | undefined, length: number) {
+function padArray(arr: any[] | undefined, length: number, defaultValue: any = '') {
     const newArr = [...(arr || [])]
-    while (newArr.length < length) newArr.push('')
+    while (newArr.length < length) newArr.push(defaultValue)
     return newArr.slice(0, length)
 }

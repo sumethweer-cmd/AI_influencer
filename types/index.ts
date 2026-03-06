@@ -45,8 +45,8 @@ export interface ContentItem {
     camera_settings?: string[]
     poses?: string[]
     nsfw_prompts?: string[]
-    vdo_prompts?: string[]
-    vdo_prompts_nsfw?: string[]
+    vdo_prompts?: (string | { clip_1: string; clip_2: string; clip_3: string })[]
+    vdo_prompts_nsfw?: (string | { clip_1: string; clip_2: string; clip_3: string })[]
   }
   nsfw_option: boolean
   caption_draft?: string
@@ -165,8 +165,8 @@ export interface ContentPlan {
     camera_settings: string[]
     poses: string[]
     nsfw_prompts?: string[]
-    vdo_prompts?: string[]
-    vdo_prompts_nsfw?: string[]
+    vdo_prompts?: (string | { clip_1: string; clip_2: string; clip_3: string })[]
+    vdo_prompts_nsfw?: (string | { clip_1: string; clip_2: string; clip_3: string })[]
   }
   nsfw_option: boolean
   caption_draft: string

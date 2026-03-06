@@ -650,8 +650,29 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                                             onChange={(e) => {
                                                                 const newImages = [...localImages]
                                                                 const found = newImages.find(ni => ni.id === img.id)
-                                                                if (found) found.vdo_prompt_1 = e.target.value
+                                                                if (found) {
+                                                                    found.vdo_prompt_1 = e.target.value
+                                                                    // Ensure we have a base prompt for legacy compatibility
+                                                                    if (!found.vdo_prompt) found.vdo_prompt = e.target.value
+                                                                }
                                                                 setLocalImages(newImages)
+                                                            }}
+                                                            onFocus={(e) => {
+                                                                // If empty, try to pull from Phase 1 metadata
+                                                                if (!e.target.value) {
+                                                                    const struct = item.prompt_structure as any
+                                                                    const planned = activeTab === 'NSFW' ? struct?.vdo_prompts_nsfw : struct?.vdo_prompts
+                                                                    if (planned && planned[idx] && planned[idx].clip_1) {
+                                                                        const newImages = [...localImages]
+                                                                        const found = newImages.find(ni => ni.id === img.id)
+                                                                        if (found) {
+                                                                            found.vdo_prompt_1 = planned[idx].clip_1
+                                                                            found.vdo_prompt_2 = planned[idx].clip_2
+                                                                            found.vdo_prompt_3 = planned[idx].clip_3
+                                                                        }
+                                                                        setLocalImages(newImages)
+                                                                    }
+                                                                }
                                                             }}
                                                         />
                                                         <textarea
