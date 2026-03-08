@@ -1323,19 +1323,18 @@ function PromptEditorModal({
             ].filter(p => p && String(p).trim() !== '').join(', ')
         }
 
+        const cameraSetting = camera ? `Camera setting is "${camera}"` : ''
+
+        // For NSFW, we REPLACE the pose with the nsfw_prompt
+        const actionPart = type === 'NSFW' ? nsfwPrompt : pose
+
         const parts = [
             personaTrigger,
             baseDescription,
-            camera,
+            cameraSetting,
             faceExpression,
-            pose
+            actionPart
         ]
-
-        // For video previews, we might want to prioritize the vdo prompt if it exists
-        if (vdoPrompt && type === 'SFW') parts.push(vdoPrompt)
-        if (vdoPromptNsfw && type === 'NSFW') parts.push(vdoPromptNsfw)
-
-        if (type === 'NSFW' && nsfwPrompt) parts.push(nsfwPrompt)
 
         const dynamicPrompt = parts
             .map(p => String(p || '').trim())
