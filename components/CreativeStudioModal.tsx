@@ -45,26 +45,22 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
 
     async function handleDownload(img: GeneratedImage) {
         try {
-            let downloadUrl: string
-            let filename: string
-
-            if (img.media_type === 'video') {
-                // Videos: download directly from Supabase file_path
-                downloadUrl = img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/')
-                filename = `${item.persona || 'video'}_${img.image_type}_${img.slot_index ?? ''}.mp4`
-            } else {
-                // Images: try RunPod original PNG first, fallback to Supabase WebP
-                downloadUrl = `/api/media/download-original?imageId=${img.id}`
-                const ext = img.original_path ? 'png' : (img.file_path?.split('.').pop() || 'webp')
-                filename = `${item.persona || 'image'}_${img.image_type}_${img.slot_index ?? ''}.${ext}`
-            }
-
+            // Use proxy API to avoid CORS issues with GCS, and support RunPod originals
+            const downloadUrl = `/api/media/download-original?imageId=${img.id}`
             const response = await fetch(downloadUrl)
+
+            if (!response.ok) throw new Error(`Download failed: ${response.statusText}`)
+
             const source = response.headers.get('X-Source')
-            if (source === 'supabase-webp-fallback') {
-                console.info('Pod offline — downloaded WebP from Supabase instead of original PNG')
+            if (source === 'supabase-media-fallback-proxy') {
+                console.info('Original unavailable — downloaded fallback from Supabase')
             }
+
             const blob = await response.blob()
+            const contentType = response.headers.get('content-type') || ''
+            const ext = img.media_type === 'video' ? 'mp4' : (contentType.includes('png') ? 'png' : 'webp')
+            const filename = `${item.persona || 'media'}_${img.image_type}_${img.slot_index ?? ''}.${ext}`
+
             const objectUrl = URL.createObjectURL(blob)
             const a = document.createElement('a')
             a.href = objectUrl
@@ -93,11 +89,13 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
 
             for (const img of currentImages) {
                 try {
-                    const url = getOriginalUrl(img.file_path)
+                    // Use proxy API to avoid CORS issues with GCS
+                    const url = `/api/media/download-original?imageId=${img.id}`
                     const response = await fetch(url)
                     if (response.ok) {
                         const blob = await response.blob()
-                        const ext = img.media_type === 'video' ? 'mp4' : 'png'
+                        const contentType = response.headers.get('content-type') || ''
+                        const ext = img.media_type === 'video' ? 'mp4' : (contentType.includes('png') ? 'png' : 'webp')
                         const filename = `${item.persona || 'image'}_${img.image_type}_${img.slot_index ?? ''}.${ext}`
                         folder?.file(filename, blob)
                         count++

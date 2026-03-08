@@ -189,10 +189,13 @@ export default function DashboardPage() {
 
                     for (const img of item.generated_images) {
                         try {
-                            const res = await fetch(img.file_path.startsWith('http') ? img.file_path : img.file_path.replace('/storage/', '/api/'))
+                            // Use proxy API to avoid CORS issues with GCS
+                            const url = `/api/media/download-original?imageId=${img.id}`
+                            const res = await fetch(url)
                             if (res.ok) {
                                 const blob = await res.blob()
-                                const extension = img.media_type === 'video' ? 'mp4' : 'png'
+                                const contentType = res.headers.get('content-type') || ''
+                                const extension = img.media_type === 'video' ? 'mp4' : (contentType.includes('png') ? 'png' : 'webp')
                                 const filename = `${img.image_type || 'image'}_${img.id.substring(0, 8)}.${extension}`
                                 folder?.file(filename, blob)
                                 count++
