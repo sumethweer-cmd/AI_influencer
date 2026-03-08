@@ -4,6 +4,21 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Papa from 'papaparse'
 
+const getImageUrl = (url: string, width?: number) => {
+    if (!url) return '';
+    if (url.includes('storage.googleapis.com')) {
+        // If it's already webp or a video, don't touch
+        if (url.toLowerCase().endsWith('.webp') || url.toLowerCase().endsWith('.mp4')) return url;
+
+        let targetUrl = url.replace(/\.(png|jpg|jpeg)$/i, '.webp');
+        if (width) {
+            targetUrl += `?width=${width}`;
+        }
+        return targetUrl;
+    }
+    return url;
+};
+
 export default function EtsyDashboard() {
     const [books, setBooks] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
@@ -178,9 +193,25 @@ export default function EtsyDashboard() {
                     {books.map(book => (
                         <Link href={`/dashboard/etsy/books/${book.id}`} key={book.id} className="group">
                             <div className="bg-slate-900 overflow-hidden border border-slate-800 hover:border-purple-500 rounded-2xl transition-colors h-full flex flex-col">
-                                <div className="h-40 bg-slate-950 flex flex-col items-center justify-center border-b border-slate-800 p-4 text-center group-hover:bg-slate-800 transition-colors">
-                                    <span className="text-5xl opacity-80 mb-2">🎨</span>
-                                    <h4 className="font-bold text-slate-200 line-clamp-2">{book.title}</h4>
+                                <div className="h-40 bg-slate-950 flex flex-col items-center justify-center border-b border-slate-800 text-center group-hover:bg-slate-800 transition-colors relative overflow-hidden">
+                                    {book.cover_image_url ? (
+                                        <img
+                                            src={getImageUrl(book.cover_image_url, 300)}
+                                            alt={book.title}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                if (target.src.includes('.webp')) {
+                                                    target.src = book.cover_image_url;
+                                                }
+                                            }}
+                                        />
+                                    ) : (
+                                        <>
+                                            <span className="text-5xl opacity-80 mb-2">🎨</span>
+                                            <h4 className="font-bold text-slate-200 line-clamp-2 px-4">{book.title}</h4>
+                                        </>
+                                    )}
                                 </div>
                                 <div className="p-4 flex-grow flex flex-col justify-between">
                                     <div className="text-xs text-slate-400 flex flex-col gap-2">

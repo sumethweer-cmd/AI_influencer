@@ -4,13 +4,17 @@ import React, { useState, useEffect, use, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
-const getImageUrl = (url: string) => {
+const getImageUrl = (url: string, width?: number) => {
     if (!url) return '';
     if (url.includes('storage.googleapis.com')) {
         // If it's already webp or a video, don't touch
         if (url.toLowerCase().endsWith('.webp') || url.toLowerCase().endsWith('.mp4')) return url;
-        // Replace extension with .webp for GCS images
-        return url.replace(/\.(png|jpg|jpeg)$/i, '.webp');
+
+        let targetUrl = url.replace(/\.(png|jpg|jpeg)$/i, '.webp');
+        if (width) {
+            targetUrl += `?width=${width}`;
+        }
+        return targetUrl;
     }
     return url;
 };
@@ -433,7 +437,17 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                         onClick={() => coverFileRef.current?.click()}
                     >
                         {book.cover_image_url ? (
-                            <img src={getImageUrl(book.cover_image_url)} alt="Cover" className="w-full h-full object-cover" />
+                            <img
+                                src={getImageUrl(book.cover_image_url, 300)}
+                                alt="Cover"
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    if (target.src.includes('.webp')) {
+                                        target.src = book.cover_image_url;
+                                    }
+                                }}
+                            />
                         ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 p-2">
                                 <span className="text-4xl mb-2 opacity-50">📘</span>
@@ -638,7 +652,17 @@ function PageCard({ page, onSave, onImageUploaded }: { page: any, onSave: (txt: 
                 <div>
                     <div className="aspect-square bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center relative group overflow-hidden mb-2">
                         {page.image_url ? (
-                            <img src={getImageUrl(page.image_url)} alt={`Page ${page.page_number}`} className="w-full h-full object-contain" />
+                            <img
+                                src={getImageUrl(page.image_url, 400)}
+                                alt={`Page ${page.page_number}`}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    if (target.src.includes('.webp')) {
+                                        target.src = page.image_url;
+                                    }
+                                }}
+                            />
                         ) : (
                             <div className="text-center p-4">
                                 <span className="text-3xl opacity-50 block mb-2">🖼️</span>
