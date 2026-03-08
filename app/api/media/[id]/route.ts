@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { deleteFromGCS } from '@/lib/storage'
 
 export async function DELETE(
     request: Request,
@@ -23,14 +24,20 @@ export async function DELETE(
 
         if (dbError) throw dbError
 
-        // 2. Delete from Supabase Storage if it's a Supabase URL
-        if (img?.file_path?.includes('/storage/v1/object/public/content/')) {
-            const pathParts = img.file_path.split('/storage/v1/object/public/content/')
-            if (pathParts.length > 1) {
-                const storagePath = decodeURIComponent(pathParts[1])
-                await supabaseAdmin.storage
-                    .from('content')
-                    .remove([storagePath])
+        // 2. Delete from Storage
+        if (img?.file_path) {
+            if (img.file_path.includes('storage.googleapis.com')) {
+                // Delete from GCS (handles both original and .webp)
+                await deleteFromGCS(img.file_path);
+            } else if (img.file_path.includes('/storage/v1/object/public/content/')) {
+                // Legacy Supabase Deletion
+                const pathParts = img.file_path.split('/storage/v1/object/public/content/')
+                if (pathParts.length > 1) {
+                    const storagePath = decodeURIComponent(pathParts[1])
+                    await supabaseAdmin.storage
+                        .from('content')
+                        .remove([storagePath])
+                }
             }
         }
 

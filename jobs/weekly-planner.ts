@@ -100,12 +100,15 @@ export async function runWeeklyPlanner(method: ScoutMethod = 'apify', payload: S
                 theme: item.theme || plan.campaign_theme || 'Default Theme',
                 sfw_prompt: item.sfw_prompt || '',
                 prompt_structure: {
+                    location: item.prompt_structure?.location || '',
+                    time: item.prompt_structure?.time || '',
                     mood_and_tone: item.prompt_structure?.mood_and_tone || '',
                     vibe: item.prompt_structure?.vibe || '',
                     lighting: item.prompt_structure?.lighting || '',
                     outfit: item.prompt_structure?.outfit || '',
                     camera_settings: padArray(item.prompt_structure?.camera_settings, globalBatchSize),
                     poses: padArray(item.prompt_structure?.poses, globalBatchSize),
+                    face_expressions: padArray(item.prompt_structure?.face_expressions, globalBatchSize),
                     nsfw_prompts: padArray(item.prompt_structure?.nsfw_prompts, globalBatchSize),
                     vdo_prompts: padArray((item.prompt_structure as any)?.vdo_prompts, globalBatchSize, { clip_1: '', clip_2: '', clip_3: '' }),
                     vdo_prompts_nsfw: padArray((item.prompt_structure as any)?.vdo_prompts_nsfw, globalBatchSize, { clip_1: '', clip_2: '', clip_3: '' })

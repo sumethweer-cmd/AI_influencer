@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin, uploadToStorage } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
+import { uploadToStorage } from '@/lib/storage'
 import crypto from 'crypto'
 
 export async function POST(request: Request) {

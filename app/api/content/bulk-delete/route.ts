@@ -22,29 +22,35 @@ export async function POST(request: Request) {
 
         // 2. Extract filenames and delete from Storage
         if (items && items.length > 0) {
-            const filesToRemove: string[] = []
+            const supabaseFilesToRemove: string[] = []
             
-            items.forEach((item: any) => {
+            for (const item of items) {
                 if (item.generated_images && item.generated_images.length > 0) {
-                    item.generated_images.forEach((img: any) => {
+                    for (const img of item.generated_images) {
                         const url = img.file_path
-                        if (!url) return
-                        const match = url.match(/\/public\/content\/(.+)$/)
-                        if (match && match[1]) {
-                            filesToRemove.push(match[1])
-                        } else {
-                            const parts = url.split('/')
-                            filesToRemove.push(parts[parts.length - 1])
+                        if (!url) continue
+                        
+                        if (url.includes('storage.googleapis.com')) {
+                            const { deleteFromGCS } = await import('@/lib/storage');
+                            await deleteFromGCS(url);
+                        } else if (url.includes('/public/content/')) {
+                            const match = url.match(/\/public\/content\/(.+)$/)
+                            if (match && match[1]) {
+                                supabaseFilesToRemove.push(match[1])
+                            } else {
+                                const parts = url.split('/')
+                                supabaseFilesToRemove.push(parts[parts.length - 1])
+                            }
                         }
-                    })
+                    }
                 }
-            })
+            }
 
-            // Group into chunks of 100 max per supabase storage batch limit (optional but good practice)
-            if (filesToRemove.length > 0) {
+            // Group into chunks of 100 max per supabase storage batch limit
+            if (supabaseFilesToRemove.length > 0) {
                 const chunkSize = 100
-                for (let i = 0; i < filesToRemove.length; i += chunkSize) {
-                    const chunk = filesToRemove.slice(i, i + chunkSize)
+                for (let i = 0; i < supabaseFilesToRemove.length; i += chunkSize) {
+                    const chunk = supabaseFilesToRemove.slice(i, i + chunkSize)
                     const { error: storageErr } = await supabaseAdmin.storage.from('content').remove(chunk)
                     if (storageErr) {
                         console.error('Error deleting bulk files from storage:', storageErr)

@@ -52,14 +52,96 @@ async function getImageBuffer(comfyUrl: string, filename: string, subfolder: str
     return new Uint8Array(arrayBuffer)
 }
 
-async function uploadToStorage(buffer: Uint8Array, filename: string, contentType: string = 'image/png'): Promise<string> {
-    const { data, error } = await supabase.storage.from('content').upload(filename, buffer, {
-        contentType,
-        upsert: true
+const GCS_PROJECT_ID = Deno.env.get('GCS_PROJECT_ID')
+const GCS_CLIENT_EMAIL = Deno.env.get('GCS_CLIENT_EMAIL')
+const GCS_PRIVATE_KEY = Deno.env.get('GCS_PRIVATE_KEY')?.replace(/\\n/g, '\n')
+const GCS_BUCKET_NAME = Deno.env.get('GCS_BUCKET_NAME') || 'ai_influencergugolf'
+
+/**
+ * Gets an OAuth2 access token for Google Cloud Storage
+ */
+async function getGcsAccessToken() {
+    const iat = Math.floor(Date.now() / 1000);
+    const exp = iat + 3600;
+
+    const header = { alg: "RS256", typ: "JWT" };
+    const payload = {
+        iss: GCS_CLIENT_EMAIL,
+        scope: "https://www.googleapis.com/auth/devstorage.read_write",
+        aud: "https://oauth2.googleapis.com/token",
+        exp,
+        iat,
+    };
+
+    // We use a simple approach for JWT signing in Edge Functions environment
+    // Note: In a real production ddeploy, one typically uses a library like 'djwt'
+    // but for this specific environment, we can assume the user will set secrets correctly.
+    // For now, let's use the most compatible method for Deno.
+    
+    // Import 'djwt' for signing
+    const { create } = await import("https://deno.land/x/djwt@v2.8/mod.ts");
+    const pem = GCS_PRIVATE_KEY!;
+    
+    // Properly convert PEM to ArrayBuffer for crypto.subtle
+    const pemHeader = "-----BEGIN PRIVATE KEY-----";
+    const pemFooter = "-----END PRIVATE KEY-----";
+    // Remove EVERYTHING that is not a valid base64 character (A-Z, a-z, 0-9, +, /, =)
+    const pemContents = pem
+        .replace(pemHeader, "")
+        .replace(pemFooter, "")
+        .replace(/[^A-Za-z0-9+/=]/g, "");
+    
+    const binaryDerString = atob(pemContents);
+    const binaryDer = new Uint8Array(binaryDerString.length);
+    for (let i = 0; i < binaryDerString.length; i++) {
+        binaryDer[i] = binaryDerString.charCodeAt(i);
+    }
+
+    const cryptoKey = await crypto.subtle.importKey(
+        "pkcs8",
+        binaryDer,
+        { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+        false,
+        ["sign"]
+    );
+
+    const jwt = await create(header, payload, cryptoKey);
+
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+            grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            assertion: jwt,
+        }),
     });
-    if (error) throw error;
-    const { data: { publicUrl } } = supabase.storage.from('content').getPublicUrl(filename);
-    return publicUrl;
+
+    const data = await res.json();
+    return data.access_token;
+}
+
+async function uploadToStorage(buffer: Uint8Array, filename: string, contentType: string = 'image/png'): Promise<string> {
+    const token = await getGcsAccessToken();
+    
+    // Upload original file to GCS
+    const uploadUrl = `https://storage.googleapis.com/upload/storage/v1/b/${GCS_BUCKET_NAME}/o?uploadType=media&name=${encodeURIComponent(filename)}`;
+    
+    const res = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': contentType
+        },
+        body: buffer
+    });
+
+    if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`GCS Upload Failed: ${res.status} - ${errText}`);
+    }
+
+    // Return the public URL for the file in GCS
+    return `https://storage.googleapis.com/${GCS_BUCKET_NAME}/${filename}`;
 }
 
 async function checkHistoryOnce(comfyUrl: string, promptId: string, outputNodeId?: string) {
@@ -298,7 +380,7 @@ async function pollComfyUIJobs(isMock: boolean = false, mockDelay: number = 2000
 
     for (const job of processingJobs) {
         try {
-            let images: any[] | undefined = undefined;
+            let images: any[] | null = null;
             let workflowObj: any = {};
             let seed = 0;
 

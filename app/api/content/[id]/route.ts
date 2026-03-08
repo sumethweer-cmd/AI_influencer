@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { deleteFromGCS } from '@/lib/storage'
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
     try {
@@ -50,24 +51,31 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
 
         // 2. Extract filenames and delete from Storage
         if (item && item.generated_images && item.generated_images.length > 0) {
-            const filesToRemove = item.generated_images
-                .map((img: any) => {
-                    const url = img.file_path
-                    if (!url) return null
-                    // Extract path after bucket name
+            const supabaseFilesToRemove: string[] = []
+
+            for (const img of item.generated_images) {
+                const url = img.file_path
+                if (!url) continue
+
+                if (url.includes('storage.googleapis.com')) {
+                    // Delete GCS file
+                    await deleteFromGCS(url)
+                } else if (url.includes('/public/content/')) {
+                    // Collect Supabase files for bulk deletion
                     const match = url.match(/\/public\/content\/(.+)$/)
                     if (match && match[1]) {
-                        return match[1]
+                        supabaseFilesToRemove.push(match[1])
+                    } else {
+                        const parts = url.split('/')
+                        supabaseFilesToRemove.push(parts[parts.length - 1])
                     }
-                    const parts = url.split('/')
-                    return parts[parts.length - 1]
-                })
-                .filter(Boolean)
+                }
+            }
 
-            if (filesToRemove.length > 0) {
-                const { error: storageErr } = await supabaseAdmin.storage.from('content').remove(filesToRemove)
+            if (supabaseFilesToRemove.length > 0) {
+                const { error: storageErr } = await supabaseAdmin.storage.from('content').remove(supabaseFilesToRemove)
                 if (storageErr) {
-                    console.error('Error deleting files from storage:', storageErr)
+                    console.error('Error deleting files from Supabase storage:', storageErr)
                 }
             }
         }

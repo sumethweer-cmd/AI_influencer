@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { uploadToStorage } from '@/lib/storage'
 
 export async function POST(req: Request) {
     try {
@@ -16,16 +16,7 @@ export async function POST(req: Request) {
         const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
         const fileName = `${folder}/${Date.now()}-${cleanName}`
 
-        const { data, error } = await supabase.storage
-            .from('etsy-assets')
-            .upload(fileName, buffer, {
-                contentType: file.type,
-                upsert: true
-            })
-
-        if (error) throw error
-
-        const { data: { publicUrl } } = supabase.storage.from('etsy-assets').getPublicUrl(fileName)
+        const publicUrl = await uploadToStorage('etsy-assets', fileName, Buffer.from(buffer), file.type)
 
         return NextResponse.json({ success: true, url: publicUrl, path: fileName })
     } catch (error: any) {

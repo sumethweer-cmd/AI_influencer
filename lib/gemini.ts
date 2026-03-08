@@ -172,12 +172,15 @@ export async function generateWeeklyPlan(trends: any, targetPersona: string, bat
           "theme": "...",
           "sfw_prompt": "...",
           "prompt_structure": {
+            "location": "...",
+            "time": "...",
             "mood_and_tone": "...",
             "vibe": "...",
             "lighting": "Natural lighting only (e.g. lamp, sun, phone screen). NEVER studio lighting.",
             "outfit": "...",
             "camera_settings": ["", "", "", ""],
             "poses": ["", "", "", ""],
+            "face_expressions": ["", "", "", ""],
             "nsfw_prompts": ["", "", "", ""],
             "vdo_prompts": [
               { "clip_1": "0-5s description", "clip_2": "5-10s description", "clip_3": "10-15s description" },
@@ -253,12 +256,15 @@ export async function generatePlanFromPrompt(userPrompt: string, targetPersona: 
           "theme": "...",
           "sfw_prompt": "...",
           "prompt_structure": {
+            "location": "...",
+            "time": "...",
             "mood_and_tone": "...",
             "vibe": "...",
             "lighting": "Natural lighting only (e.g. lamp, sun, phone screen). NEVER studio lighting.",
             "outfit": "...",
             "camera_settings": ["", "", "", ""],
             "poses": ["", "", "", ""],
+            "face_expressions": ["", "", "", ""],
             "nsfw_prompts": ["", "", "", ""],
             "vdo_prompts": [
               { "clip_1": "desc...", "clip_2": "desc...", "clip_3": "desc..." },
@@ -334,12 +340,15 @@ export async function generatePlanFromImage(imageBase64: string, mimeType: strin
           "theme": "...",
           "sfw_prompt": "...",
           "prompt_structure": {
+            "location": "...",
+            "time": "...",
             "mood_and_tone": "...",
             "vibe": "...",
             "lighting": "Natural lighting only (e.g. lamp, sun, phone screen). NEVER studio lighting.",
             "outfit": "...",
             "camera_settings": ["", "", "", ""],
             "poses": ["", "", "", ""],
+            "face_expressions": ["", "", "", ""],
             "nsfw_prompts": ["", "", "", ""],
             "vdo_prompts": [
               { "clip_1": "desc...", "clip_2": "desc...", "clip_3": "desc..." },
@@ -438,7 +447,7 @@ export async function refillPromptStructure(item: any, targetBatchSize: number):
     Current Poses: ${JSON.stringify(item.prompt_structure?.poses || [])}
 
     Task: We are expanding this content from ${currentCount} images to ${targetBatchSize} images.
-    Generate EXACTLY ${targetBatchSize - currentCount} NEW SETS of 'camera_settings', 'poses', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw'.
+    Generate EXACTLY ${targetBatchSize - currentCount} NEW SETS of 'camera_settings', 'poses', 'face_expressions', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw'.
     The new items must follow the same style and theme but provide DIFFERENT angles, poses, and actions to avoid repetition.
     
     CRITICAL: For 'vdo_prompts' and 'vdo_prompts_nsfw', provide 15-second cinematic motion descriptions.
@@ -447,6 +456,7 @@ export async function refillPromptStructure(item: any, targetBatchSize: number):
     {
       "new_camera_settings": ["..."],
       "new_poses": ["..."],
+      "new_face_expressions": ["..."],
       "new_nsfw_prompts": ["..."],
       "new_vdo_prompts": ["..."],
       "new_vdo_prompts_nsfw": ["..."]
@@ -461,6 +471,7 @@ export async function refillPromptStructure(item: any, targetBatchSize: number):
   const ps = { ...item.prompt_structure }
   ps.camera_settings = [...(ps.camera_settings || []), ...(newItems.new_camera_settings || [])]
   ps.poses = [...(ps.poses || []), ...(newItems.new_poses || [])]
+  ps.face_expressions = [...(ps.face_expressions || []), ...(newItems.new_face_expressions || [])]
   ps.nsfw_prompts = [...(ps.nsfw_prompts || []), ...(newItems.new_nsfw_prompts || [])]
   ps.vdo_prompts = [...(ps.vdo_prompts || []), ...(newItems.new_vdo_prompts || [])]
   ps.vdo_prompts_nsfw = [...(ps.vdo_prompts_nsfw || []), ...(newItems.new_vdo_prompts_nsfw || [])]
@@ -484,11 +495,11 @@ export async function regenerateContentPrompts(item: any, mode: 'SFW' | 'NSFW' |
   let jsonFormat = ''
 
   if (mode === 'ALL') {
-    taskDescription = `Generate EXACTLY ${batchSize} SETS of 'camera_settings', 'poses', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw'.`
-    jsonFormat = `{"camera_settings": ["..."], "poses": ["..."], "nsfw_prompts": ["..."], "vdo_prompts": ["..."], "vdo_prompts_nsfw": ["..."]}`
+    taskDescription = `Generate EXACTLY ${batchSize} SETS of 'camera_settings', 'poses', 'face_expressions', 'nsfw_prompts', 'vdo_prompts', and 'vdo_prompts_nsfw'.`
+    jsonFormat = `{"camera_settings": ["..."], "poses": ["..."], "face_expressions": ["..."], "nsfw_prompts": ["..."], "vdo_prompts": ["..."], "vdo_prompts_nsfw": ["..."]}`
   } else if (mode === 'SFW') {
-    taskDescription = `Generate EXACTLY ${batchSize} SETS of 'camera_settings', 'poses', and 'vdo_prompts'. Do not generate NSFW modifiers.`
-    jsonFormat = `{"camera_settings": ["..."], "poses": ["..."], "vdo_prompts": ["..."]}`
+    taskDescription = `Generate EXACTLY ${batchSize} SETS of 'camera_settings', 'poses', 'face_expressions', and 'vdo_prompts'. Do not generate NSFW modifiers.`
+    jsonFormat = `{"camera_settings": ["..."], "poses": ["..."], "face_expressions": ["..."], "vdo_prompts": ["..."]}`
   } else if (mode === 'NSFW') {
     taskDescription = `Generate EXACTLY ${batchSize} SETS of 'nsfw_prompts' and 'vdo_prompts_nsfw' based on these existing poses: ${JSON.stringify(item.prompt_structure?.poses || [])}.`
     jsonFormat = `{"nsfw_prompts": ["..."], "vdo_prompts_nsfw": ["..."]}`
@@ -519,6 +530,7 @@ export async function regenerateContentPrompts(item: any, mode: 'SFW' | 'NSFW' |
   if (mode === 'ALL' || mode === 'SFW') {
     ps.camera_settings = newItems.camera_settings || Array(batchSize).fill('')
     ps.poses = newItems.poses || Array(batchSize).fill('')
+    ps.face_expressions = newItems.face_expressions || Array(batchSize).fill('')
     ps.vdo_prompts = newItems.vdo_prompts || Array(batchSize).fill('')
   }
   if (mode === 'ALL' || mode === 'NSFW') {
@@ -551,6 +563,7 @@ export async function refillSinglePrompt(item: any, index: number, type: 'SFW' |
       {
         "camera_setting": "...",
         "pose": "...",
+        "face_expression": "...",
         "nsfw_prompt": "...",
         "vdo_prompt": "...",
         "vdo_prompts_nsfw": "..."
@@ -565,6 +578,7 @@ export async function refillSinglePrompt(item: any, index: number, type: 'SFW' |
   const ps = { ...item.prompt_structure }
   if (ps.camera_settings) ps.camera_settings[index] = fresh.camera_setting
   if (ps.poses) ps.poses[index] = fresh.pose
+  if (ps.face_expressions) ps.face_expressions[index] = fresh.face_expression
   if (ps.nsfw_prompts) ps.nsfw_prompts[index] = fresh.nsfw_prompt
   if (ps.vdo_prompts) ps.vdo_prompts[index] = fresh.vdo_prompt
   if (ps.vdo_prompts_nsfw) ps.vdo_prompts_nsfw[index] = fresh.vdo_prompts_nsfw

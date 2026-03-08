@@ -58,7 +58,9 @@ Generate 21 content items. Return ONLY a valid JSON following this structure:
 1. First, define a single overarching "Campaign Theme" for the week that fits the vibe of the request or trends.
 2. Then, break this theme down into 3-4 distinct "Storylines" that flow chronologically (e.g., "1. Morning Routine", "2. Afternoon Excursion", "3. Evening Event").
 3. The 21 content items MUST logically follow these storylines in consecutive sequence. Do NOT generate 21 random, disconnected ideas.
-4. For Carousels/Stories within the same storyline, keep the setting and outfit consistent.`,
+4. For Carousels/Stories within the same storyline, keep the setting and outfit consistent.
+5. Location & Time: Provide ultra-detailed descriptions of the specific location and the time of day, ensuring they match the storyline.
+6. Face Expressions: Provide distinct, subtle face expressions for the character (e.g., "gentle smirk", "soft, longing gaze").`,
                     description: '🧠 AI Directives for Phase 1 (e.g., 21 items, storylines)',
                     is_secret: false
                 },
@@ -73,12 +75,15 @@ Generate 21 content items. Return ONLY a valid JSON following this structure:
   "theme": "...",
   "sfw_prompt": "Prompt MUST apply the Technical Guide and Persona DNA",
   "prompt_structure": {
+    "location": "Ultra-detailed location environment",
+    "time": "Specific time of day (e.g., golden hour, late night, midday)",
     "mood_and_tone": "Overall mood (e.g. moody, bright, romantic)",
     "vibe": "Environment and background details (e.g. messy bedroom, neon street)",
     "lighting": "Lighting details (e.g. morning sun, hard flash)",
     "outfit": "Detailed clothing description",
     "camera_settings": ["Camera for pose 1", "Camera for pose 2", "Camera for pose 3", "Camera for pose 4"],
     "poses": ["Pose 1 description", "Pose 2 description", "Pose 3 description", "Pose 4 description"],
+    "face_expressions": ["Expression 1", "Expression 2", "Expression 3", "Expression 4"],
     "nsfw_prompts": ["NSFW modifier for pose 1", "NSFW modifier for pose 2", "NSFW modifier for pose 3", "NSFW modifier for pose 4"],
     "vdo_prompts": ["Video motion prompt for pose 1 (15s duration)", "Video motion prompt for pose 2 (15s duration)", "Video motion prompt for pose 3 (15s duration)", "Video motion prompt for pose 4 (15s duration)"]
   },

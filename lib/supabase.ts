@@ -41,44 +41,4 @@ export async function logSystem(
     }
 }
 
-export async function uploadToStorage(
-    bucket: string,
-    path: string,
-    fileBody: Buffer | Blob | File,
-    contentType: string = 'image/png',
-    maxRetries: number = 3
-): Promise<string> {
-    if (!supabaseAdmin) throw new Error("Supabase Admin client not initialized");
 
-    let lastError = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            const { data, error } = await supabaseAdmin.storage
-                .from(bucket)
-                .upload(path, fileBody, {
-                    contentType,
-                    upsert: true,
-                });
-
-            if (error) {
-                throw new Error(`Storage upload failed: ${error.message}`);
-            }
-
-            const { data: publicUrlData } = supabaseAdmin.storage
-                .from(bucket)
-                .getPublicUrl(path);
-
-            return publicUrlData.publicUrl;
-        } catch (err: any) {
-            lastError = err;
-            console.warn(`[Attempt ${attempt}/${maxRetries}] Storage upload failed for ${path}: ${err.message}`);
-            if (attempt < maxRetries) {
-                // Exponential backoff: 2s, 4s, 8s...
-                await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
-            }
-        }
-    }
-
-    throw new Error(`Failed to upload after ${maxRetries} attempts. Last error: ${lastError?.message}`);
-}

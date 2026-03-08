@@ -42,8 +42,11 @@ export interface ContentItem {
     vibe?: string
     lighting?: string
     outfit?: string
+    location?: string
+    time?: string
     camera_settings?: string[]
     poses?: string[]
+    face_expressions?: string[]
     nsfw_prompts?: string[]
     vdo_prompts?: (string | { clip_1: string; clip_2: string; clip_3: string })[]
     vdo_prompts_nsfw?: (string | { clip_1: string; clip_2: string; clip_3: string })[]
@@ -162,8 +165,11 @@ export interface ContentPlan {
     vibe: string
     lighting: string
     outfit: string
+    location?: string
+    time?: string
     camera_settings: string[]
     poses: string[]
+    face_expressions?: string[]
     nsfw_prompts?: string[]
     vdo_prompts?: (string | { clip_1: string; clip_2: string; clip_3: string })[]
     vdo_prompts_nsfw?: (string | { clip_1: string; clip_2: string; clip_3: string })[]

@@ -1,6 +1,7 @@
 import { getActivePods, waitForComfyUI } from '@/lib/runpod'
 import { ComfyUIClient } from '@/lib/comfyui'
-import { supabaseAdmin, logSystem, uploadToStorage } from '@/lib/supabase'
+import { supabaseAdmin, logSystem } from '@/lib/supabase'
+import { uploadToStorage } from '@/lib/storage'
 import { generateVideoPrompts } from '@/lib/gemini'
 import path from 'path'
 

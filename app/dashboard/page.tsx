@@ -731,8 +731,8 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
 
     const [sfwPrompt, setSfwPrompt] = useState(item.sfw_prompt || '')
     const [promptStructure, setPromptStructure] = useState<any>(item.prompt_structure || {
-        mood_and_tone: '', vibe: '', lighting: '', outfit: '',
-        camera_settings: ['', '', '', ''], poses: ['', '', '', ''], nsfw_prompts: ['', '', '', ''], vdo_prompts: ['', '', '', ''], vdo_prompts_nsfw: ['', '', '', '']
+        location: '', time: '', mood_and_tone: '', vibe: '', lighting: '', outfit: '',
+        camera_settings: ['', '', '', ''], poses: ['', '', '', ''], face_expressions: ['', '', '', ''], nsfw_prompts: ['', '', '', ''], vdo_prompts: ['', '', '', ''], vdo_prompts_nsfw: ['', '', '', '']
     })
     const [scheduledAt, setScheduledAt] = useState(item.scheduled_at ? new Date(item.scheduled_at).toISOString().slice(0, 16) : '')
     const [showPrompt, setShowPrompt] = useState(false)
@@ -779,8 +779,18 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
 
     const getImageUrl = (path: string, width?: number) => {
         if (!path) return ''
-        if (path.startsWith('http')) return path
-        const base = path.replace('/storage/', '/api/')
+
+        let finalPath = path
+        // Convert to webp for UI display if it's a GCS image
+        if (path.includes('storage.googleapis.com') && !path.endsWith('.webp') && !path.endsWith('.mp4')) {
+            const lastDot = path.lastIndexOf('.')
+            if (lastDot !== -1) {
+                finalPath = path.substring(0, lastDot) + '.webp'
+            }
+        }
+
+        if (finalPath.startsWith('http')) return finalPath
+        const base = finalPath.replace('/storage/', '/api/')
         return width ? `${base}?w=${width}` : base
     }
 
@@ -1025,6 +1035,12 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                                     alt={item.topic || 'Image preview'}
                                     className={`w-full h-full object-cover transition-all duration-500 ${item.nsfw_option && !isUnblurred ? 'blur-3xl' : 'blur-0'}`}
                                     loading="lazy"
+                                    onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        if (target.src.endsWith('.webp')) {
+                                            target.src = displayImage.file_path;
+                                        }
+                                    }}
                                 />
                             )}
                             {item.nsfw_option && !isUnblurred && (
@@ -1052,7 +1068,18 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
                                         {img.media_type === 'video' ? (
                                             <video src={getImageUrl(img.file_path)} className="w-full h-full object-cover" />
                                         ) : (
-                                            <img src={getImageUrl(img.file_path, 200)} className="w-full h-full object-cover" alt="preview thumbnail" loading="lazy" />
+                                            <img
+                                                src={getImageUrl(img.file_path, 200)}
+                                                className="w-full h-full object-cover"
+                                                alt="preview thumbnail"
+                                                loading="lazy"
+                                                onError={(e) => {
+                                                    const target = e.target as HTMLImageElement;
+                                                    if (target.src.endsWith('.webp')) {
+                                                        target.src = img.file_path;
+                                                    }
+                                                }}
+                                            />
                                         )}
                                         {selectedImageId === img.id && (
                                             <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
@@ -1267,6 +1294,7 @@ function PromptEditorModal({
 
         const pose = (promptStructure?.poses && promptStructure.poses.length > idx) ? promptStructure.poses[idx] : ''
         const camera = (promptStructure?.camera_settings && promptStructure.camera_settings.length > idx) ? promptStructure.camera_settings[idx] : ''
+        const faceExpression = (promptStructure?.face_expressions && promptStructure.face_expressions.length > idx) ? promptStructure.face_expressions[idx] : ''
         const nsfwPrompt = (promptStructure?.nsfw_prompts && promptStructure.nsfw_prompts.length > idx) ? promptStructure.nsfw_prompts[idx] : ''
         const vdoPromptRaw = (promptStructure?.vdo_prompts && promptStructure.vdo_prompts.length > idx) ? promptStructure.vdo_prompts[idx] : ''
         const vdoPromptNsfwRaw = (promptStructure?.vdo_prompts_nsfw && promptStructure.vdo_prompts_nsfw.length > idx) ? promptStructure.vdo_prompts_nsfw[idx] : ''
@@ -1281,11 +1309,13 @@ function PromptEditorModal({
         const vdoPrompt = formatVdo(vdoPromptRaw)
         const vdoPromptNsfw = formatVdo(vdoPromptNsfwRaw)
 
-        const hasFixedElements = promptStructure?.mood_and_tone || promptStructure?.vibe || promptStructure?.lighting || promptStructure?.outfit
+        const hasFixedElements = promptStructure?.location || promptStructure?.time || promptStructure?.mood_and_tone || promptStructure?.vibe || promptStructure?.lighting || promptStructure?.outfit
 
         let baseDescription = sfwPrompt
         if (hasFixedElements) {
             baseDescription = [
+                promptStructure.location,
+                promptStructure.time,
                 promptStructure.mood_and_tone,
                 promptStructure.vibe,
                 promptStructure.lighting,
@@ -1297,6 +1327,7 @@ function PromptEditorModal({
             personaTrigger,
             baseDescription,
             camera,
+            faceExpression,
             pose
         ]
 
@@ -1393,6 +1424,8 @@ function PromptEditorModal({
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             {[
+                                { label: 'Location', key: 'location' },
+                                { label: 'Time', key: 'time' },
                                 { label: 'Mood & Tone', key: 'mood_and_tone' },
                                 { label: 'Vibe', key: 'vibe' },
                                 { label: 'Lighting', key: 'lighting' },
@@ -1466,6 +1499,21 @@ function PromptEditorModal({
                                             </button>
                                         </div>
                                         <textarea value={(promptStructure.camera_settings && promptStructure.camera_settings[idx]) || ''} onChange={e => updatePromptStructure('camera_settings', e.target.value, idx)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-slate-300 focus:border-orange-500 outline-none resize-none h-16 transition-colors" />
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase">FACE EXPRESSION</label>
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText((promptStructure.face_expressions && promptStructure.face_expressions[idx]) || '');
+                                                    alert('Copied Face Expression description!');
+                                                }}
+                                                className="text-[9px] text-orange-400 hover:text-orange-300 font-bold"
+                                            >
+                                                📋 COPY
+                                            </button>
+                                        </div>
+                                        <textarea value={(promptStructure.face_expressions && promptStructure.face_expressions[idx]) || ''} onChange={e => updatePromptStructure('face_expressions', e.target.value, idx)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-slate-300 focus:border-orange-500 outline-none resize-none h-16 transition-colors" />
                                     </div>
                                     <div>
                                         <div className="flex justify-between items-center mb-1">

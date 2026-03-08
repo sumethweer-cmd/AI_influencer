@@ -1,6 +1,7 @@
 import { getActivePods, waitForComfyUI, getPodDetails } from '@/lib/runpod'
 import { ComfyUIClient } from '@/lib/comfyui'
-import { supabaseAdmin, logSystem, uploadToStorage } from '@/lib/supabase'
+import { supabaseAdmin, logSystem } from '@/lib/supabase'
+import { uploadToStorage } from '@/lib/storage'
 import { sendNotification } from '@/lib/telegram'
 import { ContentItem } from '@/types'
 import { getConfig } from '@/lib/config'
@@ -268,13 +269,16 @@ async function runSingleWorkflow(comfy: ComfyUIClient, item: ContentItem, type: 
     const struct = item.prompt_structure || {}
     const pose = (struct.poses && struct.poses.length > poseIndex) ? struct.poses[poseIndex] : ''
     const camera = (struct.camera_settings && struct.camera_settings.length > poseIndex) ? struct.camera_settings[poseIndex] : ''
+    const faceExpression = (struct.face_expressions && struct.face_expressions.length > poseIndex) ? struct.face_expressions[poseIndex] : ''
     const nsfwPrompt = (struct.nsfw_prompts && struct.nsfw_prompts.length > poseIndex) ? struct.nsfw_prompts[poseIndex] : ''
 
-    const hasFixedElements = struct.mood_and_tone || struct.vibe || struct.lighting || struct.outfit
+    const hasFixedElements = struct.location || struct.time || struct.mood_and_tone || struct.vibe || struct.lighting || struct.outfit
 
     let baseDescription = item.sfw_prompt
     if (hasFixedElements) {
         baseDescription = [
+            struct.location,
+            struct.time,
             struct.mood_and_tone,
             struct.vibe,
             struct.lighting,
@@ -284,11 +288,14 @@ async function runSingleWorkflow(comfy: ComfyUIClient, item: ContentItem, type: 
 
     const parts = [
         personaTrigger,
+        struct.location,
+        struct.time,
         struct.mood_and_tone,
         struct.vibe,
         struct.lighting,
         struct.outfit,
         camera,
+        faceExpression,
         pose
     ]
     if (type === 'NSFW' && nsfwPrompt) parts.push(nsfwPrompt)
@@ -353,22 +360,18 @@ async function runSingleWorkflow(comfy: ComfyUIClient, item: ContentItem, type: 
         // Download raw buffer from ComfyUI
         const rawBuffer = await comfy.downloadImageAsBuffer(imgItem)
 
-        // --- Convert to WebP for Supabase (saves ~60-70% egress) ---
-        const webpBuffer = await sharp(rawBuffer as Buffer)
-            .webp({ quality: 85 })
-            .toBuffer()
+        // Generate filename
+        const filename = `${item.id}_${type}_${timestamp}_${i}.png`
+        const storageBucketPath = `images/${item.id}/${type}/${filename}`
 
-        const webpFilename = `${item.id}_${type}_${timestamp}_${i}.webp`
-        const storageBucketPath = `images/${item.id}/${type}/${webpFilename}`
-
-        // Upload WebP to Supabase 'content' bucket
-        const publicUrl = await uploadToStorage('content', storageBucketPath, webpBuffer, 'image/webp')
+        // Upload original PNG to 'content' bucket (lib/storage.ts will auto-generate WebP)
+        const publicUrl = await uploadToStorage('content', storageBucketPath, rawBuffer as Buffer, 'image/png')
 
         // Original PNG path on RunPod Network Volume (for archival/re-processing)
         // ComfyUI saves originals at /workspace/ComfyUI/output/ by default
         const originalPath = `/workspace/ComfyUI/output/${originalFilename}`
 
-        downloadedFiles.push({ filename: webpFilename, url: publicUrl, originalPath })
+        downloadedFiles.push({ filename: filename, url: publicUrl, originalPath })
     }
 
     const vdoPrompts = type === 'NSFW' ? struct.vdo_prompts_nsfw : struct.vdo_prompts

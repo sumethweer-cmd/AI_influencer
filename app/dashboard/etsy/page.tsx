@@ -1,13 +1,16 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Papa from 'papaparse'
 
 export default function EtsyDashboard() {
     const [books, setBooks] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
     const [creating, setCreating] = useState(false)
+    const [importingCSV, setImportingCSV] = useState(false)
+    const csvFileRef = useRef<HTMLInputElement>(null)
 
     // New Book Form
     const [title, setTitle] = useState('')
@@ -28,6 +31,68 @@ export default function EtsyDashboard() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        if (!confirm('This will bulk create books based on the CSV structure. (Requires: Book Title, Theme, Target Age, Total Pages). Continue?')) {
+            if (csvFileRef.current) csvFileRef.current.value = ''
+            return
+        }
+
+        setImportingCSV(true)
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                const rows = results.data as any[]
+                let successCount = 0
+                let errorCount = 0
+
+                for (const row of rows) {
+                    const bookTitle = row['Book Title'] || row['Title'] || row['title']
+                    const bookTheme = row['Theme'] || row['theme'] || ''
+                    const bookAge = row['Target Age'] || row['Age'] || row['age'] || '4-6 years'
+                    const bookPages = parseInt(row['Total Pages'] || row['Pages'] || row['pages']) || 8
+
+                    if (!bookTitle) {
+                        errorCount++
+                        continue
+                    }
+
+                    try {
+                        const res = await fetch('/api/etsy/books', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                title: bookTitle,
+                                theme: bookTheme,
+                                target_age: bookAge,
+                                total_pages: bookPages
+                            })
+                        }).then(r => r.json())
+
+                        if (res.success) successCount++
+                        else errorCount++
+                    } catch (err) {
+                        console.error('Error creating book from CSV:', err)
+                        errorCount++
+                    }
+                }
+
+                alert(`Bulk Import Complete!\nSuccessfully created: ${successCount}\nFailed: ${errorCount}`)
+                setImportingCSV(false)
+                if (csvFileRef.current) csvFileRef.current.value = ''
+                fetchBooks()
+            },
+            error: (err) => {
+                alert('Error parsing CSV: ' + err.message)
+                setImportingCSV(false)
+                if (csvFileRef.current) csvFileRef.current.value = ''
+            }
+        })
     }
 
     const handleCreateBook = async (e: React.FormEvent) => {
@@ -66,6 +131,15 @@ export default function EtsyDashboard() {
                     <p className="text-slate-400 mt-1">Manage, generate, and export your children's storybooks.</p>
                 </div>
                 <div className="flex gap-3">
+                    <button
+                        onClick={() => csvFileRef.current?.click()}
+                        disabled={importingCSV}
+                        className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-bold border border-slate-700 transition-all flex items-center gap-2"
+                    >
+                        {importingCSV ? '⏳ Importing...' : '📥 Import CSV'}
+                    </button>
+                    <input type="file" ref={csvFileRef} className="hidden" accept=".csv" onChange={handleImportCSV} />
+
                     <button
                         onClick={() => setShowModal(true)}
                         className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 rounded-xl text-sm font-black flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20"
@@ -117,9 +191,9 @@ export default function EtsyDashboard() {
                                         <div className="flex justify-between">
                                             <span>Theme: {book.theme || 'General'}</span>
                                             <span className={`px-2 py-0.5 rounded font-bold ${book.status === 'Draft' ? 'bg-slate-800 text-slate-300' :
-                                                    book.status === 'Generating' ? 'bg-amber-900/50 text-amber-400 animate-pulse' :
-                                                        book.status === 'Completed' ? 'bg-emerald-900/50 text-emerald-400' :
-                                                            'bg-purple-900/50 text-purple-400'
+                                                book.status === 'Generating' ? 'bg-amber-900/50 text-amber-400 animate-pulse' :
+                                                    book.status === 'Completed' ? 'bg-emerald-900/50 text-emerald-400' :
+                                                        'bg-purple-900/50 text-purple-400'
                                                 }`}>
                                                 {book.status}
                                             </span>
