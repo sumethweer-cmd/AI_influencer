@@ -64,6 +64,7 @@ export async function POST(request: Request) {
                         struct.lighting,
                         struct.outfit,
                         cameraSetting,
+                        struct.face_expressions?.[i] || '',
                         pose
                     ].filter(p => p && String(p).trim() !== '')
                     
@@ -95,6 +96,7 @@ export async function POST(request: Request) {
                         struct.lighting,
                         struct.outfit,
                         cameraSetting,
+                        struct.face_expressions?.[i] || '',
                         nsfwPrompt // REPLACE Pose with NSFW Prompt
                     ].filter(p => p && String(p).trim() !== '')
                     

@@ -64,6 +64,7 @@ export async function POST(req: Request) {
             struct.lighting,
             struct.outfit,
             cameraSetting,
+            struct.face_expressions?.[index] || '',
             actionPart
         ]
         

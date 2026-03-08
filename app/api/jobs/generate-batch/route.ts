@@ -61,7 +61,8 @@ export async function POST(req: Request) {
                 struct.location,
                 struct.lighting,
                 struct.outfit,
-                cameraSetting
+                cameraSetting,
+                struct.face_expressions?.[i] || ''
             ]
 
             if (mode === 'ALL' || mode === 'SFW') {
