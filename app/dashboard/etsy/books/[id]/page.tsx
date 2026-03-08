@@ -231,13 +231,12 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
 
                 // Left Half for Cover Image
                 try {
-                    const imgBytes = await fetch(book.cover_image_url).then(res => res.arrayBuffer())
-                    let embeddedImage
-                    if (book.cover_image_url.toLowerCase().endsWith('.png')) {
-                        embeddedImage = await pdfDoc.embedPng(imgBytes)
-                    } else {
-                        embeddedImage = await pdfDoc.embedJpg(imgBytes)
-                    }
+                    const proxyUrl = `/api/etsy/proxy-image?url=${encodeURIComponent(book.cover_image_url)}`
+                    const imgBytes = await fetch(proxyUrl).then(res => {
+                        if (!res.ok) throw new Error(`Proxy error: ${res.statusText}`)
+                        return res.arrayBuffer()
+                    })
+                    const embeddedImage = await pdfDoc.embedPng(imgBytes)
 
                     const isFullImage = pdfLayout === 'image_only' || pdfLayout === 'image_with_text'
                     const maxImgWidth = isFullImage ? pdfWidth - 40 : leftZoneWidth - 60
@@ -280,13 +279,12 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                 // Image on the Left Half (65%)
                 if (p.image_url) {
                     try {
-                        const imgBytes = await fetch(p.image_url).then(res => res.arrayBuffer())
-                        let embeddedImage
-                        if (p.image_url.toLowerCase().endsWith('.png')) {
-                            embeddedImage = await pdfDoc.embedPng(imgBytes)
-                        } else {
-                            embeddedImage = await pdfDoc.embedJpg(imgBytes)
-                        }
+                        const proxyUrl = `/api/etsy/proxy-image?url=${encodeURIComponent(p.image_url)}`
+                        const imgBytes = await fetch(proxyUrl).then(res => {
+                            if (!res.ok) throw new Error(`Proxy error: ${res.statusText}`)
+                            return res.arrayBuffer()
+                        })
+                        const embeddedImage = await pdfDoc.embedPng(imgBytes)
 
                         const isFullImage = pdfLayout === 'image_only' || pdfLayout === 'image_with_text'
                         const maxImgWidth = isFullImage ? pdfWidth - 40 : leftZoneWidth - 60
