@@ -336,10 +336,11 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                 if ((pdfLayout === 'split' || pdfLayout === 'image_with_text') && p.story_text) {
                     const isOverlay = pdfLayout === 'image_with_text';
                     // Dynamic bounds based on user config
-                    const boxWidth = isOverlay ? (pdfWidth * 0.45) : (rightZoneWidth - 60);
-
                     const overlayOpacity = (pdfConfig.opacity || 85) / 100;
                     const position = pdfConfig.position || 'center-left';
+                    const [vPos, hPos] = position.split('-');
+
+                    const boxWidth = isOverlay ? (pdfWidth * 0.45) : (rightZoneWidth - 60);
 
                     const words = p.story_text.split(/\s+/);
                     const lines: string[] = [];
@@ -370,28 +371,32 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                     const bgWidth = maxLineWidth + (paddingX * 2);
                     const bgHeight = totalTextHeight + (paddingY * 2);
 
-                    // Adjust boxX based on horizontal position (for text flow context)
-                    let effectiveBoxX = isOverlay ? (pdfWidth * 0.05) : (leftZoneWidth + 30);
+                    // Final Position Mapping
+                    let bgX = (pdfWidth / 2) - (bgWidth / 2); // Default to horizontal center
+                    let bgY = (pdfHeight / 2) - (bgHeight / 2); // Default to vertical center
+
                     if (isOverlay) {
-                        if (position.includes('right')) {
-                            effectiveBoxX = pdfWidth - (pdfWidth * 0.45) - (pdfWidth * 0.05);
-                        } else if (position.includes('center')) {
-                            effectiveBoxX = (pdfWidth / 2) - (pdfWidth * 0.45 / 2);
+                        // Horizontal
+                        if (hPos === 'left') {
+                            bgX = pdfWidth * 0.05;
+                        } else if (hPos === 'right') {
+                            bgX = pdfWidth - bgWidth - (pdfWidth * 0.05);
+                        } else {
+                            bgX = (pdfWidth / 2) - (bgWidth / 2);
                         }
-                    }
 
-                    const bgX = isOverlay
-                        ? (effectiveBoxX + boxWidth / 2) - (bgWidth / 2)
-                        : (effectiveBoxX - paddingX);
-
-                    // Adjust bgY based on vertical position
-                    let bgY = (pdfHeight / 2) - (bgHeight / 2);
-                    if (isOverlay) {
-                        if (position.includes('top')) {
+                        // Vertical
+                        if (vPos === 'top') {
                             bgY = pdfHeight - bgHeight - (pdfHeight * 0.05);
-                        } else if (position.includes('bottom')) {
+                        } else if (vPos === 'bottom') {
                             bgY = (pdfHeight * 0.05);
+                        } else {
+                            bgY = (pdfHeight / 2) - (bgHeight / 2);
                         }
+                    } else {
+                        // Split Layout behavior
+                        bgX = (leftZoneWidth + 30) - paddingX;
+                        bgY = (pdfHeight / 2) - (bgHeight / 2);
                     }
 
                     let currentY = bgY + bgHeight - paddingY - fontSize;
