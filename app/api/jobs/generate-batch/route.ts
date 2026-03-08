@@ -50,7 +50,8 @@ export async function POST(req: Request) {
 
         for (let i = 0; i < batchSize; i++) {
             const pose = struct.poses?.[i] || ''
-            const camera = struct.camera_settings?.[i] || ''
+            const cameraValue = struct.camera_settings?.[i] || ''
+            const cameraSetting = cameraValue ? `Camera setting is "${cameraValue}"` : ''
             
             const partsCore = [
                 personaTrigger,
@@ -60,12 +61,12 @@ export async function POST(req: Request) {
                 struct.location,
                 struct.lighting,
                 struct.outfit,
-                camera,
-                pose
+                cameraSetting
             ]
 
             if (mode === 'ALL' || mode === 'SFW') {
-                const finalPrompt = `${basePos}${Array.from(new Set(partsCore.filter(p => p && String(p).trim() !== ''))).join(', ')}`
+                const partsSfw = [...partsCore, pose]
+                const finalPrompt = `${basePos}${Array.from(new Set(partsSfw.filter(p => p && String(p).trim() !== ''))).join(', ')}`
                 jobsToInsert.push({
                     content_item_id: contentId,
                     status: 'Pending',

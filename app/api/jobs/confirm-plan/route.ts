@@ -52,7 +52,9 @@ export async function POST(request: Request) {
             if (item.gen_sfw) {
                 for (let i = 0; i < batchSize; i++) {
                     const pose = struct.poses?.[i] || ''
-                    const camera = struct.camera_settings?.[i] || ''
+                    const cameraValue = struct.camera_settings?.[i] || ''
+                    const cameraSetting = cameraValue ? `Camera setting is "${cameraValue}"` : ''
+                    
                     const parts = [
                         trigger,
                         struct.mood_and_tone,
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
                         struct.location,
                         struct.lighting,
                         struct.outfit,
-                        camera,
+                        cameraSetting,
                         pose
                     ].filter(p => p && String(p).trim() !== '')
                     
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
 
                     jobsToInsert.push({
                         content_item_id: item.id,
-                        status: jobsToInsert.length === 0 ? 'Queued' : 'Pending', // First one is Queued, others are Pending
+                        status: jobsToInsert.length === 0 ? 'Queued' : 'Pending',
                         image_type: 'SFW',
                         slot_index: i,
                         prompt_text: finalPrompt
@@ -80,10 +82,10 @@ export async function POST(request: Request) {
             // Create NSFW Jobs
             if (item.gen_nsfw) {
                 for (let i = 0; i < batchSize; i++) {
-                    // ... same logic ...
-                    const pose = struct.poses?.[i] || ''
-                    const camera = struct.camera_settings?.[i] || ''
+                    const cameraValue = struct.camera_settings?.[i] || ''
+                    const cameraSetting = cameraValue ? `Camera setting is "${cameraValue}"` : ''
                     const nsfwPrompt = struct.nsfw_prompts?.[i] || ''
+                    
                     const parts = [
                         trigger,
                         struct.mood_and_tone,
@@ -92,9 +94,8 @@ export async function POST(request: Request) {
                         struct.location,
                         struct.lighting,
                         struct.outfit,
-                        camera,
-                        pose,
-                        nsfwPrompt
+                        cameraSetting,
+                        nsfwPrompt // REPLACE Pose with NSFW Prompt
                     ].filter(p => p && String(p).trim() !== '')
                     
                     const finalPrompt = `${basePos}${Array.from(new Set(parts)).join(', ')}`

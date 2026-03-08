@@ -70,9 +70,24 @@ export async function POST(req: Request) {
 
             const buildPrompt = (idx: number, isNsfw: boolean) => {
                 const pose = struct.poses?.[idx] || ''
-                const camera = struct.camera_settings?.[idx] || ''
-                const parts = [trigger, struct.mood_and_tone, struct.vibe, struct.lighting, struct.outfit, camera, pose]
-                if (isNsfw) parts.push(struct.nsfw_prompts?.[idx] || '')
+                const cameraValue = struct.camera_settings?.[idx] || ''
+                const cameraSetting = cameraValue ? `Camera setting is "${cameraValue}"` : ''
+                
+                // For NSFW, we REPLACE the pose with the nsfw_prompt
+                const actionPart = isNsfw ? (struct.nsfw_prompts?.[idx] || '') : pose
+                
+                const parts = [
+                    trigger, 
+                    struct.mood_and_tone, 
+                    struct.vibe, 
+                    struct.time_of_day,
+                    struct.location,
+                    struct.lighting, 
+                    struct.outfit, 
+                    cameraSetting, 
+                    actionPart
+                ]
+                
                 return `${basePos}${Array.from(new Set(parts.filter(p => p && String(p).trim() !== ''))).join(', ')}`
             }
 

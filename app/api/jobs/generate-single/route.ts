@@ -50,7 +50,11 @@ export async function POST(req: Request) {
         const struct = newPromptStructure || {}
 
         const pose = struct.poses?.[index] || ''
-        const camera = struct.camera_settings?.[index] || ''
+        const cameraValue = struct.camera_settings?.[index] || ''
+        const cameraSetting = cameraValue ? `Camera setting is "${cameraValue}"` : ''
+        
+        const actionPart = type === 'NSFW' ? (struct.nsfw_prompts?.[index] || '') : pose
+        
         const parts = [
             personaTrigger,
             struct.mood_and_tone,
@@ -59,15 +63,10 @@ export async function POST(req: Request) {
             struct.location,
             struct.lighting,
             struct.outfit,
-            camera,
-            pose
+            cameraSetting,
+            actionPart
         ]
         
-        if (type === 'NSFW') {
-            const nsfwPrompt = struct.nsfw_prompts?.[index] || ''
-            parts.push(nsfwPrompt)
-        }
-
         const finalPrompt = `${basePos}${Array.from(new Set(parts.filter(p => p && String(p).trim() !== ''))).join(', ')}`
 
         // 3. Queue Job: delete old jobs for this specific slot to keep 'count' accurate
