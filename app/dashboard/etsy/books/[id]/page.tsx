@@ -332,35 +332,68 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
 
                     const lineHeight = fontSize * 1.5;
                     const totalTextHeight = lines.length * lineHeight;
-                    const paddingY = 30; // Increased padding for better look
+                    const paddingY = 30;
                     const paddingX = 40;
 
-                    // Box bounds
-                    const bgWidth = boxWidth + (paddingX * 2);
+                    const maxLineWidth = lines.reduce((max, line) => {
+                        const width = textFont.widthOfTextAtSize(line, fontSize);
+                        return width > max ? width : max;
+                    }, 0);
+
+                    const bgWidth = maxLineWidth + (paddingX * 2);
                     const bgHeight = totalTextHeight + (paddingY * 2);
-                    const bgX = boxX - paddingX;
-                    // Center the box vertically on the left side
+                    const bgX = isOverlay
+                        ? (boxX + boxWidth / 2) - (bgWidth / 2)
+                        : (boxX - paddingX);
                     const bgY = (pdfHeight / 2) - (bgHeight / 2);
 
-                    // Start text from top of box (minus padding and font size for baseline)
                     let currentY = bgY + bgHeight - paddingY - fontSize;
 
-                    // Draw Background Box if overlay
                     if (isOverlay) {
+                        const cornerRadius = 15;
+                        const boxOpacity = 0.85;
+
+                        // Draw Rounded Rectangle (White)
+                        // Main body (vertical)
+                        page.drawRectangle({
+                            x: bgX + cornerRadius,
+                            y: bgY,
+                            width: bgWidth - 2 * cornerRadius,
+                            height: bgHeight,
+                            color: rgb(1, 1, 1),
+                            opacity: boxOpacity,
+                        })
+                        // Main body (horizontal)
                         page.drawRectangle({
                             x: bgX,
-                            y: bgY,
+                            y: bgY + cornerRadius,
                             width: bgWidth,
-                            height: bgHeight,
-                            color: rgb(1, 1, 1), // White
-                            opacity: 0.95, // Transparent at 95%
+                            height: bgHeight - 2 * cornerRadius,
+                            color: rgb(1, 1, 1),
+                            opacity: boxOpacity,
+                        })
+                        // 4 Corners
+                        const corners = [
+                            { x: bgX + cornerRadius, y: bgY + cornerRadius },
+                            { x: bgX + bgWidth - cornerRadius, y: bgY + cornerRadius },
+                            { x: bgX + cornerRadius, y: bgY + bgHeight - cornerRadius },
+                            { x: bgX + bgWidth - cornerRadius, y: bgY + bgHeight - cornerRadius }
+                        ]
+                        corners.forEach(c => {
+                            page.drawCircle({
+                                x: c.x,
+                                y: c.y,
+                                size: cornerRadius,
+                                color: rgb(1, 1, 1),
+                                opacity: boxOpacity,
+                            })
                         })
                     }
 
                     for (const line of lines) {
                         const lineWidth = textFont.widthOfTextAtSize(line, fontSize);
                         page.drawText(line, {
-                            x: boxX + (boxWidth / 2) - (lineWidth / 2),
+                            x: bgX + paddingX + (maxLineWidth - lineWidth) / 2,
                             y: currentY,
                             size: fontSize,
                             font: textFont,
