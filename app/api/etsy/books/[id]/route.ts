@@ -22,7 +22,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const body = await req.json()
         
         // update allowed fields
-        const { title, theme, status, price, total_sales, posted_at, cover_image_url } = body
+        const { title, theme, status, price, total_sales, posted_at, cover_image_url, pdf_config } = body
         
         const updateData: any = {}
         if (title !== undefined) updateData.title = title
@@ -32,6 +32,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         if (total_sales !== undefined) updateData.total_sales = total_sales
         if (posted_at !== undefined) updateData.posted_at = posted_at
         if (cover_image_url !== undefined) updateData.cover_image_url = cover_image_url
+        if (pdf_config !== undefined) updateData.pdf_config = pdf_config
 
         const { data, error } = await supabase.from('etsy_books').update(updateData).eq('id', id).select()
         if (error) throw error

@@ -41,6 +41,11 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
     const [isEditingMetrics, setIsEditingMetrics] = useState(false)
     const [editPrice, setEditPrice] = useState('0')
     const [editSales, setEditSales] = useState('0')
+    const [pdfConfig, setPdfConfig] = useState<any>({
+        opacity: 85,
+        position: 'center-left', // center-left, center-right, bottom-center, top-center
+    })
+    const [isSavingConfig, setIsSavingConfig] = useState(false)
 
     useEffect(() => {
         fetchBook()
@@ -53,6 +58,9 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                 setBook(res.data)
                 setEditPrice(res.data.price || '0')
                 setEditSales(res.data.total_sales || '0')
+                if (res.data.pdf_config) {
+                    setPdfConfig(res.data.pdf_config)
+                }
             }
         } catch (e) {
             console.error(e)
@@ -100,6 +108,25 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             alert('Error saving metrics: ' + e.message)
         }
         setSaving(false)
+    }
+
+    const savePdfConfig = async (newConfig: any) => {
+        setIsSavingConfig(true)
+        try {
+            const res = await fetch(`/api/etsy/books/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pdf_config: newConfig })
+            }).then(r => r.json())
+
+            if (res.success) {
+                setPdfConfig(res.data.pdf_config)
+            }
+        } catch (e: any) {
+            console.error('Error saving PDF config:', e)
+        } finally {
+            setIsSavingConfig(false)
+        }
     }
 
     const savePageText = async (pageId: string, text: string, prompt: string) => {
@@ -308,11 +335,11 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                 // Text Layout (Split or Overlay)
                 if ((pdfLayout === 'split' || pdfLayout === 'image_with_text') && p.story_text) {
                     const isOverlay = pdfLayout === 'image_with_text';
+                    // Dynamic bounds based on user config
+                    const boxWidth = isOverlay ? (pdfWidth * 0.45) : (rightZoneWidth - 60);
 
-                    // For overlay (matching the reference image), we want the box on the left half.
-                    // For split, it remains on the right zone.
-                    const boxWidth = isOverlay ? (pdfWidth * 0.4) : (rightZoneWidth - 60);
-                    const boxX = isOverlay ? (pdfWidth * 0.05) : (leftZoneWidth + 30);
+                    const overlayOpacity = (pdfConfig.opacity || 85) / 100;
+                    const position = pdfConfig.position || 'center-left';
 
                     const words = p.story_text.split(/\s+/);
                     const lines: string[] = [];
@@ -342,16 +369,36 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
 
                     const bgWidth = maxLineWidth + (paddingX * 2);
                     const bgHeight = totalTextHeight + (paddingY * 2);
+
+                    // Adjust boxX based on horizontal position (for text flow context)
+                    let effectiveBoxX = isOverlay ? (pdfWidth * 0.05) : (leftZoneWidth + 30);
+                    if (isOverlay) {
+                        if (position.includes('right')) {
+                            effectiveBoxX = pdfWidth - (pdfWidth * 0.45) - (pdfWidth * 0.05);
+                        } else if (position.includes('center')) {
+                            effectiveBoxX = (pdfWidth / 2) - (pdfWidth * 0.45 / 2);
+                        }
+                    }
+
                     const bgX = isOverlay
-                        ? (boxX + boxWidth / 2) - (bgWidth / 2)
-                        : (boxX - paddingX);
-                    const bgY = (pdfHeight / 2) - (bgHeight / 2);
+                        ? (effectiveBoxX + boxWidth / 2) - (bgWidth / 2)
+                        : (effectiveBoxX - paddingX);
+
+                    // Adjust bgY based on vertical position
+                    let bgY = (pdfHeight / 2) - (bgHeight / 2);
+                    if (isOverlay) {
+                        if (position.includes('top')) {
+                            bgY = pdfHeight - bgHeight - (pdfHeight * 0.05);
+                        } else if (position.includes('bottom')) {
+                            bgY = (pdfHeight * 0.05);
+                        }
+                    }
 
                     let currentY = bgY + bgHeight - paddingY - fontSize;
 
                     if (isOverlay) {
                         const cornerRadius = 15;
-                        const boxOpacity = 0.85;
+                        const boxOpacity = overlayOpacity;
 
                         // Draw Rounded Rectangle (White)
                         // Main body (vertical)
@@ -594,6 +641,74 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                         </div>
                     )}
                 </div>
+
+                {/* PDF Configuration Panel */}
+                {book.etsy_pages?.length > 0 && pdfLayout === 'image_with_text' && (
+                    <div className="mb-6 bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row gap-8 items-start md:items-center">
+                        <div className="flex-1">
+                            <h4 className="text-sm font-bold text-purple-400 mb-1 flex items-center gap-2">
+                                ⚙️ PDF Overlay Settings
+                                <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Customizable</span>
+                            </h4>
+                            <p className="text-xs text-slate-500">ปรับแต่งตำแหน่งและความโปร่งใสของกล่องข้อความบนหน้ากระดาษ</p>
+                        </div>
+
+                        <div className="flex flex-col gap-1 w-full md:w-48">
+                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                                <span>Opacity (ความใส)</span>
+                                <span className="text-purple-400">{pdfConfig.opacity}%</span>
+                            </div>
+                            <input
+                                type="range" min="0" max="100" value={pdfConfig.opacity}
+                                onChange={e => {
+                                    const val = parseInt(e.target.value);
+                                    setPdfConfig({ ...pdfConfig, opacity: val });
+                                }}
+                                onMouseUp={() => savePdfConfig(pdfConfig)}
+                                className="w-full accent-purple-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-1 w-full md:w-56">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1">
+                                Position (ตำแหน่งกล่องข้อความ)
+                            </div>
+                            <div className="grid grid-cols-3 gap-1 grid-rows-3 aspect-square w-24">
+                                {[
+                                    { id: 'top-left', icon: '↖️' },
+                                    { id: 'top-center', icon: '⬆️' },
+                                    { id: 'top-right', icon: '↗️' },
+                                    { id: 'center-left', icon: '⬅️' },
+                                    { id: 'center-center', icon: '⏺️' },
+                                    { id: 'center-right', icon: '➡️' },
+                                    { id: 'bottom-left', icon: '↙️' },
+                                    { id: 'bottom-center', icon: '⬇️' },
+                                    { id: 'bottom-right', icon: '↘️' },
+                                ].map(pos => (
+                                    <button
+                                        key={pos.id}
+                                        onClick={() => {
+                                            const newConfig = { ...pdfConfig, position: pos.id };
+                                            setPdfConfig(newConfig);
+                                            savePdfConfig(newConfig);
+                                        }}
+                                        title={pos.id}
+                                        className={`flex items-center justify-center p-1 rounded border transition-all ${pdfConfig.position === pos.id
+                                            ? 'bg-purple-600 border-purple-500 text-white'
+                                            : 'bg-slate-950 border-slate-700 text-slate-500 hover:border-slate-500'
+                                            }`}
+                                    >
+                                        <span className="text-xs">{pos.icon}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {isSavingConfig && (
+                            <div className="text-[10px] text-slate-500 animate-pulse font-bold uppercase tracking-widest">Saving...</div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {(!book.etsy_pages || book.etsy_pages.length === 0) ? (
