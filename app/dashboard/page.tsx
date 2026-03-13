@@ -59,8 +59,8 @@ export default function DashboardPage() {
         }
     }
 
-    async function fetchItems() {
-        setLoading(true)
+    async function fetchItems(silent = false) {
+        if (!silent) setLoading(true)
         try {
             const params = new URLSearchParams({
                 page: currentPage.toString(),
@@ -81,7 +81,7 @@ export default function DashboardPage() {
         } catch (e) {
             console.error('Failed to fetch items:', e)
         }
-        setLoading(false)
+        if (!silent) setLoading(false)
     }
 
     async function fetchJobStats() {
@@ -89,26 +89,30 @@ export default function DashboardPage() {
             const res = await fetch('/api/jobs/queue-stats')
             const json = await res.json()
             if (json.success) setJobStats(json.stats)
+            return json.stats
         } catch (e) {
             console.error('Failed to fetch job stats:', e)
+            return null
         }
     }
 
     // Polling for job stats if any item is In Production
     useEffect(() => {
         const hasActiveJobs = items.some(item => item.status === 'In Production')
-        if (!hasActiveJobs && (!jobStats || jobStats.pending === 0)) return
+        const isQueueActive = jobStats && (jobStats.pending > 0 || jobStats.processing > 0)
+        
+        if (!hasActiveJobs && !isQueueActive) return
 
-        const interval = setInterval(() => {
-            fetchJobStats()
-            // If jobs are moving, also refresh items to show new images
-            if (jobStats && (jobStats.processing > 0 || jobStats.pending > 0)) {
-                fetchItems()
+        const interval = setInterval(async () => {
+            const latestStats = await fetchJobStats()
+            // If jobs are moving, refresh items SILENTLY to show new images without flicker
+            if (latestStats && (latestStats.processing > 0 || latestStats.pending > 0)) {
+                fetchItems(true)
             }
-        }, 10000)
+        }, 12000)
 
         return () => clearInterval(interval)
-    }, [items, jobStats])
+    }, [items.some(i => i.status === 'In Production'), jobStats?.pending, jobStats?.processing])
 
     const draftItems = items.filter(item => item.status === 'Draft')
     const hasDrafts = draftItems.length > 0

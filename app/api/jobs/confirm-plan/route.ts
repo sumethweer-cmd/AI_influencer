@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
                     jobsToInsert.push({
                         content_item_id: item.id,
-                        status: jobsToInsert.length === 0 ? 'Queued' : 'Pending',
+                        status: 'Queued',
                         image_type: 'SFW',
                         slot_index: i,
                         prompt_text: finalPrompt
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
 
                     jobsToInsert.push({
                         content_item_id: item.id,
-                        status: jobsToInsert.length === 0 ? 'Queued' : 'Pending',
+                        status: 'Queued',
                         image_type: 'NSFW',
                         slot_index: i,
                         prompt_text: finalPrompt
