@@ -70,7 +70,7 @@ export async function POST(req: Request) {
                 const finalPrompt = `${basePos}${Array.from(new Set(partsSfw.filter(p => p && String(p).trim() !== ''))).join(', ')}`
                 jobsToInsert.push({
                     content_item_id: contentId,
-                    status: 'Pending',
+                    status: 'Queued',
                     image_type: 'SFW',
                     slot_index: i,
                     prompt_text: finalPrompt
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
                 const finalPromptNsfw = `${basePos}${Array.from(new Set(partsNsfw.filter(p => p && String(p).trim() !== ''))).join(', ')}`
                 jobsToInsert.push({
                     content_item_id: contentId,
-                    status: 'Pending',
+                    status: 'Queued',
                     image_type: 'NSFW',
                     slot_index: i,
                     prompt_text: finalPromptNsfw

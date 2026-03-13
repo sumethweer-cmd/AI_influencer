@@ -93,10 +93,10 @@ export async function POST(req: Request) {
             }
 
             for (const idx of missingSFW) {
-                jobsToInsert.push({ content_item_id: item.id, status: 'Pending', image_type: 'SFW', slot_index: idx, prompt_text: buildPrompt(idx, false) })
+                jobsToInsert.push({ content_item_id: item.id, status: 'Queued', image_type: 'SFW', slot_index: idx, prompt_text: buildPrompt(idx, false) })
             }
             for (const idx of missingNSFW) {
-                jobsToInsert.push({ content_item_id: item.id, status: 'Pending', image_type: 'NSFW', slot_index: idx, prompt_text: buildPrompt(idx, true) })
+                jobsToInsert.push({ content_item_id: item.id, status: 'Queued', image_type: 'NSFW', slot_index: idx, prompt_text: buildPrompt(idx, true) })
             }
         }
 

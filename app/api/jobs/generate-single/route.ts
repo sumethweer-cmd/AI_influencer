@@ -80,7 +80,7 @@ export async function POST(req: Request) {
             .from('production_jobs')
             .insert({
                 content_item_id: contentId,
-                status: 'Pending',
+                status: 'Queued',
                 image_type: type,
                 slot_index: index,
                 prompt_text: finalPrompt
