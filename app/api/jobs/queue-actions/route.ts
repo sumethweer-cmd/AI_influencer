@@ -14,6 +14,7 @@ export async function POST(req: Request) {
                 break;
             case 'resume':
                 if (jobId) {
+                    if (!supabaseAdmin) throw new Error("Supabase Admin client not initialized. Check your SUPABASE_SERVICE_ROLE_KEY.");
                     const { error } = await supabaseAdmin.from('production_jobs').update({ status: 'Pending' }).eq('id', jobId).eq('status', 'Paused');
                     if (error) throw error;
                 }
@@ -32,7 +33,8 @@ export async function POST(req: Request) {
                 break;
             case 'resume_all':
                 {
-                    const { error } = await supabaseAdmin.from('production_jobs').update({ status: 'Queued' }).eq('status', 'Paused');
+                    if (!supabaseAdmin) throw new Error("Supabase Admin client not initialized.");
+                    const { error } = await supabaseAdmin.from('production_jobs').update({ status: 'Pending' }).eq('status', 'Paused');
                     if (error) throw error;
                 }
                 break;
@@ -78,6 +80,8 @@ export async function POST(req: Request) {
 
 export async function GET() {
     try {
+        if (!supabaseAdmin) throw new Error("Supabase Admin client not initialized.");
+
         const { data: jobs, error } = await supabaseAdmin
             .from('production_jobs')
             .select(`
