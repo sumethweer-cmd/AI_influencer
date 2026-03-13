@@ -108,20 +108,25 @@ export async function POST(req: Request) {
         // Update items to In Production again
         await supabaseAdmin.from('content_items').update({ status: 'In Production' }).in('id', contentIds)
 
-        // MANUAL PULSE: Trigger the orchestrator to start filling slots
-        // We call port 8000 for local dev, or the public URL for production
-        const isLocal = process.env.NODE_ENV === 'development'
-        const workerUrl = isLocal 
-            ? 'http://localhost:8000/functions/v1/process-phase2-batch'
-            : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-phase2-batch`
+        // Wake up the worker
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+        const workerUrl = `${supabaseUrl}/functions/v1/process-phase2-batch`
+        
+        console.log(`📡 Queue Action Pulse: orchestrate -> ${workerUrl}`);
             
         fetch(workerUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` 
+            },
             body: JSON.stringify({ action: 'orchestrate' })
-        }).catch(e => console.error("Pulse Error:", e))
+        }).then(async r => {
+            const txt = await r.text();
+            console.log(`✅ Action Pulse Response [${r.status}]:`, txt);
+        }).catch(e => console.error("❌ Action Pulse Error:", e))
 
-        await logSystem('INFO', 'Phase2: Production', `Queued ${jobsToInsert.length} pending jobs. Pulse sent to worker.`)
+        await logSystem('INFO', 'Phase2: Production', `Queued ${jobsToInsert.length} pending jobs.`)
 
         return NextResponse.json({ success: true, queued: jobsToInsert.length })
 

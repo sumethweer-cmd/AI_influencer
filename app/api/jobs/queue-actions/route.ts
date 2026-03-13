@@ -52,6 +52,24 @@ export async function POST(req: Request) {
                 return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 })
         }
 
+        // Wake up the worker
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+        const workerUrl = `${supabaseUrl}/functions/v1/process-phase2-batch`
+        
+        console.log(`📡 Queue Action Pulse: ${action} -> ${workerUrl}`);
+
+        fetch(workerUrl, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` 
+            },
+            body: JSON.stringify({ action: 'orchestrate' })
+        }).then(async r => {
+            const txt = await r.text();
+            console.log(`✅ Action Pulse Response [${r.status}]:`, txt);
+        }).catch(e => console.error("❌ Action Pulse Error:", e))
+
         return NextResponse.json({ success: true })
     } catch (e: any) {
         return NextResponse.json({ success: false, error: e.message }, { status: 500 })
