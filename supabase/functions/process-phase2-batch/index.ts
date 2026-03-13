@@ -1,11 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const PROJECT_URL = Deno.env.get('PROJECT_URL')
-const SERVICE_ROLE_KEY = Deno.env.get('SERVICE_ROLE_KEY')
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || Deno.env.get('PROJECT_URL')
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY')
 const runpodApiKey = Deno.env.get('RUNPOD_API_KEY')
 
-const supabase = createClient(PROJECT_URL!, SERVICE_ROLE_KEY!)
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.")
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 // --- Helpers ---
 
@@ -293,8 +297,8 @@ async function submitJobToComfyUI(jobId: string, isMock: boolean = false, mockDe
                     .limit(availableSlots)
 
                 if (pendingJobs && pendingJobs.length > 0) {
-                    const selfUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/process-phase2-batch'
-                    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+                    const selfUrl = SUPABASE_URL + '/functions/v1/process-phase2-batch'
+                    const serviceKey = SUPABASE_SERVICE_ROLE_KEY
                     
                     for (const nextJob of pendingJobs) {
                         await supabase.from('production_jobs').update({ status: 'Queued' }).eq('id', nextJob.id)
@@ -337,8 +341,8 @@ async function pollComfyUIJobs(isMock: boolean = false, mockDelay: number = 2000
             .limit(availableSlots)
 
         if (pendingJobs && pendingJobs.length > 0) {
-            const selfUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/process-phase2-batch'
-            const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+            const selfUrl = SUPABASE_URL + '/functions/v1/process-phase2-batch'
+            const serviceKey = SUPABASE_SERVICE_ROLE_KEY
             for (const pJob of pendingJobs) {
                  // **CRITICAL FIX**: Change status to 'Queued' to trigger the webhook and the submit logic!
                  await supabase.from('production_jobs').update({ status: 'Queued' }).eq('id', pJob.id)
@@ -359,8 +363,8 @@ async function pollComfyUIJobs(isMock: boolean = false, mockDelay: number = 2000
         .eq('status', 'Queued')
 
     if (stuckQueuedJobs && stuckQueuedJobs.length > 0) {
-        const selfUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/process-phase2-batch'
-        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        const selfUrl = SUPABASE_URL + '/functions/v1/process-phase2-batch'
+        const serviceKey = SUPABASE_SERVICE_ROLE_KEY
         for (const qJob of stuckQueuedJobs) {
              fetch(selfUrl, {
                  method: 'POST',
@@ -521,8 +525,8 @@ async function runWatchdog(isMock: boolean, mockDelay: number) {
     for (const stuckJob of (stuckProcessing || [])) {
         await logSystem('WARN', 'Watchdog', `Job ${stuckJob.id} stuck in Processing for > ${STUCK_PROCESSING_MINUTES}min — retrying`)
         await supabase.from('production_jobs').update({ status: 'Queued', error_message: null, updated_at: new Date().toISOString() }).eq('id', stuckJob.id)
-        const selfUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/process-phase2-batch'
-        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        const selfUrl = SUPABASE_URL + '/functions/v1/process-phase2-batch'
+        const serviceKey = SUPABASE_SERVICE_ROLE_KEY
         const retriedJob = { ...stuckJob, status: 'Queued' }
         fetch(selfUrl, {
             method: 'POST',
@@ -561,8 +565,8 @@ async function runWatchdog(isMock: boolean, mockDelay: number) {
             } else {
                 // Pod is running but Edge Function wasn't triggered - retry
                 await logSystem('WARN', 'Watchdog', `Job ${qJob.id} stuck in Queued > ${STUCK_QUEUED_MINUTES}min but Runpod is running → retrying`)
-                const selfUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/process-phase2-batch'
-                const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+                const selfUrl = SUPABASE_URL + '/functions/v1/process-phase2-batch'
+                const serviceKey = SUPABASE_SERVICE_ROLE_KEY
                 fetch(selfUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
