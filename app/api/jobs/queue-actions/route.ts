@@ -32,7 +32,7 @@ export async function POST(req: Request) {
                 break;
             case 'resume_all':
                 {
-                    const { error } = await supabaseAdmin.from('production_jobs').update({ status: 'Pending' }).eq('status', 'Paused');
+                    const { error } = await supabaseAdmin.from('production_jobs').update({ status: 'Queued' }).eq('status', 'Paused');
                     if (error) throw error;
                 }
                 break;

@@ -93,10 +93,10 @@ export async function POST(req: Request) {
             }
 
             for (const idx of missingSFW) {
-                jobsToInsert.push({ content_item_id: item.id, status: 'Queued', image_type: 'SFW', slot_index: idx, prompt_text: buildPrompt(idx, false) })
+                jobsToInsert.push({ content_item_id: item.id, status: 'Pending', image_type: 'SFW', slot_index: idx, prompt_text: buildPrompt(idx, false) })
             }
             for (const idx of missingNSFW) {
-                jobsToInsert.push({ content_item_id: item.id, status: 'Queued', image_type: 'NSFW', slot_index: idx, prompt_text: buildPrompt(idx, true) })
+                jobsToInsert.push({ content_item_id: item.id, status: 'Pending', image_type: 'NSFW', slot_index: idx, prompt_text: buildPrompt(idx, true) })
             }
         }
 
@@ -108,7 +108,20 @@ export async function POST(req: Request) {
         // Update items to In Production again
         await supabaseAdmin.from('content_items').update({ status: 'In Production' }).in('id', contentIds)
 
-        await logSystem('INFO', 'Phase2: Production', `Queued ${jobsToInsert.length} missing jobs for ${contentIds.length} items.`)
+        // MANUAL PULSE: Trigger the orchestrator to start filling slots
+        // We call port 8000 for local dev, or the public URL for production
+        const isLocal = process.env.NODE_ENV === 'development'
+        const workerUrl = isLocal 
+            ? 'http://localhost:8000/functions/v1/process-phase2-batch'
+            : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-phase2-batch`
+            
+        fetch(workerUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+            body: JSON.stringify({ action: 'orchestrate' })
+        }).catch(e => console.error("Pulse Error:", e))
+
+        await logSystem('INFO', 'Phase2: Production', `Queued ${jobsToInsert.length} pending jobs. Pulse sent to worker.`)
 
         return NextResponse.json({ success: true, queued: jobsToInsert.length })
 
