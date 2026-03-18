@@ -8,8 +8,6 @@ export default function ProductionMonitor() {
     const [visible, setVisible] = useState(false)
 
     useEffect(() => {
-        let timer: NodeJS.Timeout
-
         async function pollStatus() {
             try {
                 const res = await fetch('/api/jobs/monitor')
@@ -31,11 +29,8 @@ export default function ProductionMonitor() {
             }
         }
 
-        // Poll immediately, then every 3 seconds
+        // Poll immediately
         pollStatus()
-        timer = setInterval(pollStatus, 3000)
-
-        return () => clearInterval(timer)
     }, [])
 
     if (!visible || !job) return null

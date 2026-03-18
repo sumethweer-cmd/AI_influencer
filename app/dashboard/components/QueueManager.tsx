@@ -37,8 +37,6 @@ export default function QueueManager() {
 
     useEffect(() => {
         fetchQueue()
-        const timer = setInterval(fetchQueue, 5000)
-        return () => clearInterval(timer)
     }, [])
 
     const handleAction = async (action: string, jobId?: string, value?: boolean) => {
@@ -70,7 +68,6 @@ export default function QueueManager() {
     return (
         <div className="fixed bottom-4 right-4 z-50 flex items-end justify-end">
             {!expanded ? (
-                // Collapsed State (Small Badge)
                 <button
                     onClick={() => setExpanded(true)}
                     className="bg-slate-900 border border-slate-700 hover:border-purple-500 rounded-2xl shadow-2xl p-3 flex items-center gap-3 transition-all group"
@@ -96,15 +93,16 @@ export default function QueueManager() {
                     <span className="text-slate-500 group-hover:text-white">⛶</span>
                 </button>
             ) : (
-                // Expanded State (Full Panel)
                 <div className="bg-slate-900 border border-slate-700 rounded-t-2xl rounded-bl-2xl rounded-br-sm shadow-2xl w-96 max-h-[600px] flex flex-col overflow-hidden animate-in slide-in-from-bottom-5">
-                    {/* Header */}
                     <div className="p-3 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center cursor-pointer" onClick={() => setExpanded(false)}>
                         <h3 className="font-bold text-sm flex items-center gap-2">
                             <span>⚙️ Queue Manager</span>
                             <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full text-xs">{jobs.length}</span>
                         </h3>
                         <div className="flex gap-2">
+                            <button onClick={(e) => { e.stopPropagation(); fetchQueue() }} className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition-colors" title="Refresh Queue">
+                                ↻
+                            </button>
                             <button onClick={(e) => { e.stopPropagation(); setExpanded(false) }} className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
                                 ―
                             </button>
@@ -114,7 +112,6 @@ export default function QueueManager() {
                         </div>
                     </div>
 
-                    {/* Stats & Controls */}
                     <div className="p-3 border-b border-slate-800 bg-slate-900/80 space-y-2">
                         <div className="flex gap-2 mb-1">
                             <div className="flex-1 bg-slate-950 p-2 rounded-lg border border-slate-800 text-center">
@@ -151,11 +148,9 @@ export default function QueueManager() {
                                 className="accent-rose-500 w-3 h-3"
                             />
                             <span>Terminate Runpod when queue is empty</span>
-                            <span className="ml-auto text-rose-500 font-bold opacity-80">COST SAVER</span>
                         </label>
                     </div>
 
-                    {/* Job List */}
                     <div className="overflow-y-auto p-3 space-y-2 flex-1 max-h-[300px] custom-scrollbar bg-slate-950/50">
                         {jobs.length === 0 ? (
                             <div className="text-[11px] text-center italic text-slate-500 py-6">
@@ -174,7 +169,7 @@ export default function QueueManager() {
                                             </span>
                                             <span className="text-[9px] font-bold text-slate-500">{j.image_type} #{j.slot_index + 1}</span>
                                         </div>
-                                        <div className="truncate font-medium text-slate-300 title" title={j.content_items?.topic}>
+                                        <div className="truncate font-medium text-slate-300" title={j.content_items?.topic}>
                                             {j.content_items?.topic || 'Unknown Topic'}
                                         </div>
                                     </div>
@@ -198,7 +193,7 @@ export default function QueueManager() {
                                     </div>
                                 </div>
                             ))
-                        )}
+                         )}
                     </div>
                 </div>
             )}

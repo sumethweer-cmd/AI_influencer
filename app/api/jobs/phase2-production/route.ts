@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         for (const item of items) {
             const batchSize = item.batch_size || 4
             const existingImages = item.generated_images || []
-            const existingJobs = item.production_jobs || [] // jobs currently pending/processing
+            const existingJobs = item.production_jobs || [] 
             const struct = item.prompt_structure || {}
 
             const persona = personaData?.find((p: any) => p.name === item.persona)
@@ -54,13 +54,11 @@ export async function POST(req: Request) {
             const missingNSFW = []
 
             for (let i = 0; i < batchSize; i++) {
-                // SFW Check
                 if (item.gen_sfw) {
                     const hasImage = existingImages.find((img: any) => img.image_type === 'SFW' && img.slot_index === i)
                     const hasActiveJob = existingJobs.find((j: any) => j.image_type === 'SFW' && j.slot_index === i && ['Pending', 'Queued', 'Processing'].includes(j.status))
                     if (!hasImage && !hasActiveJob) missingSFW.push(i)
                 }
-                // NSFW Check
                 if (item.gen_nsfw) {
                     const hasImage = existingImages.find((img: any) => img.image_type === 'NSFW' && img.slot_index === i)
                     const hasActiveJob = existingJobs.find((j: any) => j.image_type === 'NSFW' && j.slot_index === i && ['Pending', 'Queued', 'Processing'].includes(j.status))
@@ -72,10 +70,7 @@ export async function POST(req: Request) {
                 const pose = struct.poses?.[idx] || ''
                 const cameraValue = struct.camera_settings?.[idx] || ''
                 const cameraSetting = cameraValue ? `Camera setting is "${cameraValue}"` : ''
-                
-                // For NSFW, we REPLACE the pose with the nsfw_prompt
                 const actionPart = isNsfw ? (struct.nsfw_prompts?.[idx] || '') : pose
-                
                 const parts = [
                     trigger, 
                     struct.mood_and_tone, 
@@ -88,7 +83,6 @@ export async function POST(req: Request) {
                     struct.face_expressions?.[idx] || '',
                     actionPart
                 ]
-                
                 return `${basePos}${Array.from(new Set(parts.filter(p => p && String(p).trim() !== ''))).join(', ')}`
             }
 
@@ -105,28 +99,9 @@ export async function POST(req: Request) {
             if (insertErr) throw insertErr
         }
 
-        // Update items to In Production again
         await supabaseAdmin.from('content_items').update({ status: 'In Production' }).in('id', contentIds)
 
-        // Wake up the worker
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
-        const workerUrl = `${supabaseUrl}/functions/v1/process-phase2-batch`
-        
-        console.log(`📡 Queue Action Pulse: orchestrate -> ${workerUrl}`);
-            
-        fetch(workerUrl, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` 
-            },
-            body: JSON.stringify({ action: 'orchestrate' })
-        }).then(async r => {
-            const txt = await r.text();
-            console.log(`✅ Action Pulse Response [${r.status}]:`, txt);
-        }).catch(e => console.error("❌ Action Pulse Error:", e))
-
-        await logSystem('INFO', 'Phase2: Production', `Queued ${jobsToInsert.length} pending jobs.`)
+        await logSystem('INFO', 'Phase2: Production', `Confirmed ${jobsToInsert.length} pending jobs. Execution handled by Cloud Worker.`)
 
         return NextResponse.json({ success: true, queued: jobsToInsert.length })
 

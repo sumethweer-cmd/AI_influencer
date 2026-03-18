@@ -96,23 +96,10 @@ export default function DashboardPage() {
         }
     }
 
-    // Polling for job stats if any item is In Production
+    // Polling removed per user feedback (Legacy behavior)
     useEffect(() => {
-        const hasActiveJobs = items.some(item => item.status === 'In Production')
-        const isQueueActive = jobStats && (jobStats.pending > 0 || jobStats.processing > 0)
-        
-        if (!hasActiveJobs && !isQueueActive) return
-
-        const interval = setInterval(async () => {
-            const latestStats = await fetchJobStats()
-            // If jobs are moving, refresh items SILENTLY to show new images without flicker
-            if (latestStats && (latestStats.processing > 0 || latestStats.pending > 0)) {
-                fetchItems(true)
-            }
-        }, 12000)
-
-        return () => clearInterval(interval)
-    }, [items.some(i => i.status === 'In Production'), jobStats?.pending, jobStats?.processing])
+        fetchJobStats()
+    }, []) // Run once on mount
 
     const draftItems = items.filter(item => item.status === 'Draft')
     const hasDrafts = draftItems.length > 0

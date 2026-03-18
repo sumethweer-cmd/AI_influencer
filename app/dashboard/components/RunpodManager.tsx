@@ -8,7 +8,7 @@ export default function RunpodManager() {
     const [loading, setLoading] = useState(true)
     const [actioning, setActioning] = useState(false)
     const [gpuType, setGpuType] = useState('NVIDIA GeForce RTX 4090')
-    const [autoRefresh, setAutoRefresh] = useState(true)
+    const [autoRefresh, setAutoRefresh] = useState(false)
 
     const fetchPods = async () => {
         try {
@@ -26,13 +26,7 @@ export default function RunpodManager() {
 
     useEffect(() => {
         fetchPods()
-
-        let interval: NodeJS.Timeout
-        if (autoRefresh) {
-            interval = setInterval(fetchPods, 10000) // Poll every 10 seconds
-        }
-        return () => clearInterval(interval)
-    }, [autoRefresh])
+    }, [])
 
     const handleStartPod = async () => {
         if (!confirm(`Are you sure you want to start a new \${gpuType} instance? This will incur costs.`)) return

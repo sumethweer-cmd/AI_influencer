@@ -14,8 +14,8 @@ export async function POST(req: Request) {
                 break;
             case 'resume':
                 if (jobId) {
-                    if (!supabaseAdmin) throw new Error("Supabase Admin client not initialized. Check your SUPABASE_SERVICE_ROLE_KEY.");
-                    const { error } = await supabaseAdmin.from('production_jobs').update({ status: 'Pending' }).eq('id', jobId).eq('status', 'Paused');
+                    if (!supabaseAdmin) throw new Error("Supabase Admin client not initialized.");
+                    const { error } = await supabaseAdmin.from('production_jobs').update({ status: 'Queued' }).eq('id', jobId).eq('status', 'Paused');
                     if (error) throw error;
                 }
                 break;
@@ -54,24 +54,6 @@ export async function POST(req: Request) {
                 return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 })
         }
 
-        // Wake up the worker
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
-        const workerUrl = `${supabaseUrl}/functions/v1/process-phase2-batch`
-        
-        console.log(`📡 Queue Action Pulse: ${action} -> ${workerUrl}`);
-
-        fetch(workerUrl, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` 
-            },
-            body: JSON.stringify({ action: 'orchestrate' })
-        }).then(async r => {
-            const txt = await r.text();
-            console.log(`✅ Action Pulse Response [${r.status}]:`, txt);
-        }).catch(e => console.error("❌ Action Pulse Error:", e))
-
         return NextResponse.json({ success: true })
     } catch (e: any) {
         return NextResponse.json({ success: false, error: e.message }, { status: 500 })
@@ -88,23 +70,23 @@ export async function GET() {
                 id, status, image_type, slot_index, created_at,
                 content_items (id, topic, persona)
             `)
-            .in('status', ['Pending', 'Queued', 'Processing', 'Paused'])
-            .order('created_at', { ascending: true })
+            .in('status', ['Pending', 'Queued', 'Processing', 'Paused', 'Failed'])
+            .order('created_at', { ascending: true });
 
-        if (error) throw error
+        if (error) throw error;
 
         const { data: config } = await supabaseAdmin
             .from('system_configs')
             .select('key_value')
             .eq('key_name', 'AUTO_TERMINATE_RUNPOD')
-            .maybeSingle()
+            .maybeSingle();
 
         return NextResponse.json({ 
             success: true, 
             jobs: jobs || [],
             autoTerminate: config?.key_value === 'true'
-        })
+        });
     } catch (e: any) {
-        return NextResponse.json({ success: false, error: e.message }, { status: 500 })
+        return NextResponse.json({ success: false, error: e.message }, { status: 500 });
     }
 }
