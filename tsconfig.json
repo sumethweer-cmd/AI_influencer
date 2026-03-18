@@ -42,6 +42,7 @@
     "test-*.js",
     "reset-db.ts",
     "reset-*.ts",
+    "local-worker.ts",
     "supabase/functions/**/*"
   ]
 }

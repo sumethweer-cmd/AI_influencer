@@ -1,0 +1,13 @@
+local-worker.ts
+*.mjs
+*.sql
+*.ts
+!app/**/*.ts
+!lib/**/*.ts
+!types/**/*.ts
+!next.config.ts
+!postcss.config.mjs
+!eslint.config.mjs
+supabase/
+node_modules/
+.next/
