@@ -1,5 +1,17 @@
+# Configuration for Vercel Build (Fix: Corrected Rule Order)
+
+# 1. Broad Wildcards (Ignore everything matching these patterns first)
 local-worker.ts
 *.ts
+*.mjs
+*.sql
+
+# 2. Specific Folders to Always Ignore
+supabase/
+node_modules/
+.next/
+
+# 3. Exceptions (Specific files/folders that MUST be included, overriding the above)
 !app/**/*.ts
 !lib/**/*.ts
 !jobs/**/*.ts
@@ -7,8 +19,3 @@ local-worker.ts
 !next.config.ts
 !postcss.config.mjs
 !eslint.config.mjs
-*.mjs
-*.sql
-supabase/
-node_modules/
-.next/
