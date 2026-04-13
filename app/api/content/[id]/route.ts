@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { deleteFromGCS } from '@/lib/storage'
+import { deleteFromGCS, deleteGCSFolder } from '@/lib/storage'
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
     try {

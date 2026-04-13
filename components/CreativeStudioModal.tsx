@@ -566,7 +566,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                             {/* Status Indicators */}
                                             <div className="absolute top-2 left-2 flex gap-1">
                                                 <div className="px-1.5 py-0.5 bg-black/60 backdrop-blur-md rounded text-[8px] font-black text-white border border-white/10 uppercase">
-                                                    V-{img.slot_index + 1}
+                                                    V-{(img.slot_index ?? 0) + 1}
                                                 </div>
                                                 {Object.keys(selections).some(p => Array.isArray(selections[p]) ? selections[p].includes(img.id) : selections[p] === img.id) && (
                                                     <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
@@ -658,10 +658,10 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                         </div>
                                     </div>
 
-                                    <div className="space-y-1.5">
+                                    <div className="space-y-1.5 pb-2">
                                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Storyline / Script</p>
                                         <div className="bg-black/30 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-400 leading-relaxed max-h-[140px] overflow-y-auto font-medium italic scrollbar-hide">
-                                            {item.storyline_draft || 'No storyline draft available.'}
+                                            {item.storyline || 'No storyline draft available.'}
                                         </div>
                                     </div>
                                 </div>
