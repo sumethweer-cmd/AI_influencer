@@ -43,6 +43,7 @@ export async function GET(request: Request) {
 
         // 3. Apply Sorting and Pagination
         query = query.order('created_at', { ascending: sortOrder === 'asc' })
+        query = query.order('id', { ascending: false }) // Secondary deterministic sort
         query = query.range(offset, offset + limit - 1)
 
         const { data, error } = await query

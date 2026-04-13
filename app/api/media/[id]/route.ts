@@ -8,30 +8,41 @@ export async function DELETE(
 ) {
     try {
         const { id } = await context.params
+        const { searchParams } = new URL(request.url)
+        let filePath = searchParams.get('filePath')
 
-        // Optional: Get file path first to delete from storage as well
-        const { data: img } = await supabaseAdmin
-            .from('generated_images')
-            .select('file_path')
-            .eq('id', id)
-            .single()
+        // If it's a DB record (doesn't start with gcs-), fetch its path and delete it from DB
+        if (!id.startsWith('gcs-')) {
+            const { data: img } = await supabaseAdmin
+                .from('generated_images')
+                .select('file_path')
+                .eq('id', id)
+                .single()
 
-        // 1. Delete from Database
-        const { error: dbError } = await supabaseAdmin
-            .from('generated_images')
-            .delete()
-            .eq('id', id)
+            if (img?.file_path) {
+                filePath = img.file_path
+            }
 
-        if (dbError) throw dbError
+            // 1. Delete from Database
+            const { error: dbError } = await supabaseAdmin
+                .from('generated_images')
+                .delete()
+                .eq('id', id)
+
+            if (dbError) {
+                console.error('Delete DB error:', dbError)
+                // Continue to storage deletion even if DB fails, to prevent orphans, though typically we throw
+            }
+        }
 
         // 2. Delete from Storage
-        if (img?.file_path) {
-            if (img.file_path.includes('storage.googleapis.com')) {
+        if (filePath) {
+            if (filePath.includes('storage.googleapis.com') || filePath.startsWith('images/')) {
                 // Delete from GCS (handles both original and .webp)
-                await deleteFromGCS(img.file_path);
-            } else if (img.file_path.includes('/storage/v1/object/public/content/')) {
+                await deleteFromGCS(filePath);
+            } else if (filePath.includes('/storage/v1/object/public/content/')) {
                 // Legacy Supabase Deletion
-                const pathParts = img.file_path.split('/storage/v1/object/public/content/')
+                const pathParts = filePath.split('/storage/v1/object/public/content/')
                 if (pathParts.length > 1) {
                     const storagePath = decodeURIComponent(pathParts[1])
                     await supabaseAdmin.storage

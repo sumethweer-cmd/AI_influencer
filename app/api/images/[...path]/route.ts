@@ -2,45 +2,76 @@ import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
 import sharp from 'sharp'
+import { getGCSFileBuffer } from '@/lib/storage'
 
 /**
- * API route to serve images from the local storage folder
- * Usage: /api/images/content_id/SFW/filename.png
+ * API route to serve images from local storage or GCS proxy
+ * Usage: /api/images/path/to/image.png
  */
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ path: string[] }> }
 ) {
     const { path: imagePathList } = await params
-    const relativePath = path.join(...imagePathList)
-    const fullPath = path.join(process.cwd(), 'storage', 'images', relativePath)
+    
+    // Use forward slashes for GCS but local path.join for FS check
+    const gcsPath = imagePathList.join('/')
+    const localRelativePath = path.join(...imagePathList)
+    const localFullPath = path.join(process.cwd(), 'storage', 'images', localRelativePath)
 
-    if (!fs.existsSync(fullPath)) {
+    let fileBuffer: Buffer | null = null
+    let contentType = 'image/png'
+
+    // 1. Try Local Storage first
+    if (fs.existsSync(localFullPath)) {
+        fileBuffer = fs.readFileSync(localFullPath)
+        const ext = path.extname(localFullPath).toLowerCase()
+        contentType = ext === '.png' ? 'image/png' : (ext === '.webp' ? 'image/webp' : 'image/jpeg')
+    } 
+    // 2. Fallback to GCS Proxy
+    else {
+        let gcsData = await getGCSFileBuffer(gcsPath)
+        
+        // 3. Extension Fallback (.webp -> .png)
+        if (!gcsData && gcsPath.endsWith('.webp')) {
+            const pngPath = gcsPath.replace('.webp', '.png')
+            console.log(`[Proxy] WebP not found, trying PNG fallback: ${pngPath}`)
+            gcsData = await getGCSFileBuffer(pngPath)
+        }
+
+        if (gcsData) {
+            fileBuffer = gcsData.buffer
+            contentType = gcsData.contentType
+        }
+    }
+
+    if (!fileBuffer) {
         return new NextResponse('Image not found', { status: 404 })
     }
 
     const { searchParams } = new URL(request.url)
     const width = searchParams.get('w')
 
-    let fileBuffer = fs.readFileSync(fullPath)
-    const ext = path.extname(fullPath).toLowerCase()
-    const contentType = ext === '.png' ? 'image/png' : 'image/jpeg'
-
-    // Resize if width is provided
-    if (width) {
+    // Resize if width is provided (and it's an image)
+    if (width && contentType.startsWith('image/')) {
         const w = parseInt(width)
         if (!isNaN(w) && w > 0) {
-            const resized = await sharp(fileBuffer as any)
-                .resize({ width: w, withoutEnlargement: true })
-                .toBuffer()
-            fileBuffer = Buffer.from(resized)
+            try {
+                const resized = await sharp(fileBuffer as any)
+                    .resize({ width: w, withoutEnlargement: true })
+                    .toBuffer()
+                fileBuffer = Buffer.from(resized)
+            } catch (err) {
+                console.warn('[Proxy] Sharp resize failed:', err)
+            }
         }
     }
 
     return new NextResponse(fileBuffer, {
         headers: {
             'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=31536000, immutable'
+            'Cache-Control': 'public, max-age=31536000, immutable',
+            'X-Proxy-Source': fs.existsSync(localFullPath) ? 'local' : 'gcs'
         }
     })
 }

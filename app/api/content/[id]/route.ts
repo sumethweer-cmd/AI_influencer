@@ -49,7 +49,11 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
             .eq('id', id)
             .single()
 
-        // 2. Extract filenames and delete from Storage
+        // 2. Delete the entire GCS folder for this content item
+        // This ensures manually synced files are also removed, preventing orphans
+        await deleteGCSFolder(`images/${id}`);
+
+        // 3. Extract and delete legacy Supabase files
         if (item && item.generated_images && item.generated_images.length > 0) {
             const supabaseFilesToRemove: string[] = []
 
@@ -57,10 +61,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
                 const url = img.file_path
                 if (!url) continue
 
-                if (url.includes('storage.googleapis.com')) {
-                    // Delete GCS file
-                    await deleteFromGCS(url)
-                } else if (url.includes('/public/content/')) {
+                if (url.includes('/public/content/')) {
                     // Collect Supabase files for bulk deletion
                     const match = url.match(/\/public\/content\/(.+)$/)
                     if (match && match[1]) {
@@ -80,7 +81,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
             }
         }
 
-        // 3. Delete the database record (cascade should handle related tables)
+        // 4. Delete the database record (cascade should handle related tables)
         const { error } = await supabaseAdmin
             .from('content_items')
             .delete()

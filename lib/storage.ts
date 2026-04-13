@@ -8,14 +8,28 @@ const privateKey = process.env.GCS_PRIVATE_KEY
   : undefined;
 
 let storageClient: Storage | null = null;
-if (process.env.GCS_PROJECT_ID && process.env.GCS_CLIENT_EMAIL && privateKey) {
+
+const gcsProjectId = process.env.GCS_PROJECT_ID;
+const gcsClientEmail = process.env.GCS_CLIENT_EMAIL;
+
+if (gcsProjectId && gcsClientEmail && privateKey) {
   storageClient = new Storage({
-    projectId: process.env.GCS_PROJECT_ID,
+    projectId: gcsProjectId,
     credentials: {
-      client_email: process.env.GCS_CLIENT_EMAIL,
+      client_email: gcsClientEmail,
       private_key: privateKey,
     },
   });
+} else {
+  // Helpful log for debugging why storageClient is null
+  const missing = [];
+  if (!gcsProjectId) missing.push('GCS_PROJECT_ID');
+  if (!gcsClientEmail) missing.push('GCS_CLIENT_EMAIL');
+  if (!privateKey) missing.push('GCS_PRIVATE_KEY');
+  
+  if (missing.length > 0 && missing.length < 3) {
+      console.warn(`[Storage] GCS is partially configured. Missing: ${missing.join(', ')}`);
+  }
 }
 
 export const gcsBucketName = process.env.GCS_BUCKET_NAME || 'gugolfproject';
@@ -113,6 +127,26 @@ export async function deleteFromGCS(filePathOrUrl: string) {
   }
 }
 
+/**
+ * Deletes an entire folder and all its contents from GCS.
+ */
+export async function deleteGCSFolder(folderPath: string) {
+    if (!storageClient) return false;
+    
+    try {
+        const bucket = storageClient.bucket(gcsBucketName);
+        // Ensure folderPath ends with / for prefix matching
+        const prefix = folderPath.endsWith('/') ? folderPath : `${folderPath}/`;
+        
+        console.log(`[Storage] Deleting all files under prefix: ${prefix}`);
+        await bucket.deleteFiles({ prefix });
+        return true;
+    } catch (err: any) {
+        console.error(`[Storage] Failed to delete folder ${folderPath}:`, err.message);
+        return false;
+    }
+}
+
 export async function uploadToStorage(
     bucket: string,
     path: string,
@@ -150,4 +184,54 @@ export async function uploadToStorage(
     }
 
     throw new Error(`Failed to upload to GCS after ${maxRetries} attempts. Last error: ${lastError?.message}`);
+}
+
+/**
+ * Lists all files in a specific GCS folder.
+ */
+export async function listGCSFiles(folderPath: string): Promise<string[]> {
+    if (!storageClient) {
+        throw new Error('Google Cloud Storage is not configured.');
+    }
+
+    try {
+        const bucket = storageClient.bucket(gcsBucketName);
+        // Ensure folderPath ends with / for prefix matching
+        const prefix = folderPath.endsWith('/') ? folderPath : `${folderPath}/`;
+        
+        const [files] = await bucket.getFiles({ prefix });
+        
+        // Map to public URLs or just paths? The app uses public URLs in many places.
+        // But for sync logic, paths are better.
+        return files.map(file => file.name);
+    } catch (err: any) {
+        console.error('[Storage] List GCS files failed:', err.message);
+        return [];
+    }
+}
+
+/**
+ * Fetches a file buffer from GCS.
+ */
+export async function getGCSFileBuffer(filePath: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+    if (!storageClient) return null;
+
+    try {
+        const bucket = storageClient.bucket(gcsBucketName);
+        const file = bucket.file(filePath);
+        
+        const [exists] = await file.exists();
+        if (!exists) return null;
+
+        const [buffer] = await file.download();
+        const [metadata] = await file.getMetadata();
+        
+        return {
+            buffer,
+            contentType: metadata.contentType || 'application/octet-stream'
+        };
+    } catch (err: any) {
+        console.error(`[Storage] Failed to fetch GCS file ${filePath}:`, err.message);
+        return null;
+    }
 }

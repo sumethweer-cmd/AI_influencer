@@ -701,35 +701,84 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
     const [caption, setCaption] = useState(item.caption_final || item.caption_draft || '')
     const [approving, setApproving] = useState(false)
     const [showStudio, setShowStudio] = useState(false)
+    const [showPrompt, setShowPrompt] = useState(false)
+    const [scheduledAt, setScheduledAt] = useState(item.scheduled_at ? new Date(item.scheduled_at).toISOString().slice(0, 16) : '')
 
-    // Draft Editor States (Phase 1.5)
-    const [contentType, setContentType] = useState(item.content_type)
-    const [selectedWorkflowId, setSelectedWorkflowId] = useState(item.selected_workflow_id || '')
-    const [genSfw, setGenSfw] = useState(item.gen_sfw)
-    const [genNsfw, setGenNsfw] = useState(item.gen_nsfw)
-    const [postToIg, setPostToIg] = useState(item.post_to_ig)
-    const [postToX, setPostToX] = useState(item.post_to_x)
-    const [postToFanvue, setPostToFanvue] = useState(item.post_to_fanvue)
+    const getImageUrl = (path: string, width?: number) => {
+        if (!path) return ''
+        let finalPath = path
+        // Auto-convert to webp for GCS originals if needed
+        if (path.includes('storage.googleapis.com') && !path.endsWith('.webp') && !path.endsWith('.mp4')) {
+            const lastDot = path.lastIndexOf('.')
+            if (lastDot !== -1) finalPath = path.substring(0, lastDot) + '.webp'
+        }
 
-    const [batchSize, setBatchSize] = useState(item.batch_size || 4)
-    const [imageWidth, setImageWidth] = useState(item.image_width || 896)
-    const [imageHeight, setImageHeight] = useState(item.image_height || 1152)
-    const [isRefilling, setIsRefilling] = useState(false)
+        // 1. If absolute URL, check if it's GCS and proxy it
+        if (finalPath.startsWith('http')) {
+            if (finalPath.includes('storage.googleapis.com')) {
+                try {
+                    const url = new URL(finalPath)
+                    const pathParts = url.pathname.split('/').filter(Boolean)
+                    // In GCS URL https://storage.googleapis.com/bucket/path, the first part of pathname is bucket
+                    pathParts.shift() 
+                    const cleanRelative = pathParts.join('/')
+                    const proxyPath = `/api/images/${cleanRelative}`
+                    return width ? `${proxyPath}?w=${width}` : proxyPath
+                } catch (e) {
+                    console.error('URL parse failed', e)
+                }
+            }
+            return finalPath
+        }
+        
+        // 2. If relative path, prepend /api/images/
+        const base = `/api/images/${finalPath.startsWith('/') ? finalPath.slice(1) : finalPath}`
+        return width ? `${base}?w=${width}` : base
+    }
 
-    // Sync from props (Global Settings Retroactive Effect)
-    useEffect(() => {
-        setBatchSize(item.batch_size || 4)
-        setImageWidth(item.image_width || 896)
-        setImageHeight(item.image_height || 1152)
-    }, [item.batch_size, item.image_width, item.image_height])
+    const handleApprove = async () => {
+        setApproving(true)
+        try {
+            await fetch(`/api/content/${item.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caption_final: caption })
+            })
 
+            const res = await fetch('/api/jobs/approve-content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contentId: item.id,
+                    caption_final: caption,
+                    scheduledAt: new Date(scheduledAt || Date.now() + 3600000).toISOString(),
+                    selectedImageId: item.selected_image_id || (item.generated_images?.[0]?.id)
+                })
+            })
+
+            if (res.ok) onUpdate()
+            else alert('Approval failed')
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setApproving(false)
+        }
+    }
+
+    const handleUpdateDraft = async (updates: Partial<ContentItem>) => {
+        await fetch(`/api/content/${item.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        })
+    }
+
+    // New logic for Task 2's specific states if needed by child modals
     const [sfwPrompt, setSfwPrompt] = useState(item.sfw_prompt || '')
     const [promptStructure, setPromptStructure] = useState<any>(item.prompt_structure || {
         location: '', time: '', mood_and_tone: '', vibe: '', lighting: '', outfit: '',
         camera_settings: ['', '', '', ''], poses: ['', '', '', ''], face_expressions: ['', '', '', ''], nsfw_prompts: ['', '', '', ''], vdo_prompts: ['', '', '', ''], vdo_prompts_nsfw: ['', '', '', '']
     })
-    const [scheduledAt, setScheduledAt] = useState(item.scheduled_at ? new Date(item.scheduled_at).toISOString().slice(0, 16) : '')
-    const [showPrompt, setShowPrompt] = useState(false)
 
     const updatePromptStructure = (key: string, value: any, idx?: number) => {
         const updated = { ...promptStructure }
@@ -742,523 +791,150 @@ function ContentCard({ item, workflows, personas, onUpdate, isSelected, onToggle
             updated[key] = value
         }
         setPromptStructure(updated)
-        // debounce save (or direct save)
         handleUpdateDraft({ prompt_structure: updated })
     }
 
-    useEffect(() => {
-        if (genNsfw) {
-            setPostToIg(false)
-            handleUpdateDraft({ post_to_ig: false })
-        }
-    }, [genNsfw])
+    const genNsfw = item.gen_nsfw
 
-    const handleUpdateDraft = async (updates: Partial<ContentItem>) => {
-        await fetch(`/api/content/${item.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updates)
-        })
-    }
-
-    const sfwImages = item.generated_images?.filter(img => img.image_type === 'SFW') || []
-    const nsfwImages = item.generated_images?.filter(img => img.image_type === 'NSFW') || []
-
-    // Display all generated images together
-    const displayImages = item.generated_images || []
-
-    // Default to the first image if not selected yet, or strictly the selected one once approved
-    const [selectedImageId, setSelectedImageId] = useState<string | null>(item.selected_image_id || (displayImages.length > 0 ? displayImages[0].id : null))
-    const displayImage = displayImages.find(img => img.id === selectedImageId) || displayImages[0]
-
-    const getImageUrl = (path: string, width?: number) => {
-        if (!path) return ''
-
-        let finalPath = path
-        // Convert to webp for UI display if it's a GCS image
-        if (path.includes('storage.googleapis.com') && !path.endsWith('.webp') && !path.endsWith('.mp4')) {
-            const lastDot = path.lastIndexOf('.')
-            if (lastDot !== -1) {
-                finalPath = path.substring(0, lastDot) + '.webp'
-            }
-        }
-
-        if (finalPath.startsWith('http')) return finalPath
-        const base = finalPath.replace('/storage/', '/api/')
-        return width ? `${base}?w=${width}` : base
-    }
-
-    const statusColors = {
-        Draft: 'bg-slate-700 text-slate-300',
-        'In Production': 'bg-blue-900 text-blue-200 animate-pulse',
-        'QC Pending': 'bg-amber-900 text-amber-200',
-        'Awaiting Approval': 'bg-orange-900 text-orange-200 border border-orange-500/50',
-        Scheduled: 'bg-emerald-900 text-emerald-200',
-        Published: 'bg-purple-900 text-purple-200'
-    }
-
-    async function handleApprove() {
-        setApproving(true)
-        try {
-            // 1. Update Final Caption
-            await fetch(`/api/content/${item.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ caption_final: caption })
-            })
-
-            // 2. Call Approval API
-            const res = await fetch('/api/jobs/approve-content', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contentId: item.id,
-                    caption_final: caption,
-                    scheduledAt: new Date(scheduledAt || Date.now() + 3600000).toISOString(), // Schedule 1 hour from now as default
-                    selectedImageId: selectedImageId
-                })
-            })
-
-            if (res.ok) {
-                onUpdate()
-            }
-        } catch (err) {
-            console.error(err)
-        } finally {
-            setApproving(false)
-        }
-    }
+    // Find the primary image to show (selected or first available)
+    const displayImage = item.generated_images?.find(img => img.id === item.selected_image_id) || item.generated_images?.[0]
 
     return (
-        <div className={`bg-slate-800 rounded-2xl border overflow-hidden transition-all group shadow-lg \${isSelected ? 'border-orange-500 ring-1 ring-orange-500/50' : 'border-slate-700 hover:border-orange-500/50'}`}>
-            {/* Image Preview / Draft Settings */}
-            <div className="relative aspect-square bg-slate-900 border-b border-slate-700/50">
-                {/* Selection Checkbox Overlay */}
-                <div
-                    onClick={onToggleSelect}
-                    className={`absolute top-4 right-4 z-20 w-6 h-6 rounded-lg border-2 cursor-pointer flex items-center justify-center transition-all \${isSelected ? 'bg-orange-500 border-orange-400' : 'bg-black/50 border-white/20 hover:border-white'}`}
-                >
-                    {isSelected && <span className="text-white text-xs font-black">✓</span>}
-                </div>
-                {item.status === 'Draft' ? (
-                    <div className="w-full h-full flex flex-col p-6 space-y-4 overflow-y-auto">
-                        <div className="flex justify-between items-center mb-1">
-                            <div className="text-xs text-orange-400 font-bold tracking-widest uppercase">Phase 1.5: Setup</div>
-                            <button onClick={() => setShowPrompt(true)} className="text-[10px] font-bold bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded transition-colors border border-slate-600">
-                                👁️ View Prompt
-                            </button>
-                        </div>
-
-                        {showPrompt && (
-                            <PromptEditorModal
-                                item={item}
-                                workflows={workflows}
-                                personas={personas}
-                                promptStructure={promptStructure}
-                                updatePromptStructure={updatePromptStructure}
-                                sfwPrompt={sfwPrompt}
-                                setSfwPrompt={setSfwPrompt}
-                                handleUpdateDraft={handleUpdateDraft}
-                                onClose={() => setShowPrompt(false)}
-                                genNsfw={genNsfw}
-                            />
-                        )}
-
-                        <div>
-                            <label className="text-[10px] font-bold text-orange-400 mb-1 block">WORKFLOW TEMPLATE OVERRIDE</label>
-                            <select
-                                value={selectedWorkflowId}
-                                onChange={e => {
-                                    setSelectedWorkflowId(e.target.value)
-                                    handleUpdateDraft({ selected_workflow_id: e.target.value || null as any })
-                                }}
-                                className="w-full bg-slate-900 border border-orange-500/30 hover:border-orange-500/70 rounded p-2 text-xs text-slate-300 focus:outline-none transition-colors"
-                            >
-                                <option value="">Auto-select (Latest {item.persona || 'Shared'})</option>
-                                {workflows.filter(wf => !wf.persona || wf.persona === item.persona).map(wf => (
-                                    <option key={wf.id} value={wf.id}>{wf.name} ({wf.workflow_type})</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-[10px] font-bold text-slate-400 mb-1 block">EXPECTED POST DATE</label>
-                            <input
-                                type="datetime-local"
-                                value={scheduledAt}
-                                onChange={e => {
-                                    setScheduledAt(e.target.value)
-                                    handleUpdateDraft({ scheduled_at: new Date(e.target.value).toISOString() })
-                                }}
-                                className="w-full bg-slate-800 border-none rounded p-2 text-xs text-slate-300 focus:ring-1 ring-orange-500 outline-none"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-2">
-                            <div>
-                                <label className="text-[10px] font-bold text-slate-400 mb-1 block">BATCH SIZE</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max="8"
-                                        value={batchSize}
-                                        onChange={e => {
-                                            const val = parseInt(e.target.value) || 1
-                                            setBatchSize(val)
-                                        }}
-                                        onBlur={() => handleUpdateDraft({ batch_size: batchSize })}
-                                        className="w-full bg-slate-800 border-none rounded p-2 text-xs text-slate-300 focus:ring-1 ring-orange-500 outline-none"
-                                    />
-                                    <div className="flex gap-2">
-                                        {item.batch_size > (item.prompt_structure?.poses?.length || 0) && (
-                                            <button
-                                                onClick={async () => {
-                                                    setIsRefilling(true)
-                                                    const res = await fetch('/api/jobs/refill-prompts', {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({ contentId: item.id, targetBatchSize: item.batch_size })
-                                                    })
-                                                    if (res.ok) {
-                                                        onUpdate()
-                                                    }
-                                                    setIsRefilling(false)
-                                                }}
-                                                disabled={isRefilling}
-                                                className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-orange-600/20 transition-all active:scale-95"
-                                            >
-                                                {isRefilling ? '...' : '✨ REFILL'}
-                                            </button>
-                                        )}
-                                        {(item.status as string === 'QC Pending' || item.status as string === 'Awaiting Approval') && (item.generated_images?.length || 0) < (item.batch_size || 4) && (
-                                            <button
-                                                onClick={async () => {
-                                                    setApproving(true)
-                                                    const res = await fetch('/api/jobs/phase2-production', {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({ contentIds: [item.id] })
-                                                    })
-                                                    if (res.ok) {
-                                                        alert('🚀 Generating missing slots! Please wait...')
-                                                        onUpdate()
-                                                    }
-                                                    setApproving(false)
-                                                }}
-                                                disabled={approving}
-                                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
-                                            >
-                                                {approving ? '...' : '🚀 GEN MISSING'}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-slate-400 mb-1 block">WIDTH</label>
-                                <input
-                                    type="number"
-                                    step="64"
-                                    value={imageWidth}
-                                    onChange={e => {
-                                        const val = parseInt(e.target.value) || 896
-                                        setImageWidth(val)
-                                    }}
-                                    onBlur={() => handleUpdateDraft({ image_width: imageWidth })}
-                                    className="w-full bg-slate-800 border-none rounded p-2 text-xs text-slate-300 focus:ring-1 ring-orange-500 outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-slate-400 mb-1 block">HEIGHT</label>
-                                <input
-                                    type="number"
-                                    step="64"
-                                    value={imageHeight}
-                                    onChange={e => {
-                                        const val = parseInt(e.target.value) || 1152
-                                        setImageHeight(val)
-                                    }}
-                                    onBlur={() => handleUpdateDraft({ image_height: imageHeight })}
-                                    className="w-full bg-slate-800 border-none rounded p-2 text-xs text-slate-300 focus:ring-1 ring-orange-500 outline-none"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-3 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                            <label className="flex items-center gap-3 text-sm text-slate-300 cursor-pointer hover:text-white transition-colors">
-                                <input type="checkbox" checked={genSfw} onChange={(e) => { setGenSfw(e.target.checked); handleUpdateDraft({ gen_sfw: e.target.checked }) }} className="w-4 h-4 rounded accent-orange-500 bg-slate-700 border-slate-600" />
-                                Generate SFW Image
-                            </label>
-                            <label className="flex items-center gap-3 text-sm text-slate-300 cursor-pointer hover:text-white transition-colors">
-                                <input type="checkbox" checked={genNsfw} onChange={(e) => { setGenNsfw(e.target.checked); handleUpdateDraft({ gen_nsfw: e.target.checked }) }} className="w-4 h-4 rounded accent-orange-500 bg-slate-700 border-slate-600" />
-                                <span className="text-pink-400">Generate NSFW Image</span>
-                            </label>
-                        </div>
-
-                        <div className="text-xs text-emerald-400 font-bold tracking-widest uppercase mt-4 mb-2">Platform Routing</div>
-                        <div className="space-y-3 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                            <label className={`flex items-center gap-3 text-sm transition-colors cursor-pointer \${genNsfw ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:text-white'}`}>
-                                <input type="checkbox" disabled={genNsfw} checked={postToIg} onChange={(e) => { setPostToIg(e.target.checked); handleUpdateDraft({ post_to_ig: e.target.checked }) }} className="w-4 h-4 rounded accent-emerald-500 bg-slate-700 border-slate-600 disabled:opacity-50" />
-                                Post to Instagram <span className="text-[10px] text-slate-500 ml-1">(SFW Only)</span>
-                            </label>
-                            <label className="flex items-center gap-3 text-sm text-slate-300 cursor-pointer hover:text-white transition-colors">
-                                <input type="checkbox" checked={postToX} onChange={(e) => { setPostToX(e.target.checked); handleUpdateDraft({ post_to_x: e.target.checked }) }} className="w-4 h-4 rounded accent-emerald-500 bg-slate-700 border-slate-600" />
-                                Post to X / Twitter
-                            </label>
-                            <label className="flex items-center gap-3 text-sm text-slate-300 cursor-pointer hover:text-white transition-colors">
-                                <input type="checkbox" checked={postToFanvue} onChange={(e) => { setPostToFanvue(e.target.checked); handleUpdateDraft({ post_to_fanvue: e.target.checked }) }} className="w-4 h-4 rounded accent-emerald-500 bg-slate-700 border-slate-600" />
-                                Post to Fanvue
-                            </label>
-                        </div>
-                    </div>
-                ) : displayImages.length > 0 ? (
-                    <div className="w-full h-full flex flex-col">
-                        {/* Main Image Display (Selected or First) */}
-                        <div className="relative flex-1 overflow-hidden group/img">
-                            {displayImage.media_type === 'video' ? (
-                                <video
-                                    src={getImageUrl(displayImage.file_path)}
-                                    className="w-full h-full object-cover"
-                                    controls
-                                    muted
-                                />
-                            ) : (
-                                <img
-                                    src={getImageUrl(displayImage.file_path, 600)}
-                                    alt={item.topic || 'Image preview'}
-                                    className={`w-full h-full object-cover transition-all duration-500 ${item.nsfw_option && !isUnblurred ? 'blur-3xl' : 'blur-0'}`}
-                                    loading="lazy"
-                                    onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        if (target.src.endsWith('.webp')) {
-                                            target.src = displayImage.file_path;
-                                        }
-                                    }}
-                                />
-                            )}
-                            {item.nsfw_option && !isUnblurred && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm z-10">
-                                    <span className="text-4xl mb-4">🔞</span>
-                                    <button
-                                        onClick={() => setUnblur(true)}
-                                        className="px-4 py-2 bg-white text-black rounded-full font-bold hover:bg-orange-400 transition-colors shadow-xl"
-                                    >
-                                        👁️ Unblur
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Display Grid Selection for Awaiting Approval (if multiple images exist) is HIDDEN to save EGRESS bandwidth */}
-                        {false && (item.status === 'Awaiting Approval' || item.status === 'QC Pending') && displayImages.length > 1 && (
-                            <div className="h-24 bg-slate-900 border-t border-slate-700/50 p-2 overflow-x-auto flex gap-2 shrink-0 hide-scrollbar">
-                                {displayImages.map((img, idx) => (
-                                    <button
-                                        key={img.id}
-                                        onClick={() => setSelectedImageId(img.id)}
-                                        className={`relative h-full aspect-[3/4] shrink-0 rounded-md overflow-hidden border-2 transition-all \${selectedImageId === img.id ? 'border-orange-500 scale-100 shadow-lg' : 'border-transparent scale-95 opacity-50 hover:opacity-100 hover:scale-100'}`}
-                                    >
-                                        {img.media_type === 'video' ? (
-                                            <video src={getImageUrl(img.file_path)} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <img
-                                                src={getImageUrl(img.file_path, 200)}
-                                                className="w-full h-full object-cover"
-                                                alt="preview thumbnail"
-                                                loading="lazy"
-                                                onError={(e) => {
-                                                    const target = e.target as HTMLImageElement;
-                                                    if (target.src.endsWith('.webp')) {
-                                                        target.src = img.file_path;
-                                                    }
-                                                }}
-                                            />
-                                        )}
-                                        {selectedImageId === img.id && (
-                                            <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
-                                                <div className="bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">✓</div>
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 italic text-sm p-8 text-center">
-                        <span>Waiting for Phase 2 Production...</span>
-                    </div>
-                )}
-
-                {/* Status Badge */}
-                <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusColors[item.status]}`}>
-                    {item.status}
-                </div>
-            </div>
-
-            {/* Content Info */}
-            <div className="p-5 space-y-4">
-                <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${statusColors[item.status as keyof typeof statusColors]}`}>
-                                {item.status}
-                            </span>
-                            <span className="text-[10px] text-slate-500 font-bold">#{item.sequence_number}</span>
-                            <span className="text-[9px] text-slate-500 font-medium bg-slate-800/50 px-1.5 py-0.5 rounded" title="Creation Date">
-                                📅 {new Date(item.created_at).toLocaleDateString()}
-                            </span>
-                            {item.gen_nsfw && (
-                                <span className="text-[9px] font-black bg-pink-900/40 text-pink-400 border border-pink-500/30 px-1.5 py-0.5 rounded shadow-sm" title="NSFW Generation Enabled">
-                                    🔞 NSFW
-                                </span>
-                            )}
-                            <span className="text-[9px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded flex items-center gap-1" title="Target Workflow">
-                                ⚙️ {
-                                    item.selected_workflow_id
-                                        ? (workflows?.find(w => w.id === item.selected_workflow_id)?.name || 'Unknown')
-                                        : (() => {
-                                            const personaData = personas?.find(p => p.name === item.persona);
-                                            if (personaData && personaData.default_workflow_id) {
-                                                return workflows?.find(w => w.id === personaData.default_workflow_id)?.name || 'Auto';
-                                            }
-                                            return workflows?.find(w => !w.persona || w.persona === item.persona)?.name || 'Auto';
-                                        })()
-                                }
-                            </span>
-                        </div>
-                        <h3 className="font-bold text-white leading-tight line-clamp-2 min-h-[2.5rem]" title={item.topic}>{item.topic}</h3>
-
-                        {/* URL to open origin image bucket */}
-                        {displayImage && displayImage.file_path && (
-                            <a
-                                href={displayImage.file_path}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
-                            >
-                                🔗 Open Original Image in Bucket
-                            </a>
-                        )}
-
-                        {item.prompt_structure?.outfit && (
-                            <div className="flex items-center gap-1.5 mt-2 overflow-hidden" title={`Outfit: ${item.prompt_structure.outfit}`}>
-                                <span className="text-xs">👘</span>
-                                <span className="text-[10px] font-medium text-slate-400 truncate tracking-wide uppercase italic">
-                                    {item.prompt_structure.outfit}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                    {/* Phase 3: Permanent Creative Studio Button - High Fidelity */}
-                    <button
-                        onClick={() => setShowStudio(true)}
-                        className="shrink-0 flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-black shadow-xl shadow-orange-600/30 transition-all hover:scale-105 active:scale-95 border border-orange-400/50"
-                    >
-                        🎨 STUDIO MODE
-                    </button>
-                </div>
-
-                {showStudio && (
-                    <CreativeStudioModal
-                        item={item}
-                        onUpdate={onUpdate}
-                        onClose={() => setShowStudio(false)}
-                        onOpenPromptEditor={() => setShowPrompt(true)}
-                    />
-                )}
-
-                <div>
-                    <label className="text-[10px] text-slate-500 uppercase font-bold mb-1 block">Caption</label>
-                    <textarea
-                        value={caption}
-                        onChange={(e) => setCaption(e.target.value)}
-                        disabled={item.status === 'Scheduled' || item.status === 'Published'}
-                        className="w-full bg-slate-900 text-sm border border-slate-700 rounded-lg p-3 h-24 focus:border-orange-500 outline-none transition-colors resize-none disabled:opacity-50"
-                    />
-                </div>
-
-                <div className="pt-2 flex gap-2">
-                    {item.status === 'Awaiting Approval' ? (
-                        <button
-                            onClick={handleApprove}
-                            disabled={approving || displayImages.length === 0 || !selectedImageId}
-                            className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-lg text-sm font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50"
-                        >
-                            {approving ? 'Scheduling...' : 'Approve & Schedule'}
-                        </button>
-                    ) : item.status === 'Scheduled' ? (
-                        <div className="flex-1 py-2.5 bg-emerald-900/50 text-emerald-400 rounded-lg text-sm font-bold text-center border border-emerald-500/30">
-                            📅 Scheduled {new Date(item.scheduled_at!).toLocaleDateString()}
-                        </div>
+        <div className={`relative flex flex-col bg-slate-900 border transition-all duration-300 rounded-[32px] overflow-hidden group shadow-2xl ${isSelected ? 'border-orange-500 ring-1 ring-orange-500/50' : 'border-slate-800 hover:border-slate-700 shadow-black/40'}`}>
+            <div className="flex-1 overflow-hidden relative">
+                {/* Main Visual */}
+                <div className="relative aspect-[4/5] bg-black overflow-hidden flex items-center justify-center">
+                    {displayImage ? (
+                        <img
+                            src={getImageUrl(displayImage.file_path, 400)}
+                            className={`w-full h-full object-cover transition-all duration-700 ${displayImage.image_type === 'NSFW' && !isUnblurred ? 'blur-2xl opacity-50 scale-110' : 'blur-0 scale-100'}`}
+                            alt={item.topic || 'thumbnail'}
+                        />
                     ) : (
-                        <button
-                            disabled
-                            className="flex-1 py-2.5 bg-slate-700 text-slate-500 rounded-lg text-sm font-bold"
-                        >
+                        <div className="flex flex-col items-center gap-3 opacity-20 text-slate-500">
+                            <span className="text-4xl">⌛</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">Wait for AI</span>
+                        </div>
+                    )}
+
+                    {displayImage?.image_type === 'NSFW' && !isUnblurred && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm z-10">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setUnblur(true) }}
+                                className="px-5 py-2.5 bg-white/10 hover:bg-white text-white hover:text-black rounded-full text-xs font-black transition-all border border-white/20 hover:scale-105 active:scale-95 shadow-2xl"
+                            >
+                                🔓 UNBLUR
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Badge Overlay */}
+                    <div className="absolute top-4 left-4 flex gap-2 z-20">
+                        <span className={`px-2.5 py-1 backdrop-blur-md text-[10px] font-black rounded-lg shadow-lg uppercase ${item.status === 'Draft' ? 'bg-yellow-500 text-black' : 'bg-indigo-600 text-white'}`}>
                             {item.status}
-                        </button>
-                    )}
-                    <button className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors border border-slate-600 active:scale-95">
-                        ⚙️
-                    </button>
-                    {(item.status === 'In Production' || item.status === 'QC Pending' || item.status === 'Awaiting Approval') && (
-                        <>
-                            <button
-                                onClick={() => setShowPrompt(true)}
-                                title="View Prompts"
-                                className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors border border-slate-600 active:scale-95"
-                            >
-                                👁️
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    if (!confirm('Reset this item to Draft? This will allow you to regenerate it.')) return;
-                                    const res = await fetch(`/api/content/${item.id}`, {
-                                        method: 'PATCH',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ status: 'Draft' })
-                                    });
-                                    if (res.ok) onUpdate();
-                                    else alert('Failed to reset');
-                                }}
-                                title="Reset to Draft"
-                                className="px-3 py-2 bg-amber-950/30 hover:bg-amber-900/50 text-amber-500 rounded-lg transition-colors border border-amber-900/30 active:scale-95"
-                            >
-                                🔄
-                            </button>
-                        </>
-                    )}
-                    <button
-                        onClick={async () => {
-                            if (!confirm('Are you sure you want to delete this content and all related images?')) return
-                            const res = await fetch(`/api/content/${item.id}`, { method: 'DELETE' })
-                            if (res.ok) onUpdate()
-                            else alert('Delete failed')
-                        }}
-                        className="px-3 py-2 bg-rose-950/30 hover:bg-rose-900/50 text-rose-500 rounded-lg transition-colors border border-rose-900/30 active:scale-95"
+                        </span>
+                    </div>
+
+                    {/* Selection Checkbox Overlay */}
+                    <div
+                        onClick={onToggleSelect}
+                        className={`absolute top-4 right-4 z-30 w-7 h-7 rounded-xl border-2 cursor-pointer flex items-center justify-center transition-all ${isSelected ? 'bg-orange-500 border-orange-400 shadow-lg' : 'bg-black/60 border-white/20 hover:border-white'}`}
                     >
-                        🗑️
-                    </button>
+                        {isSelected && <span className="text-white text-sm font-black">✓</span>}
+                    </div>
+
+                    {/* Metadata Overlay - Bottom */}
+                    <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black via-black/80 to-transparent flex flex-col justify-end gap-1 z-20">
+                        <div className="flex justify-between items-start gap-4">
+                            <div className="min-w-0">
+                                <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">#{item.id?.slice(0, 4)}</span>
+                                <h3 className="text-lg font-black text-white leading-tight truncate drop-shadow-md">{item.topic || 'Untitled Story'}</h3>
+                                <p className="text-[10px] text-white/60 font-medium uppercase tracking-widest flex items-center gap-2 mt-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                                    {item.persona || 'Default'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowStudio(true) }}
+                                className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black rounded-xl shadow-xl shadow-orange-600/30 transition-all hover:scale-110 active:scale-95 shrink-0 flex items-center gap-2 border border-orange-400/30"
+                            >
+                                🎨 STUDIO MODE
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Always allow Prompt Editor to mount regardless of status if triggered from footer buttons */}
-                {showPrompt && item.status !== 'Draft' && (
-                    <PromptEditorModal
-                        item={item}
-                        workflows={workflows}
-                        personas={personas}
-                        promptStructure={promptStructure}
-                        updatePromptStructure={updatePromptStructure}
-                        sfwPrompt={sfwPrompt}
-                        setSfwPrompt={setSfwPrompt}
-                        handleUpdateDraft={handleUpdateDraft}
-                        onClose={() => setShowPrompt(false)}
-                        genNsfw={genNsfw}
-                    />
-                )}
+                {/* Sub Content */}
+                <div className="p-6 bg-slate-900 space-y-5 border-t border-white/5">
+                    <div className="space-y-2">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex justify-between">
+                            <span>Story Caption</span>
+                            <span className="text-slate-600 italic">#{item.sequence_number}</span>
+                        </p>
+                        <div className="bg-black/30 border border-slate-800 rounded-2xl p-4 text-[13px] text-slate-300 leading-relaxed max-h-[140px] overflow-y-auto custom-scrollbar font-medium">
+                            {item.caption_draft || 'No caption drafted for this post.'}
+                        </div>
+                    </div>
+
+                    <div className="pt-2 flex gap-2">
+                        {item.status === 'Awaiting Approval' ? (
+                            <button
+                                onClick={handleApprove}
+                                disabled={approving || !displayImage}
+                                className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-orange-600/20 active:scale-95 disabled:opacity-50"
+                            >
+                                {approving ? '...' : '🚀 APPROVE & SCHEDULE'}
+                            </button>
+                        ) : (
+                            <div className="flex-1 py-3 bg-slate-800/50 text-slate-500 rounded-2xl text-[10px] font-black text-center border border-slate-700/50 uppercase tracking-widest">
+                                {item.status} - {new Date(item.scheduled_at || item.created_at).toLocaleDateString()}
+                            </div>
+                        )}
+                        <button
+                            onClick={() => setShowPrompt(true)}
+                            className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl border border-slate-700 transition-all active:scale-95"
+                            title="View Prompt Details"
+                        >
+                            👁️
+                        </button>
+                        <button
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!confirm('Delete this content?')) return
+                                await fetch(`/api/content/${item.id}`, { method: 'DELETE' })
+                                onUpdate()
+                            }}
+                            className="px-4 py-3 bg-red-950/20 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl border border-red-500/20 transition-all active:scale-95"
+                        >
+                            🗑️
+                        </button>
+                    </div>
+                </div>
             </div>
+
+            {showStudio && (
+                <CreativeStudioModal
+                    item={item}
+                    onUpdate={onUpdate}
+                    onClose={() => setShowStudio(false)}
+                    onOpenPromptEditor={() => setShowPrompt(true)}
+                />
+            )}
+
+            {showPrompt && (
+                <PromptEditorModal
+                    item={item}
+                    workflows={workflows}
+                    personas={personas}
+                    promptStructure={promptStructure}
+                    updatePromptStructure={updatePromptStructure}
+                    sfwPrompt={sfwPrompt}
+                    setSfwPrompt={setSfwPrompt}
+                    handleUpdateDraft={handleUpdateDraft}
+                    onClose={() => setShowPrompt(false)}
+                    genNsfw={genNsfw}
+                />
+            )}
         </div>
     )
 }
