@@ -130,6 +130,17 @@ export async function POST(request: Request) {
         await logSystem('SUCCESS', 'Phase 1.5: Confirm Plan', `Created ${jobsToInsert.length} granular production jobs for ${itemIds.length} items.`)
         await sendNotification(`⚙️ <b>Job Queue:</b> Created ${jobsToInsert.length} production jobs. Worker started!`)
 
+        // 5. Wake up the Cloud Engine (Self-Sustaining Heartbeat)
+        const pulseUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-phase2-batch`
+        fetch(pulseUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+            },
+            body: JSON.stringify({ action: 'orchestrate' })
+        }).catch(e => console.error('Wake-up pulse failed:', e))
+
         return NextResponse.json({ success: true, jobCount: jobsToInsert.length })
     } catch (e: any) {
         console.error('API Error:', e)

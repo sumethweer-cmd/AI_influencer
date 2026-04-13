@@ -560,27 +560,32 @@ serve(async (req: Request) => {
         if (payload.action === 'poll_comfyui' || payload.action === 'orchestrate' || isHeartbeat) {
             const count = await pollComfyUIJobs(isMock, mockDelay);
             
-            // --- SELF-SUSTAINING HEARTBEAT (Legacy Polling) ---
-            // This ensures the engine stays "Always On" every 5 seconds independently of the dashboard.
-            const selfUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/process-phase2-batch';
-            const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+            // --- SELF-SUSTAINING HEARTBEAT (Conditional) ---
+            // We only continue the heartbeat if there are still active jobs in the queue.
+            const { count: activeCount } = await supabase.from('production_jobs')
+                .select('*', { count: 'exact', head: true })
+                .in('status', ['Pending', 'Queued', 'Processing']);
 
-            // Use EdgeRuntime.waitUntil if available to avoid hanging the response
-            const scheduleNext = async () => {
-                await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second delay
-                console.log("📡 Heartbeat: Triggering next autonomous poll...");
-                fetch(selfUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
-                    body: JSON.stringify({ action: 'orchestrate', is_heartbeat: true, mock: isMock, mock_delay: mockDelay })
-                }).catch(e => console.error("Heartbeat recursion failed:", e));
-            };
+            if (activeCount && activeCount > 0) {
+                const selfUrl = Deno.env.get('SUPABASE_URL') + '/functions/v1/process-phase2-batch';
+                const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-            // In Supabase, the function continues running for a few seconds after response, 
-            // but for reliability we trigger the fetch and catch errors.
-            scheduleNext();
-
-            return new Response(JSON.stringify({ success: true, completedCount: count, next_poll: "5s" }), { headers: { 'Content-Type': 'application/json' } });
+                const scheduleNext = async () => {
+                    await new Promise(resolve => setTimeout(resolve, 10000)); // Increased to 10 second delay for safety
+                    console.log(`📡 Heartbeat: Triggering next autonomous poll... (${activeCount} jobs remaining)`);
+                    fetch(selfUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+                        body: JSON.stringify({ action: 'orchestrate', is_heartbeat: true, mock: isMock, mock_delay: mockDelay })
+                    }).catch(e => console.error("Heartbeat recursion failed:", e));
+                };
+                scheduleNext();
+                return new Response(JSON.stringify({ success: true, completedCount: count, status: "pulsing", active_jobs: activeCount }), { headers: { 'Content-Type': 'application/json' } });
+            } else {
+                console.log("💤 No active jobs found. Engine going to sleep.");
+                await logSystem('INFO', 'Production Worker', "Engine going to sleep (Queue empty)");
+                return new Response(JSON.stringify({ success: true, completedCount: count, status: "sleeping" }), { headers: { 'Content-Type': 'application/json' } });
+            }
         }
 
         const job = payload.record || payload.job;

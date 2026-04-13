@@ -102,6 +102,17 @@ export async function POST(req: Request) {
         await supabaseAdmin.from('content_items').update({ status: 'In Production' }).in('id', contentIds)
 
         await logSystem('INFO', 'Phase2: Production', `Confirmed ${jobsToInsert.length} pending jobs. Execution handled by Cloud Worker.`)
+        
+        // 4. Wake up the Cloud Engine (Self-Sustaining Heartbeat)
+        const pulseUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-phase2-batch`
+        fetch(pulseUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+            },
+            body: JSON.stringify({ action: 'orchestrate' })
+        }).catch(e => console.error('Wake-up pulse failed:', e))
 
         return NextResponse.json({ success: true, queued: jobsToInsert.length })
 
