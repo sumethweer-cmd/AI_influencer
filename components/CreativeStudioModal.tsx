@@ -558,7 +558,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                             <div className="absolute inset-0 bg-black">
                                                 <img
                                                     src={getOptimizedUrl(img.file_path, 300)}
-                                                    className={`w-full h-full object-cover transition-all duration-500 ${img.image_type === 'NSFW' && !unblurList[img.id] ? 'blur-2xl opacity-50' : 'blur-0'}`}
+                                                    className={`w-full h-full object-cover transition-all duration-500 blur-0`}
                                                     alt={`Variant ${img.slot_index}`}
                                                 />
                                             </div>
@@ -591,10 +591,10 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                                 </button>
                                             </div>
 
-                                            {/* NSFW Lock */}
-                                            {img.image_type === 'NSFW' && !unblurList[img.id] && (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm group-hover:bg-black/20 transition-all">
-                                                    <span className="text-xl">🔞</span>
+                                            {/* NSFW Badge */}
+                                            {img.image_type === 'NSFW' && (
+                                                <div className="absolute top-2 right-2">
+                                                    <span className="text-xs">🔞</span>
                                                 </div>
                                             )}
                                         </div>
@@ -683,7 +683,7 @@ export default function CreativeStudioModal({ item, onUpdate, onClose, onOpenPro
                                                 <div className="relative aspect-video rounded-xl overflow-hidden border border-white/5 shadow-2xl bg-black group">
                                                     <img
                                                         src={getOptimizedUrl(selectedImg.file_path, 400)}
-                                                        className={`w-full h-full object-cover ${selectedImg.image_type === 'NSFW' && !unblurList[selectedImg.id] ? 'blur-xl' : ''}`}
+                                                        className={`w-full h-full object-cover`}
                                                         alt="Preview"
                                                     />
                                                     <div
