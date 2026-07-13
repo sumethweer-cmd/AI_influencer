@@ -33,7 +33,7 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
     const [uploadingCover, setUploadingCover] = useState(false)
     const [exportingPDF, setExportingPDF] = useState(false)
     const [importingCSV, setImportingCSV] = useState(false)
-    const [pdfLayout, setPdfLayout] = useState<'split' | 'image_only' | 'image_with_text'>('split')
+    const [pdfLayout, setPdfLayout] = useState<'split' | 'image_only' | 'image_with_text' | 'top_image_bottom_text'>('split')
     const coverFileRef = useRef<HTMLInputElement>(null)
     const csvFileRef = useRef<HTMLInputElement>(null)
 
@@ -215,6 +215,7 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             const fontUrl = configs.find((c: any) => c.key_name === 'ETSY_FONT_URL')?.key_value
             const fontSizeConfig = configs.find((c: any) => c.key_name === 'ETSY_FONT_SIZE')?.key_value || '36'
             const fontSize = parseInt(fontSizeConfig, 10) || 36
+            const creditText = configs.find((c: any) => c.key_name === 'ETSY_CREDIT_TEXT')?.key_value || ''
 
             // Convert 300 DPI pixels to PDF points (1/72 inch)
             let pdfWidth = (parseFloat(widthConfig) / 300) * 72
@@ -251,6 +252,8 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             // Layout Zones
             const leftZoneWidth = pdfWidth * 0.65
             const rightZoneWidth = pdfWidth * 0.35
+            const topImageZoneHeight = pdfHeight * 0.8
+            const bottomTextZoneHeight = pdfHeight * 0.2
 
             // Make Cover Page as the First Page if Cover Image Exists
             if (book.cover_image_url) {
@@ -266,12 +269,29 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                     const embeddedImage = await pdfDoc.embedPng(imgBytes)
 
                     const isFullImage = pdfLayout === 'image_only' || pdfLayout === 'image_with_text'
-                    const maxImgWidth = isFullImage ? pdfWidth - 40 : leftZoneWidth - 60
-                    const maxImgHeight = pdfHeight - (isFullImage ? 40 : 100)
+                    const isTopImage = pdfLayout === 'top_image_bottom_text'
+
+                    let maxImgWidth: number, maxImgHeight: number, imgAreaX: number, imgAreaY: number
+                    if (isTopImage) {
+                        maxImgWidth = pdfWidth - 40
+                        maxImgHeight = topImageZoneHeight - 40
+                        imgAreaX = pdfWidth / 2
+                        imgAreaY = bottomTextZoneHeight + (topImageZoneHeight / 2)
+                    } else if (isFullImage) {
+                        maxImgWidth = pdfWidth - 40
+                        maxImgHeight = pdfHeight - 40
+                        imgAreaX = pdfWidth / 2
+                        imgAreaY = pdfHeight / 2
+                    } else {
+                        maxImgWidth = leftZoneWidth - 60
+                        maxImgHeight = pdfHeight - 100
+                        imgAreaX = 30 + (maxImgWidth / 2)
+                        imgAreaY = 50 + (maxImgHeight / 2)
+                    }
                     const imgDims = embeddedImage.scaleToFit(maxImgWidth, maxImgHeight)
 
-                    const imgX = isFullImage ? (pdfWidth / 2) - (imgDims.width / 2) : 30 + (maxImgWidth / 2) - (imgDims.width / 2)
-                    const imgY = isFullImage ? (pdfHeight / 2) - (imgDims.height / 2) : 50 + (maxImgHeight / 2) - (imgDims.height / 2)
+                    const imgX = imgAreaX - (imgDims.width / 2)
+                    const imgY = imgAreaY - (imgDims.height / 2)
 
                     coverPage.drawImage(embeddedImage, {
                         x: imgX,
@@ -314,12 +334,29 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                         const embeddedImage = await pdfDoc.embedPng(imgBytes)
 
                         const isFullImage = pdfLayout === 'image_only' || pdfLayout === 'image_with_text'
-                        const maxImgWidth = isFullImage ? pdfWidth - 40 : leftZoneWidth - 60
-                        const maxImgHeight = pdfHeight - (isFullImage ? 40 : 100)
+                        const isTopImage = pdfLayout === 'top_image_bottom_text'
+
+                        let maxImgWidth: number, maxImgHeight: number, imgAreaX: number, imgAreaY: number
+                        if (isTopImage) {
+                            maxImgWidth = pdfWidth - 40
+                            maxImgHeight = topImageZoneHeight - 40
+                            imgAreaX = pdfWidth / 2
+                            imgAreaY = bottomTextZoneHeight + (topImageZoneHeight / 2)
+                        } else if (isFullImage) {
+                            maxImgWidth = pdfWidth - 40
+                            maxImgHeight = pdfHeight - 40
+                            imgAreaX = pdfWidth / 2
+                            imgAreaY = pdfHeight / 2
+                        } else {
+                            maxImgWidth = leftZoneWidth - 60
+                            maxImgHeight = pdfHeight - 100
+                            imgAreaX = 30 + (maxImgWidth / 2)
+                            imgAreaY = 50 + (maxImgHeight / 2)
+                        }
                         const imgDims = embeddedImage.scaleToFit(maxImgWidth, maxImgHeight)
 
-                        const imgX = isFullImage ? (pdfWidth / 2) - (imgDims.width / 2) : 30 + (maxImgWidth / 2) - (imgDims.width / 2)
-                        const imgY = isFullImage ? (pdfHeight / 2) - (imgDims.height / 2) : 50 + (maxImgHeight / 2) - (imgDims.height / 2)
+                        const imgX = imgAreaX - (imgDims.width / 2)
+                        const imgY = imgAreaY - (imgDims.height / 2)
 
                         page.drawImage(embeddedImage, {
                             x: imgX,
@@ -329,6 +366,42 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                         })
                     } catch (e) {
                         console.error('Failed to embed image for page', p.page_number, e)
+                    }
+                }
+
+                // Text Layout (Top Image / Bottom Text Band)
+                if (pdfLayout === 'top_image_bottom_text' && p.story_text) {
+                    const boxWidth = pdfWidth - 80
+                    const words = p.story_text.split(/\s+/)
+                    const lines: string[] = []
+                    let currentLine = words[0] || ''
+
+                    for (let i = 1; i < words.length; i++) {
+                        const word = words[i]
+                        const width = textFont.widthOfTextAtSize(currentLine + " " + word, fontSize)
+                        if (width < boxWidth) {
+                            currentLine += " " + word
+                        } else {
+                            lines.push(currentLine)
+                            currentLine = word
+                        }
+                    }
+                    if (currentLine) lines.push(currentLine)
+
+                    const lineHeight = fontSize * 1.4
+                    const totalTextHeight = lines.length * lineHeight
+                    let currentY = (bottomTextZoneHeight / 2) + (totalTextHeight / 2) - fontSize
+
+                    for (const line of lines) {
+                        const lineWidth = textFont.widthOfTextAtSize(line, fontSize)
+                        page.drawText(line, {
+                            x: (pdfWidth / 2) - (lineWidth / 2),
+                            y: currentY,
+                            size: fontSize,
+                            font: textFont,
+                            color: rgb(0, 0, 0),
+                        })
+                        currentY -= lineHeight
                     }
                 }
 
@@ -453,6 +526,20 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                         })
                         currentY -= lineHeight;
                     }
+                }
+
+                // Credit / Watermark Text (bottom-right of every content page)
+                if (creditText) {
+                    const creditSize = Math.max(10, fontSize * 0.35)
+                    const creditWidth = textFont.widthOfTextAtSize(creditText, creditSize)
+                    const margin = 20
+                    page.drawText(creditText, {
+                        x: pdfWidth - creditWidth - margin,
+                        y: margin,
+                        size: creditSize,
+                        font: textFont,
+                        color: rgb(0.45, 0.45, 0.45),
+                    })
                 }
             }
 
@@ -635,6 +722,7 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                                 <option value="split">Option A: Split (Image + Text)</option>
                                 <option value="image_only">Option B: Full Image Only</option>
                                 <option value="image_with_text">Option C: Full Image + Text Overlay</option>
+                                <option value="top_image_bottom_text">Option D: Top Image 80% / Bottom Text 20%</option>
                             </select>
                             <button
                                 onClick={handleExportPdf}

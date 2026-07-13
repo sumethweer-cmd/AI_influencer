@@ -189,6 +189,24 @@ export default function EtsySettings() {
                             />
                         </div>
                     ))}
+
+                    {configs.filter(c => c.key_name === 'ETSY_CREDIT_TEXT').map(c => (
+                        <div key={c.id} className="pt-4 border-t border-slate-800">
+                            <label className="text-sm font-bold text-slate-400 mb-1 flex justify-between">
+                                Credit / Watermark Text
+                                <span className="text-xs font-normal text-slate-500">Bottom-right of every content page</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={c.key_value || ''}
+                                onChange={e => handleConfigChange(c.key_name, e.target.value)}
+                                onBlur={() => saveConfig(c)}
+                                placeholder="e.g. BuayandGuay - Coloring book"
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm focus:border-purple-500 outline-none"
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">เว้นว่างไว้ถ้าไม่ต้องการใส่เครดิต</p>
+                        </div>
+                    ))}
                 </div>
             </div>
 
