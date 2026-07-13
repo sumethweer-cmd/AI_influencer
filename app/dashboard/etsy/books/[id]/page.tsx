@@ -22,6 +22,41 @@ import { PDFDocument, rgb } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import Papa from 'papaparse'
 
+const MIN_AUTO_FONT_SIZE = 14
+
+// Wraps text at `preferredSize`, then shrinks the font (down to `minSize`) until the
+// wrapped block fits within maxWidth x maxHeight, so text never overflows its box.
+function fitTextToBox(font: any, text: string, maxWidth: number, maxHeight: number, preferredSize: number, minSize: number = MIN_AUTO_FONT_SIZE, lineHeightMultiplier: number = 1.4) {
+    let fontSize = preferredSize
+    let lines: string[] = []
+    let lineHeight = fontSize * lineHeightMultiplier
+
+    while (true) {
+        lineHeight = fontSize * lineHeightMultiplier
+        const words = text.split(/\s+/)
+        lines = []
+        let currentLine = words[0] || ''
+
+        for (let i = 1; i < words.length; i++) {
+            const word = words[i]
+            const width = font.widthOfTextAtSize(currentLine + " " + word, fontSize)
+            if (width < maxWidth) {
+                currentLine += " " + word
+            } else {
+                lines.push(currentLine)
+                currentLine = word
+            }
+        }
+        if (currentLine) lines.push(currentLine)
+
+        const totalHeight = lines.length * lineHeight
+        if (totalHeight <= maxHeight || fontSize <= minSize) break
+        fontSize -= 1
+    }
+
+    return { lines, fontSize, lineHeight }
+}
+
 export default function BookEditor({ params }: { params: Promise<{ id: string }> }) {
     const unwrappedParams = use(params)
     const id = unwrappedParams.id
@@ -214,15 +249,17 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             const heightConfig = configs.find((c: any) => c.key_name === 'ETSY_PDF_HEIGHT')?.key_value || '3300'
             const fontUrl = configs.find((c: any) => c.key_name === 'ETSY_FONT_URL')?.key_value
             const fontSizeConfig = configs.find((c: any) => c.key_name === 'ETSY_FONT_SIZE')?.key_value || '36'
-            const fontSize = parseInt(fontSizeConfig, 10) || 36
+            const isAutoFontSize = String(fontSizeConfig).trim().toLowerCase() === 'auto'
+            // "Auto" starts from a generous cap; fitTextToBox() shrinks it to whatever actually fits.
+            const fontSize = isAutoFontSize ? 60 : (parseInt(fontSizeConfig, 10) || 36)
             const creditText = configs.find((c: any) => c.key_name === 'ETSY_CREDIT_TEXT')?.key_value || ''
 
             // Convert 300 DPI pixels to PDF points (1/72 inch)
             let pdfWidth = (parseFloat(widthConfig) / 300) * 72
             let pdfHeight = (parseFloat(heightConfig) / 300) * 72
 
-            // If Option B or C is selected, force Landscape orientation
-            if ((pdfLayout === 'image_only' || pdfLayout === 'image_with_text') && pdfHeight > pdfWidth) {
+            // Options B, C and D are all top/bottom or full-bleed image layouts that read better as Landscape
+            if ((pdfLayout === 'image_only' || pdfLayout === 'image_with_text' || pdfLayout === 'top_image_bottom_text') && pdfHeight > pdfWidth) {
                 const temp = pdfWidth
                 pdfWidth = pdfHeight
                 pdfHeight = temp
@@ -372,32 +409,18 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                 // Text Layout (Top Image / Bottom Text Band)
                 if (pdfLayout === 'top_image_bottom_text' && p.story_text) {
                     const boxWidth = pdfWidth - 80
-                    const words = p.story_text.split(/\s+/)
-                    const lines: string[] = []
-                    let currentLine = words[0] || ''
+                    const boxHeight = bottomTextZoneHeight - 30
+                    const { lines, fontSize: fitSize, lineHeight } = fitTextToBox(textFont, p.story_text, boxWidth, boxHeight, fontSize)
 
-                    for (let i = 1; i < words.length; i++) {
-                        const word = words[i]
-                        const width = textFont.widthOfTextAtSize(currentLine + " " + word, fontSize)
-                        if (width < boxWidth) {
-                            currentLine += " " + word
-                        } else {
-                            lines.push(currentLine)
-                            currentLine = word
-                        }
-                    }
-                    if (currentLine) lines.push(currentLine)
-
-                    const lineHeight = fontSize * 1.4
                     const totalTextHeight = lines.length * lineHeight
-                    let currentY = (bottomTextZoneHeight / 2) + (totalTextHeight / 2) - fontSize
+                    let currentY = (bottomTextZoneHeight / 2) + (totalTextHeight / 2) - fitSize
 
                     for (const line of lines) {
-                        const lineWidth = textFont.widthOfTextAtSize(line, fontSize)
+                        const lineWidth = textFont.widthOfTextAtSize(line, fitSize)
                         page.drawText(line, {
                             x: (pdfWidth / 2) - (lineWidth / 2),
                             y: currentY,
-                            size: fontSize,
+                            size: fitSize,
                             font: textFont,
                             color: rgb(0, 0, 0),
                         })
@@ -414,30 +437,16 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                     const [vPos, hPos] = position.split('-');
 
                     const boxWidth = isOverlay ? (pdfWidth * 0.45) : (rightZoneWidth - 60);
+                    // Cap block height so long stories shrink to fit instead of overflowing the page/box
+                    const boxHeight = isOverlay ? (pdfHeight * 0.9) : (pdfHeight - 100);
 
-                    const words = p.story_text.split(/\s+/);
-                    const lines: string[] = [];
-                    let currentLine = words[0] || '';
-
-                    for (let i = 1; i < words.length; i++) {
-                        const word = words[i];
-                        const width = textFont.widthOfTextAtSize(currentLine + " " + word, fontSize);
-                        if (width < boxWidth) {
-                            currentLine += " " + word;
-                        } else {
-                            lines.push(currentLine);
-                            currentLine = word;
-                        }
-                    }
-                    if (currentLine) lines.push(currentLine);
-
-                    const lineHeight = fontSize * 1.5;
+                    const { lines, fontSize: fitSize, lineHeight } = fitTextToBox(textFont, p.story_text, boxWidth, boxHeight, fontSize, MIN_AUTO_FONT_SIZE, 1.5);
                     const totalTextHeight = lines.length * lineHeight;
                     const paddingY = 30;
                     const paddingX = 40;
 
                     const maxLineWidth = lines.reduce((max, line) => {
-                        const width = textFont.widthOfTextAtSize(line, fontSize);
+                        const width = textFont.widthOfTextAtSize(line, fitSize);
                         return width > max ? width : max;
                     }, 0);
 
@@ -472,7 +481,7 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                         bgY = (pdfHeight / 2) - (bgHeight / 2);
                     }
 
-                    let currentY = bgY + bgHeight - paddingY - fontSize;
+                    let currentY = bgY + bgHeight - paddingY - fitSize;
 
                     if (isOverlay) {
                         const cornerRadius = 15;
@@ -516,11 +525,11 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                     }
 
                     for (const line of lines) {
-                        const lineWidth = textFont.widthOfTextAtSize(line, fontSize);
+                        const lineWidth = textFont.widthOfTextAtSize(line, fitSize);
                         page.drawText(line, {
                             x: bgX + paddingX + (maxLineWidth - lineWidth) / 2,
                             y: currentY,
-                            size: fontSize,
+                            size: fitSize,
                             font: textFont,
                             color: rgb(0, 0, 0),
                         })

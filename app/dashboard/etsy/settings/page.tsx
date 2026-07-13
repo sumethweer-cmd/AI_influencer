@@ -2,6 +2,16 @@
 
 import React, { useState, useEffect } from 'react'
 
+const FONT_SIZE_PRESETS = [24, 28, 32, 36, 40, 44, 48, 56]
+
+// Maps the configured PDF font size (or 'auto') to a small illustrative preview size in px
+function previewFontSizePx(sizeValue: string | undefined) {
+    if (!sizeValue || String(sizeValue).trim().toLowerCase() === 'auto') return 9
+    const n = parseInt(sizeValue, 10) || 36
+    const clamped = Math.min(56, Math.max(24, n))
+    return Math.round(7 + ((clamped - 24) / (56 - 24)) * 6)
+}
+
 export default function EtsySettings() {
     const [configs, setConfigs] = useState<any[]>([])
     const [workflows, setWorkflows] = useState<any[]>([])
@@ -137,7 +147,7 @@ export default function EtsySettings() {
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
                     <h3 className="text-xl font-bold text-slate-200">📏 Layout & Dimensions</h3>
                     <div className="space-y-4">
-                        {configs.filter(c => c.key_name.includes('WIDTH') || c.key_name.includes('HEIGHT') || c.key_name === 'ETSY_FONT_SIZE').map(c => (
+                        {configs.filter(c => c.key_name.includes('WIDTH') || c.key_name.includes('HEIGHT')).map(c => (
                             <div key={c.id}>
                                 <label className="text-sm font-bold text-slate-400 mb-1 flex justify-between">
                                     {c.key_name}
@@ -190,6 +200,36 @@ export default function EtsySettings() {
                         </div>
                     ))}
 
+                    {configs.filter(c => c.key_name === 'ETSY_FONT_SIZE').map(c => {
+                        const isAuto = String(c.key_value || '').trim().toLowerCase() === 'auto'
+                        return (
+                            <div key={c.id} className="pt-4 border-t border-slate-800">
+                                <label className="text-sm font-bold text-slate-400 mb-1 flex justify-between">
+                                    Font Size (Story Text)
+                                    <span className="text-xs font-normal text-slate-500">px @ 300 DPI</span>
+                                </label>
+                                <select
+                                    value={isAuto ? 'auto' : (c.key_value || '36')}
+                                    onChange={e => {
+                                        handleConfigChange('ETSY_FONT_SIZE', e.target.value)
+                                        saveConfig({ ...c, key_value: e.target.value })
+                                    }}
+                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm focus:border-purple-500 outline-none"
+                                >
+                                    <option value="auto">Auto (ลดขนาดให้พอดีกรอบอัตโนมัติ)</option>
+                                    {FONT_SIZE_PRESETS.map(sz => (
+                                        <option key={sz} value={sz}>{sz}px</option>
+                                    ))}
+                                </select>
+                                <p className="text-[10px] text-slate-500 mt-1">
+                                    {isAuto
+                                        ? 'ระบบจะเลือกขนาดที่ใหญ่ที่สุดที่ยังพอดีกรอบข้อความให้เอง'
+                                        : 'ขนาดคงที่ตามที่เลือก แต่ถ้าข้อความยาวเกินกรอบ ระบบจะลดขนาดให้อัตโนมัติเพื่อไม่ให้ล้น'}
+                                </p>
+                            </div>
+                        )
+                    })}
+
                     {configs.filter(c => c.key_name === 'ETSY_CREDIT_TEXT').map(c => (
                         <div key={c.id} className="pt-4 border-t border-slate-800">
                             <label className="text-sm font-bold text-slate-400 mb-1 flex justify-between">
@@ -209,6 +249,15 @@ export default function EtsySettings() {
                     ))}
                 </div>
             </div>
+
+            {/* Layout Preview */}
+            <LayoutPreview
+                fontUrl={configs.find(c => c.key_name === 'ETSY_FONT_URL')?.key_value}
+                fontSizeValue={configs.find(c => c.key_name === 'ETSY_FONT_SIZE')?.key_value}
+                pdfWidth={configs.find(c => c.key_name === 'ETSY_PDF_WIDTH')?.key_value}
+                pdfHeight={configs.find(c => c.key_name === 'ETSY_PDF_HEIGHT')?.key_value}
+                creditText={configs.find(c => c.key_name === 'ETSY_CREDIT_TEXT')?.key_value}
+            />
 
             {/* AI Prompts Settings */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
@@ -318,6 +367,93 @@ export default function EtsySettings() {
                     </div>
                 </div>
             </div>
+        </div>
+    )
+}
+
+function LayoutPreview({ fontUrl, fontSizeValue, pdfWidth, pdfHeight, creditText }: { fontUrl?: string, fontSizeValue?: string, pdfWidth?: string, pdfHeight?: string, creditText?: string }) {
+    const w = parseFloat(pdfWidth || '') || 2550
+    const h = parseFloat(pdfHeight || '') || 3300
+    const portraitRatio = `${w} / ${h}`
+    const landscapeRatio = `${h} / ${w}` // Options B/C/D are forced to landscape on export
+
+    const isAutoSize = String(fontSizeValue || '').trim().toLowerCase() === 'auto'
+    const previewSize = previewFontSizePx(fontSizeValue)
+    const hasCustomFont = !!fontUrl
+
+    const textStyle: React.CSSProperties = {
+        fontFamily: hasCustomFont ? "'EtsyPreviewFont', sans-serif" : undefined,
+        fontSize: previewSize,
+        lineHeight: 1.3,
+    }
+
+    const sampleLines = ['Leo opens his backpack', 'wide on the bed.']
+
+    return (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+            {hasCustomFont && (
+                <style>{`@font-face { font-family: 'EtsyPreviewFont'; src: url('${fontUrl}'); }`}</style>
+            )}
+            <div>
+                <h3 className="text-xl font-bold text-slate-200">👀 PDF Layout Preview</h3>
+                <p className="text-sm text-slate-400 mt-1">
+                    ตัวอย่างคร่าวๆ ของแต่ละ Option ตาม Font/ขนาดตัวอักษรที่ตั้งไว้ ({isAutoSize ? 'Auto' : `${fontSizeValue}px`}) — ไม่ใช่ PDF จริง 100%,
+                    ส่วนตำแหน่ง/ความโปร่งใสของ Option C ปรับได้ต่อเล่มในหน้า Books
+                </p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Option A: Split */}
+                <div className="flex flex-col gap-2">
+                    <div className="bg-white rounded-lg overflow-hidden flex border border-slate-700" style={{ aspectRatio: portraitRatio }}>
+                        <div className="w-[65%] h-full bg-slate-300 flex items-center justify-center text-3xl">🦁</div>
+                        <div className="w-[35%] h-full flex items-center justify-center p-1.5 text-center">
+                            <div style={textStyle} className="text-slate-900 font-bold">
+                                {sampleLines.map((l, i) => <div key={i}>{l}</div>)}
+                            </div>
+                        </div>
+                    </div>
+                    <span className="text-xs font-bold text-slate-400 text-center">A: Split</span>
+                </div>
+
+                {/* Option B: Full Image Only */}
+                <div className="flex flex-col gap-2">
+                    <div className="bg-slate-300 rounded-lg overflow-hidden flex items-center justify-center border border-slate-700" style={{ aspectRatio: landscapeRatio }}>
+                        <span className="text-3xl">🦁</span>
+                    </div>
+                    <span className="text-xs font-bold text-slate-400 text-center">B: Full Image Only</span>
+                </div>
+
+                {/* Option C: Full Image + Text Overlay */}
+                <div className="flex flex-col gap-2">
+                    <div className="relative bg-slate-300 rounded-lg overflow-hidden flex items-center justify-center border border-slate-700" style={{ aspectRatio: landscapeRatio }}>
+                        <span className="text-3xl">🦁</span>
+                        <div className="absolute left-2 bottom-2 bg-white/85 rounded-md px-2 py-1 text-center">
+                            <div style={textStyle} className="text-slate-900 font-bold">
+                                {sampleLines.map((l, i) => <div key={i}>{l}</div>)}
+                            </div>
+                        </div>
+                    </div>
+                    <span className="text-xs font-bold text-slate-400 text-center">C: Image + Overlay</span>
+                </div>
+
+                {/* Option D: Top Image / Bottom Text */}
+                <div className="flex flex-col gap-2">
+                    <div className="bg-white rounded-lg overflow-hidden flex flex-col border border-slate-700" style={{ aspectRatio: landscapeRatio }}>
+                        <div className="h-[80%] bg-slate-300 flex items-center justify-center text-3xl">🦁</div>
+                        <div className="h-[20%] flex items-center justify-center text-center px-1">
+                            <div style={textStyle} className="text-slate-900 font-bold">
+                                {sampleLines.join(' ')}
+                            </div>
+                        </div>
+                    </div>
+                    <span className="text-xs font-bold text-slate-400 text-center">D: Top Image / Bottom Text</span>
+                </div>
+            </div>
+
+            {creditText && (
+                <p className="text-[10px] text-slate-500">Credit "{creditText}" จะแสดงมุมขวาล่างของทุกหน้า content (ไม่รวม A ในตัวอย่างข้างบน เพื่อความชัดเจนของ mockup)</p>
+            )}
         </div>
     )
 }
