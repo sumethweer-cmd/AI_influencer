@@ -253,6 +253,9 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             // "Auto" starts from a generous cap; fitTextToBox() shrinks it to whatever actually fits.
             const fontSize = isAutoFontSize ? 60 : (parseInt(fontSizeConfig, 10) || 36)
             const creditText = configs.find((c: any) => c.key_name === 'ETSY_CREDIT_TEXT')?.key_value || ''
+            const creditPosition = configs.find((c: any) => c.key_name === 'ETSY_CREDIT_POSITION')?.key_value || 'bottom-right'
+            const creditSize = parseInt(configs.find((c: any) => c.key_name === 'ETSY_CREDIT_SIZE')?.key_value, 10) || 12
+            const creditFontUrl = configs.find((c: any) => c.key_name === 'ETSY_CREDIT_FONT_URL')?.key_value
 
             // Convert 300 DPI pixels to PDF points (1/72 inch)
             let pdfWidth = (parseFloat(widthConfig) / 300) * 72
@@ -284,6 +287,17 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             const fallbackFont = await pdfDoc.embedFont('Helvetica-Bold')
             const textFont = customFont || fallbackFont
 
+            let customCreditFont: any = null
+            if (creditFontUrl) {
+                try {
+                    const creditFontBytes = await fetch(creditFontUrl).then(res => res.arrayBuffer())
+                    customCreditFont = await pdfDoc.embedFont(creditFontBytes)
+                } catch (e) {
+                    console.error('Failed to load credit font, using body font.', e)
+                }
+            }
+            const creditFont = customCreditFont || textFont
+
             const pagesToExport = [...book.etsy_pages].sort((a, b) => a.page_number - b.page_number)
 
             // Layout Zones
@@ -291,6 +305,10 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
             const rightZoneWidth = pdfWidth * 0.35
             const topImageZoneHeight = pdfHeight * 0.8
             const bottomTextZoneHeight = pdfHeight * 0.2
+
+            // Reserve a strip along the credit's edge so body text never overlaps it
+            const [creditVPos, creditHPos] = creditPosition.split('-')
+            const creditReserveH = creditText ? (creditSize * 1.8 + 20) : 0
 
             // Make Cover Page as the First Page if Cover Image Exists
             if (book.cover_image_url) {
@@ -409,11 +427,14 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                 // Text Layout (Top Image / Bottom Text Band)
                 if (pdfLayout === 'top_image_bottom_text' && p.story_text) {
                     const boxWidth = pdfWidth - 80
-                    const boxHeight = bottomTextZoneHeight - 30
+                    // The credit sits in this same band when it's anchored bottom-*, so carve out a strip for it
+                    const dCreditReserve = creditVPos === 'bottom' ? creditReserveH : 0
+                    const boxHeight = bottomTextZoneHeight - 30 - dCreditReserve
                     const { lines, fontSize: fitSize, lineHeight } = fitTextToBox(textFont, p.story_text, boxWidth, boxHeight, fontSize)
 
                     const totalTextHeight = lines.length * lineHeight
-                    let currentY = (bottomTextZoneHeight / 2) + (totalTextHeight / 2) - fitSize
+                    // Center within the band area above the reserved credit strip
+                    let currentY = dCreditReserve + ((bottomTextZoneHeight - dCreditReserve) / 2) + (totalTextHeight / 2) - fitSize
 
                     for (const line of lines) {
                         const lineWidth = textFont.widthOfTextAtSize(line, fitSize)
@@ -474,6 +495,12 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                             bgY = (pdfHeight * 0.05);
                         } else {
                             bgY = (pdfHeight / 2) - (bgHeight / 2);
+                        }
+                        // Keep the overlay box clear of the credit's reserved strip, whichever edge it's anchored to
+                        if (creditText && creditVPos === 'bottom') {
+                            bgY = Math.max(bgY, creditReserveH);
+                        } else if (creditText && creditVPos === 'top') {
+                            bgY = Math.min(bgY, pdfHeight - creditReserveH - bgHeight);
                         }
                     } else {
                         // Split Layout behavior
@@ -537,16 +564,17 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                     }
                 }
 
-                // Credit / Watermark Text (bottom-right of every content page)
+                // Credit / Watermark Text (configurable corner, size and font) on every content page
                 if (creditText) {
-                    const creditSize = Math.max(10, fontSize * 0.35)
-                    const creditWidth = textFont.widthOfTextAtSize(creditText, creditSize)
+                    const creditWidth = creditFont.widthOfTextAtSize(creditText, creditSize)
                     const margin = 20
+                    const creditX = creditHPos === 'left' ? margin : pdfWidth - creditWidth - margin
+                    const creditY = creditVPos === 'top' ? pdfHeight - creditSize - margin : margin
                     page.drawText(creditText, {
-                        x: pdfWidth - creditWidth - margin,
-                        y: margin,
+                        x: creditX,
+                        y: creditY,
                         size: creditSize,
-                        font: textFont,
+                        font: creditFont,
                         color: rgb(0.45, 0.45, 0.45),
                     })
                 }

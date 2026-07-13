@@ -56,7 +56,7 @@ export default function EtsySettings() {
         setSavingKey(null)
     }
 
-    const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetKey: string = 'ETSY_FONT_URL') => {
         const file = e.target.files?.[0]
         if (!file) return
 
@@ -64,7 +64,8 @@ export default function EtsySettings() {
         formData.append('file', file)
         formData.append('folder', 'fonts')
 
-        setSavingKey('FONT_UPLOAD')
+        const savingId = `FONT_UPLOAD_${targetKey}`
+        setSavingKey(savingId)
         try {
             const res = await fetch('/api/etsy/upload-asset', {
                 method: 'POST',
@@ -72,11 +73,9 @@ export default function EtsySettings() {
             }).then(r => r.json())
 
             if (res.success) {
-                // Find ETSY_FONT_URL config and update it
-                const fontConfig = configs.find(c => c.key_name === 'ETSY_FONT_URL')
+                const fontConfig = configs.find(c => c.key_name === targetKey)
                 if (fontConfig) {
-                    handleConfigChange('ETSY_FONT_URL', res.url)
-                    // Auto save
+                    handleConfigChange(targetKey, res.url)
                     await fetch('/api/etsy/configs', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -182,9 +181,9 @@ export default function EtsySettings() {
                         <label className="cursor-pointer">
                             <span className="text-4xl mb-4 block">📤</span>
                             <span className="font-bold text-purple-400">Click to Upload Font</span>
-                            <input type="file" accept=".ttf,.otf" className="hidden" onChange={handleFontUpload} />
+                            <input type="file" accept=".ttf,.otf" className="hidden" onChange={e => handleFontUpload(e)} />
                         </label>
-                        {savingKey === 'FONT_UPLOAD' && <div className="mt-4 text-xs text-amber-500 animate-pulse">Uploading to bucket...</div>}
+                        {savingKey === 'FONT_UPLOAD_ETSY_FONT_URL' && <div className="mt-4 text-xs text-amber-500 animate-pulse">Uploading to bucket...</div>}
                     </div>
 
                     {configs.filter(c => c.key_name === 'ETSY_FONT_URL').map(c => (
@@ -234,7 +233,7 @@ export default function EtsySettings() {
                         <div key={c.id} className="pt-4 border-t border-slate-800">
                             <label className="text-sm font-bold text-slate-400 mb-1 flex justify-between">
                                 Credit / Watermark Text
-                                <span className="text-xs font-normal text-slate-500">Bottom-right of every content page</span>
+                                <span className="text-xs font-normal text-slate-500">แสดงทุกหน้า content</span>
                             </label>
                             <input
                                 type="text"
@@ -247,6 +246,79 @@ export default function EtsySettings() {
                             <p className="text-[10px] text-slate-500 mt-1">เว้นว่างไว้ถ้าไม่ต้องการใส่เครดิต</p>
                         </div>
                     ))}
+
+                    <div className="grid grid-cols-2 gap-4">
+                        {configs.filter(c => c.key_name === 'ETSY_CREDIT_POSITION').map(c => (
+                            <div key={c.id}>
+                                <label className="text-xs font-bold text-slate-400 mb-1 block">ตำแหน่ง Credit</label>
+                                <div className="grid grid-cols-2 gap-1 w-20">
+                                    {[
+                                        { id: 'top-left', icon: '↖️' },
+                                        { id: 'top-right', icon: '↗️' },
+                                        { id: 'bottom-left', icon: '↙️' },
+                                        { id: 'bottom-right', icon: '↘️' },
+                                    ].map(pos => (
+                                        <button
+                                            key={pos.id}
+                                            type="button"
+                                            onClick={() => {
+                                                handleConfigChange('ETSY_CREDIT_POSITION', pos.id)
+                                                saveConfig({ ...c, key_value: pos.id })
+                                            }}
+                                            title={pos.id}
+                                            className={`flex items-center justify-center p-1.5 rounded border transition-all ${(c.key_value || 'bottom-right') === pos.id
+                                                ? 'bg-purple-600 border-purple-500 text-white'
+                                                : 'bg-slate-950 border-slate-700 text-slate-500 hover:border-slate-500'
+                                                }`}
+                                        >
+                                            <span className="text-xs">{pos.icon}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-[10px] text-slate-500 mt-1">ระบบจะกันไม่ให้เนื้อเรื่องทับ credit ในมุมที่เลือก</p>
+                            </div>
+                        ))}
+
+                        {configs.filter(c => c.key_name === 'ETSY_CREDIT_SIZE').map(c => (
+                            <div key={c.id}>
+                                <label className="text-xs font-bold text-slate-400 mb-1 block">ขนาด Credit (px)</label>
+                                <select
+                                    value={c.key_value || '12'}
+                                    onChange={e => {
+                                        handleConfigChange('ETSY_CREDIT_SIZE', e.target.value)
+                                        saveConfig({ ...c, key_value: e.target.value })
+                                    }}
+                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm focus:border-purple-500 outline-none"
+                                >
+                                    {[8, 10, 12, 14, 16, 18, 20].map(sz => (
+                                        <option key={sz} value={sz}>{sz}px</option>
+                                    ))}
+                                </select>
+                                <p className="text-[10px] text-slate-500 mt-1">แยกจากขนาด Font ของเนื้อเรื่อง</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {configs.filter(c => c.key_name === 'ETSY_CREDIT_FONT_URL').map(c => (
+                        <div key={c.id} className="pt-2">
+                            <label className="text-xs font-bold text-slate-400 mb-1 block">Credit Font (แยกจาก Font หลัก, เว้นว่างใช้ Font เดียวกัน)</label>
+                            <div className="flex gap-2 items-center">
+                                <label className="cursor-pointer shrink-0 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-purple-300 border border-slate-700">
+                                    📤 Upload
+                                    <input type="file" accept=".ttf,.otf" className="hidden" onChange={e => handleFontUpload(e, 'ETSY_CREDIT_FONT_URL')} />
+                                </label>
+                                <input
+                                    type="text"
+                                    value={c.key_value || ''}
+                                    onChange={e => handleConfigChange(c.key_name, e.target.value)}
+                                    onBlur={() => saveConfig(c)}
+                                    placeholder="(ว่าง = ใช้ font หลัก)"
+                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs text-slate-500 focus:border-purple-500 outline-none"
+                                />
+                            </div>
+                            {savingKey === 'FONT_UPLOAD_ETSY_CREDIT_FONT_URL' && <div className="mt-2 text-xs text-amber-500 animate-pulse">Uploading to bucket...</div>}
+                        </div>
+                    ))}
                 </div>
             </div>
 
@@ -257,6 +329,7 @@ export default function EtsySettings() {
                 pdfWidth={configs.find(c => c.key_name === 'ETSY_PDF_WIDTH')?.key_value}
                 pdfHeight={configs.find(c => c.key_name === 'ETSY_PDF_HEIGHT')?.key_value}
                 creditText={configs.find(c => c.key_name === 'ETSY_CREDIT_TEXT')?.key_value}
+                creditPosition={configs.find(c => c.key_name === 'ETSY_CREDIT_POSITION')?.key_value}
             />
 
             {/* AI Prompts Settings */}
@@ -371,7 +444,7 @@ export default function EtsySettings() {
     )
 }
 
-function LayoutPreview({ fontUrl, fontSizeValue, pdfWidth, pdfHeight, creditText }: { fontUrl?: string, fontSizeValue?: string, pdfWidth?: string, pdfHeight?: string, creditText?: string }) {
+function LayoutPreview({ fontUrl, fontSizeValue, pdfWidth, pdfHeight, creditText, creditPosition }: { fontUrl?: string, fontSizeValue?: string, pdfWidth?: string, pdfHeight?: string, creditText?: string, creditPosition?: string }) {
     const w = parseFloat(pdfWidth || '') || 2550
     const h = parseFloat(pdfHeight || '') || 3300
     const portraitRatio = `${w} / ${h}`
@@ -388,6 +461,17 @@ function LayoutPreview({ fontUrl, fontSizeValue, pdfWidth, pdfHeight, creditText
     }
 
     const sampleLines = ['Leo opens his backpack', 'wide on the bed.']
+
+    const pos = creditPosition || 'bottom-right'
+    const creditCornerClass = {
+        'top-left': 'top-1 left-1',
+        'top-right': 'top-1 right-1',
+        'bottom-left': 'bottom-1 left-1',
+        'bottom-right': 'bottom-1 right-1',
+    }[pos] || 'bottom-1 right-1'
+    const CreditBadge = creditText ? (
+        <span className={`absolute ${creditCornerClass} text-[6px] text-slate-600 bg-white/70 px-1 rounded`}>{creditText}</span>
+    ) : null
 
     return (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
@@ -418,8 +502,9 @@ function LayoutPreview({ fontUrl, fontSizeValue, pdfWidth, pdfHeight, creditText
 
                 {/* Option B: Full Image Only */}
                 <div className="flex flex-col gap-2">
-                    <div className="bg-slate-300 rounded-lg overflow-hidden flex items-center justify-center border border-slate-700" style={{ aspectRatio: landscapeRatio }}>
+                    <div className="relative bg-slate-300 rounded-lg overflow-hidden flex items-center justify-center border border-slate-700" style={{ aspectRatio: landscapeRatio }}>
                         <span className="text-3xl">🦁</span>
+                        {CreditBadge}
                     </div>
                     <span className="text-xs font-bold text-slate-400 text-center">B: Full Image Only</span>
                 </div>
@@ -433,26 +518,28 @@ function LayoutPreview({ fontUrl, fontSizeValue, pdfWidth, pdfHeight, creditText
                                 {sampleLines.map((l, i) => <div key={i}>{l}</div>)}
                             </div>
                         </div>
+                        {CreditBadge}
                     </div>
                     <span className="text-xs font-bold text-slate-400 text-center">C: Image + Overlay</span>
                 </div>
 
                 {/* Option D: Top Image / Bottom Text */}
                 <div className="flex flex-col gap-2">
-                    <div className="bg-white rounded-lg overflow-hidden flex flex-col border border-slate-700" style={{ aspectRatio: landscapeRatio }}>
+                    <div className="relative bg-white rounded-lg overflow-hidden flex flex-col border border-slate-700" style={{ aspectRatio: landscapeRatio }}>
                         <div className="h-[80%] bg-slate-300 flex items-center justify-center text-3xl">🦁</div>
                         <div className="h-[20%] flex items-center justify-center text-center px-1">
                             <div style={textStyle} className="text-slate-900 font-bold">
                                 {sampleLines.join(' ')}
                             </div>
                         </div>
+                        {CreditBadge}
                     </div>
                     <span className="text-xs font-bold text-slate-400 text-center">D: Top Image / Bottom Text</span>
                 </div>
             </div>
 
             {creditText && (
-                <p className="text-[10px] text-slate-500">Credit "{creditText}" จะแสดงมุมขวาล่างของทุกหน้า content (ไม่รวม A ในตัวอย่างข้างบน เพื่อความชัดเจนของ mockup)</p>
+                <p className="text-[10px] text-slate-500">Credit "{creditText}" อยู่มุม {pos} ของทุกหน้า content — ระบบกันไม่ให้เนื้อเรื่องทับมุมนั้นให้อัตโนมัติ (ไม่รวม Option A เพื่อความชัดเจนของ mockup)</p>
             )}
         </div>
     )
