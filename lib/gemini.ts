@@ -5,12 +5,12 @@ import { logSystem, supabaseAdmin } from './supabase'
 
 // ---- HELPER: Model Initialization with Safety Settings ----
 async function getGeminiModel(genAI: GoogleGenerativeAI) {
-  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
-  
-  // Strict Enforcement: Only allow gemini-2.5-flash or gemini-3-flash-preview
-  const allowedModels = ['gemini-2.5-flash', 'gemini-3-flash-preview']
+  let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-3.1-flash-lite'
+
+  // Strict Enforcement: only allow known-good models
+  const allowedModels = ['gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite']
   if (!allowedModels.includes(modelName)) {
-    modelName = 'gemini-2.5-flash'
+    modelName = 'gemini-3.1-flash-lite'
   }
   
   return genAI.getGenerativeModel({

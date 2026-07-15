@@ -44,6 +44,10 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
     const [g3, setG3] = useState('')
     const [g4, setG4] = useState('')
 
+    // Manually uploaded images, on top of the book's own cover/page images
+    const [customImages, setCustomImages] = useState<{ label: string, url: string }[]>([])
+    const [uploadingSlot, setUploadingSlot] = useState<string | null>(null)
+
     const captureRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => { fetchBook() }, [id])
@@ -85,25 +89,42 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
 
     const imageOptions: { label: string, url: string }[] = book ? [
         ...(book.cover_image_url ? [{ label: 'Cover', url: book.cover_image_url }] : []),
-        ...((book.etsy_pages || []).sort((a: any, b: any) => a.page_number - b.page_number).map((p: any) => ({ label: `Page ${p.page_number}`, url: p.image_url })).filter((o: any) => o.url))
+        ...((book.etsy_pages || []).sort((a: any, b: any) => a.page_number - b.page_number).map((p: any) => ({ label: `Page ${p.page_number}`, url: p.image_url })).filter((o: any) => o.url)),
+        ...customImages,
     ] : []
+
+    const uploadSlotImage = async (slotKey: string, file: File, onChange: (v: string) => void) => {
+        setUploadingSlot(slotKey)
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('folder', 'mockup')
+            const res = await fetch('/api/etsy/upload-asset', { method: 'POST', body: formData }).then(r => r.json())
+            if (!res.success) throw new Error(res.error)
+            const label = `Uploaded: ${file.name}`
+            setCustomImages(prev => [...prev, { label, url: res.url }])
+            onChange(res.url)
+        } catch (e: any) {
+            alert('Upload Error: ' + e.message)
+        } finally {
+            setUploadingSlot(null)
+        }
+    }
 
     const doDownload = async () => {
         if (!captureRef.current) return
         setDownloading(true)
         try {
-            const html2canvas = (await import('html2canvas')).default
-            const canvas = await html2canvas(captureRef.current, {
+            const { domToPng } = await import('modern-screenshot')
+            const dataUrl = await domToPng(captureRef.current, {
                 scale: 3,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: null,
-                logging: false,
+                backgroundColor: bg,
+                fetch: { requestInit: { mode: 'cors' } },
             })
             const brandSlug = brand.toLowerCase().replace(/[^a-z0-9]/g, '_')
             const tmplSlug = template === 1 ? 'hero' : 'grid'
             const a = document.createElement('a')
-            a.href = canvas.toDataURL('image/png')
+            a.href = dataUrl
             a.download = `buay_guay_etsy_${brandSlug}_${tmplSlug}.png`
             a.click()
         } catch (e: any) {
@@ -116,13 +137,26 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
     if (loading) return <div className="p-8">Loading Mockup Generator...</div>
     if (!book) return <div className="p-8">Book not found!</div>
 
-    const Slot = ({ value, onChange, label }: { value: string, onChange: (v: string) => void, label: string }) => (
+    const Slot = ({ value, onChange, label, slotKey }: { value: string, onChange: (v: string) => void, label: string, slotKey: string }) => (
         <label className="block">
             <span className="text-xs text-slate-400">{label}</span>
-            <select value={value} onChange={e => onChange(e.target.value)} className="mt-1 w-full text-xs bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-300">
-                <option value="">(none)</option>
-                {imageOptions.map(o => <option key={o.url} value={o.url}>{o.label}</option>)}
-            </select>
+            <div className="mt-1 flex gap-1.5">
+                <select value={value} onChange={e => onChange(e.target.value)} className="flex-1 min-w-0 text-xs bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-300">
+                    <option value="">(none)</option>
+                    {imageOptions.map(o => <option key={o.url} value={o.url}>{o.label}</option>)}
+                </select>
+                <label className="shrink-0 cursor-pointer px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-purple-300 border border-slate-700">
+                    {uploadingSlot === slotKey ? '...' : '📤'}
+                    <input
+                        type="file" accept="image/*" className="hidden"
+                        onChange={e => {
+                            const file = e.target.files?.[0]
+                            if (file) uploadSlotImage(slotKey, file, onChange)
+                            e.target.value = ''
+                        }}
+                    />
+                </label>
+            </div>
         </label>
     )
 
@@ -215,20 +249,20 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">4. รูปภาพ (ดึงจากเล่มนี้อัตโนมัติ — เปลี่ยนได้)</p>
                         {template === 1 ? (
                             <>
-                                <Slot label="ภาพปกหลัก (Cover Art)" value={coverSrc} onChange={setCoverSrc} />
-                                <Slot label="ภาพด้านหลังซ้าย" value={backLeftSrc} onChange={setBackLeftSrc} />
-                                <Slot label="ภาพด้านหลังขวา" value={backRightSrc} onChange={setBackRightSrc} />
-                                <Slot label="แถวล่าง ช่อง 1" value={b1} onChange={setB1} />
-                                <Slot label="แถวล่าง ช่อง 2" value={b2} onChange={setB2} />
-                                <Slot label="แถวล่าง ช่อง 3" value={b3} onChange={setB3} />
-                                <Slot label="แถวล่าง ช่อง 4" value={b4} onChange={setB4} />
+                                <Slot slotKey="cover" label="ภาพปกหลัก (Cover Art)" value={coverSrc} onChange={setCoverSrc} />
+                                <Slot slotKey="backLeft" label="ภาพด้านหลังซ้าย" value={backLeftSrc} onChange={setBackLeftSrc} />
+                                <Slot slotKey="backRight" label="ภาพด้านหลังขวา" value={backRightSrc} onChange={setBackRightSrc} />
+                                <Slot slotKey="b1" label="แถวล่าง ช่อง 1" value={b1} onChange={setB1} />
+                                <Slot slotKey="b2" label="แถวล่าง ช่อง 2" value={b2} onChange={setB2} />
+                                <Slot slotKey="b3" label="แถวล่าง ช่อง 3" value={b3} onChange={setB3} />
+                                <Slot slotKey="b4" label="แถวล่าง ช่อง 4" value={b4} onChange={setB4} />
                             </>
                         ) : (
                             <>
-                                <Slot label="บนซ้าย" value={g1} onChange={setG1} />
-                                <Slot label="บนขวา" value={g2} onChange={setG2} />
-                                <Slot label="ล่างซ้าย" value={g3} onChange={setG3} />
-                                <Slot label="ล่างขวา" value={g4} onChange={setG4} />
+                                <Slot slotKey="g1" label="บนซ้าย" value={g1} onChange={setG1} />
+                                <Slot slotKey="g2" label="บนขวา" value={g2} onChange={setG2} />
+                                <Slot slotKey="g3" label="ล่างซ้าย" value={g3} onChange={setG3} />
+                                <Slot slotKey="g4" label="ล่างขวา" value={g4} onChange={setG4} />
                             </>
                         )}
                     </div>

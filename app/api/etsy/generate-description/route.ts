@@ -33,8 +33,8 @@ export async function POST(req: Request) {
         if (!apiKey) apiKey = await getConfig('GEMINI_API_KEY')
         if (!apiKey) throw new Error('ETSY_GEMINI_API_KEY is not configured in Settings')
 
-        let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-2.5-flash'
-        if (modelName === 'gemini-1.5-flash') modelName = 'gemini-2.5-flash'
+        let modelName = await getConfig('GEMINI_MODEL_NAME') || 'gemini-3.1-flash-lite'
+        if (modelName === 'gemini-1.5-flash') modelName = 'gemini-3.1-flash-lite'
         const genAI = new GoogleGenerativeAI(apiKey)
         const model = genAI.getGenerativeModel({ model: modelName })
 
