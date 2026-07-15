@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect, use, useRef } from 'react'
 import Link from 'next/link'
+import { Fredoka, Quicksand } from 'next/font/google'
+
+// Self-host these fonts (served from our own domain at build time) instead of a
+// cross-origin Google Fonts <link> — modern-screenshot needs to embed the font
+// files into the exported PNG, and that only works reliably when it's same-origin.
+const fredoka = Fredoka({ subsets: ['latin'], weight: ['400', '600', '700'], variable: '--font-fredoka' })
+const quicksand = Quicksand({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-quicksand' })
 
 const PLACEHOLDER = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect width="200" height="200" fill="%23f1f5f9"/%3E%3C/svg%3E'
 
@@ -168,9 +175,7 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
     )
 
     return (
-        <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-20">
-            <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
-
+        <div className={`${fredoka.variable} ${quicksand.variable} flex flex-col gap-6 max-w-7xl mx-auto pb-20`}>
             <div>
                 <Link href={`/dashboard/etsy/books/${id}`} className="text-sm text-purple-400 hover:text-purple-300 mb-2 inline-block">← Back to Book</Link>
                 <h2 className="text-3xl font-bold">🎨 Mockup Generator</h2>
@@ -361,7 +366,7 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
             </div>
 
             <style jsx global>{`
-                .mockup-canvas, .mockup-canvas * { box-sizing: border-box; font-family: 'Quicksand', sans-serif; }
+                .mockup-canvas, .mockup-canvas * { box-sizing: border-box; font-family: var(--font-quicksand), sans-serif; }
                 .mockup-canvas {
                     background-image: radial-gradient(rgba(255,255,255,0.55) 18%, transparent 18%);
                     background-size: 22px 22px;
@@ -369,14 +374,14 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                     flex-direction: column;
                     padding: 20px;
                 }
-                .mockup-canvas h2, .mockup-canvas h3, .mockup-canvas .font-cute { font-family: 'Fredoka', sans-serif; }
+                .mockup-canvas h2, .mockup-canvas h3, .mockup-canvas .font-cute { font-family: var(--font-fredoka), sans-serif; }
                 .t1-title {
-                    font-family: 'Fredoka', sans-serif;
+                    font-family: var(--font-fredoka), sans-serif;
                     font-size: 1.5rem; font-weight: 800; color: #E95B83; text-transform: uppercase;
                     text-align: center; letter-spacing: .02em; line-height: 1.2;
                     text-shadow: -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff, 2px 2px 0 #fff, -3px 0 0 #fff, 3px 0 0 #fff, 0 -3px 0 #fff, 0 3px 0 #fff;
                 }
-                .t1-sub { font-family: 'Fredoka', sans-serif; font-size: 0.7rem; font-weight: 700; color: #5D3F9B; letter-spacing: .15em; text-transform: uppercase; text-align: center; margin-top: 4px; }
+                .t1-sub { font-family: var(--font-fredoka), sans-serif; font-size: 0.7rem; font-weight: 700; color: #5D3F9B; letter-spacing: .15em; text-transform: uppercase; text-align: center; margin-top: 4px; }
                 .t1-top { flex-shrink: 0; }
                 .t1-mid { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; margin: 8px 0; }
                 .t1-img-frame { position: relative; overflow: hidden; background: #fafafa; border: 3px solid #503A2E; border-radius: 12px; box-shadow: 2px 3px 8px rgba(0,0,0,.12); }
@@ -389,8 +394,8 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                     box-shadow: 4px 6px 16px rgba(0,0,0,.2); overflow: hidden; padding: 8px;
                 }
                 .t1-cover-header { text-align: center; flex-shrink: 0; }
-                .t1-cover-brand { font-family: 'Fredoka', sans-serif; font-size: 9px; font-weight: 700; color: #503A2E; letter-spacing: .15em; text-transform: uppercase; }
-                .t1-cover-title { font-family: 'Fredoka', sans-serif; font-size: 0.85rem; font-weight: 800; color: #503A2E; line-height: 1.2; }
+                .t1-cover-brand { font-family: var(--font-fredoka), sans-serif; font-size: 9px; font-weight: 700; color: #503A2E; letter-spacing: .15em; text-transform: uppercase; }
+                .t1-cover-title { font-family: var(--font-fredoka), sans-serif; font-size: 0.85rem; font-weight: 800; color: #503A2E; line-height: 1.2; }
                 .t1-cover-sub { font-size: 8px; font-weight: 700; color: #5D3F9B; }
                 .t1-cover-img-wrap { flex: 1; position: relative; border: 1px dashed #ccc; border-radius: 8px; overflow: hidden; background: #f0f9ff; margin: 4px 0; }
                 .t1-cover-img-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -400,20 +405,20 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                     box-shadow: 0 4px 12px rgba(0,0,0,.2); display: flex; align-items: center; justify-content: center;
                     transform: rotate(8deg) translate(60%, 18%); z-index: 10;
                 }
-                .t1-badge span { font-family: 'Fredoka', sans-serif; font-weight: 800; color: white; text-align: center; line-height: 1.1; font-size: .95rem; padding: 0 4px; }
+                .t1-badge span { font-family: var(--font-fredoka), sans-serif; font-weight: 800; color: white; text-align: center; line-height: 1.1; font-size: .95rem; padding: 0 4px; }
                 .t1-bottom-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex-shrink: 0; }
                 .t1-bottom-strip .t1-img-frame { aspect-ratio: 1; }
                 .t1-strip-1 { transform: rotate(3deg); }
                 .t1-strip-2 { transform: rotate(-5deg) translateY(-3px); }
                 .t1-strip-3 { transform: rotate(5deg) translateY(-2px); }
                 .t1-strip-4 { transform: rotate(-3deg); }
-                .t1-footer { flex-shrink: 0; text-align: center; padding-top: 6px; font-family: 'Fredoka', sans-serif; font-size: .85rem; font-weight: 700; color: #503A2E; }
+                .t1-footer { flex-shrink: 0; text-align: center; padding-top: 6px; font-family: var(--font-fredoka), sans-serif; font-size: .85rem; font-weight: 700; color: #503A2E; }
 
                 .mockup-tmpl2 { display: flex; flex-direction: column; height: 100%; }
                 .t2-banner { display: flex; align-items: center; justify-content: center; gap: 10px; padding-bottom: 10px; border-bottom: 2px dashed rgba(80,58,46,.2); flex-shrink: 0; }
-                .t2-brand { font-family: 'Fredoka', sans-serif; font-size: 1.1rem; font-weight: 700; color: #503A2E; }
+                .t2-brand { font-family: var(--font-fredoka), sans-serif; font-size: 1.1rem; font-weight: 700; color: #503A2E; }
                 .t2-slash { color: #E95B83; font-weight: 700; font-size: 1.1rem; }
-                .t2-mid, .t2-right { font-family: 'Fredoka', sans-serif; font-size: 1rem; font-weight: 800; color: #E95B83; letter-spacing: .02em; }
+                .t2-mid, .t2-right { font-family: var(--font-fredoka), sans-serif; font-size: 1rem; font-weight: 800; color: #E95B83; letter-spacing: .02em; }
                 .t2-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 12px; margin-top: 12px; }
                 .t2-cell { height: 100%; }
 
