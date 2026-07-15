@@ -5,6 +5,10 @@ import Link from 'next/link'
 
 const PLACEHOLDER = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect width="200" height="200" fill="%23f1f5f9"/%3E%3C/svg%3E'
 
+// Route through our own proxy so cross-origin storage images (no CORS headers) load in <img>
+// and can be captured by modern-screenshot without being blocked.
+const proxied = (url: string) => url && !url.startsWith('data:') ? `/api/etsy/proxy-image?url=${encodeURIComponent(url)}` : url
+
 const BG_PRESETS = [
     { hex: '#F3F7E9', label: 'Sage Green' },
     { hex: '#FFFDF3', label: 'Cream' },
@@ -115,11 +119,14 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
         if (!captureRef.current) return
         setDownloading(true)
         try {
+            // Wait for the Fredoka/Quicksand webfonts to finish loading — otherwise the
+            // capture can grab a fallback-font layout that doesn't match the live preview.
+            if (document.fonts?.ready) await document.fonts.ready
+
             const { domToPng } = await import('modern-screenshot')
             const dataUrl = await domToPng(captureRef.current, {
                 scale: 3,
                 backgroundColor: bg,
-                fetch: { requestInit: { mode: 'cors' } },
             })
             const brandSlug = brand.toLowerCase().replace(/[^a-z0-9]/g, '_')
             const tmplSlug = template === 1 ? 'hero' : 'grid'
@@ -296,11 +303,11 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                                     </div>
                                     <div className="t1-mid">
                                         <div className="t1-img-frame t1-back-left">
-                                            <img src={backLeftSrc || PLACEHOLDER} crossOrigin="anonymous" />
+                                            <img src={backLeftSrc ? proxied(backLeftSrc) : PLACEHOLDER} />
                                             <div className="wm-overlay" style={{ opacity: wmOpacity / 100 }}><WmTiles text={brand.toUpperCase()} /></div>
                                         </div>
                                         <div className="t1-img-frame t1-back-right">
-                                            <img src={backRightSrc || PLACEHOLDER} crossOrigin="anonymous" />
+                                            <img src={backRightSrc ? proxied(backRightSrc) : PLACEHOLDER} />
                                             <div className="wm-overlay" style={{ opacity: wmOpacity / 100 }}><WmTiles text={brand.toUpperCase()} /></div>
                                         </div>
                                         <div className="t1-cover-book">
@@ -310,7 +317,7 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                                                 <p className="t1-cover-sub">{sub}</p>
                                             </div>
                                             <div className="t1-cover-img-wrap">
-                                                <img src={coverSrc || PLACEHOLDER} crossOrigin="anonymous" />
+                                                <img src={coverSrc ? proxied(coverSrc) : PLACEHOLDER} />
                                             </div>
                                             <div className="t1-cover-footer">© {new Date().getFullYear()} {brand}. All rights reserved.</div>
                                         </div>
@@ -321,7 +328,7 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                                     <div className="t1-bottom-strip">
                                         {[b1, b2, b3, b4].map((src, i) => (
                                             <div key={i} className={`t1-img-frame t1-strip-${i + 1}`}>
-                                                <img src={src || PLACEHOLDER} crossOrigin="anonymous" />
+                                                <img src={src ? proxied(src) : PLACEHOLDER} />
                                                 <div className="wm-overlay" style={{ opacity: wmOpacity / 100 }}><WmTiles text={brand.toUpperCase()} /></div>
                                             </div>
                                         ))}
@@ -341,7 +348,7 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                                     <div className="t2-grid">
                                         {[g1, g2, g3, g4].map((src, i) => (
                                             <div key={i} className="t1-img-frame t2-cell">
-                                                <img src={src || PLACEHOLDER} crossOrigin="anonymous" />
+                                                <img src={src ? proxied(src) : PLACEHOLDER} />
                                                 <div className="wm-overlay" style={{ opacity: wmOpacity / 100 }}><WmTiles text={brand.toUpperCase()} /></div>
                                             </div>
                                         ))}
