@@ -43,6 +43,7 @@ export default function TopNav() {
                         // Etsy Navigation
                         <>
                             <Link href="/dashboard/etsy" className="hover:text-purple-400 transition-colors">Books Dashboard</Link>
+                            <Link href="/dashboard/etsy/characters" className="hover:text-purple-400 transition-colors">🧑‍🎨 Characters</Link>
                             <Link href="/dashboard/etsy/settings" className="hover:text-purple-400 transition-colors">⚙️ Settings & Fonts</Link>
                         </>
                     ) : (

@@ -82,9 +82,30 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
     })
     const [isSavingConfig, setIsSavingConfig] = useState(false)
 
+    // Character library + story setup
+    const [allCharacters, setAllCharacters] = useState<any[]>([])
+    const [selectedCharacterIds, setSelectedCharacterIds] = useState<string[]>([])
+    const [learningGoal, setLearningGoal] = useState('')
+    const [occasionText, setOccasionText] = useState('')
+    const [savingStorySetup, setSavingStorySetup] = useState(false)
+
+    // Etsy description generator
+    const [generatingDescription, setGeneratingDescription] = useState(false)
+    const [descriptionCopied, setDescriptionCopied] = useState(false)
+
     useEffect(() => {
         fetchBook()
+        fetchCharacters()
     }, [id])
+
+    const fetchCharacters = async () => {
+        try {
+            const res = await fetch('/api/etsy/characters').then(r => r.json())
+            if (res.success) setAllCharacters(res.data)
+        } catch (e) {
+            console.error(e)
+        }
+    }
 
     const fetchBook = async () => {
         try {
@@ -96,12 +117,66 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                 if (res.data.pdf_config) {
                     setPdfConfig(res.data.pdf_config)
                 }
+                setSelectedCharacterIds(res.data.character_ids || [])
+                setLearningGoal(res.data.learning_goal || '')
+                setOccasionText((res.data.occasion || []).join(', '))
             }
         } catch (e) {
             console.error(e)
         } finally {
             setLoading(false)
         }
+    }
+
+    const toggleCharacter = (charId: string) => {
+        setSelectedCharacterIds(prev => prev.includes(charId) ? prev.filter(x => x !== charId) : [...prev, charId])
+    }
+
+    const saveStorySetup = async () => {
+        setSavingStorySetup(true)
+        try {
+            const res = await fetch(`/api/etsy/books/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    character_ids: selectedCharacterIds,
+                    learning_goal: learningGoal,
+                    occasion: occasionText.split(',').map(s => s.trim()).filter(Boolean),
+                })
+            }).then(r => r.json())
+            if (res.success) setBook(res.data)
+        } catch (e: any) {
+            alert('Error saving story setup: ' + e.message)
+        } finally {
+            setSavingStorySetup(false)
+        }
+    }
+
+    const handleGenerateDescription = async () => {
+        setGeneratingDescription(true)
+        try {
+            const res = await fetch('/api/etsy/generate-description', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ book_id: id })
+            }).then(r => r.json())
+            if (res.success) {
+                setBook((prev: any) => ({ ...prev, etsy_description: res.description }))
+            } else {
+                alert('Error: ' + res.error)
+            }
+        } catch (e: any) {
+            alert('Error: ' + e.message)
+        } finally {
+            setGeneratingDescription(false)
+        }
+    }
+
+    const copyDescription = () => {
+        if (!book?.etsy_description) return
+        navigator.clipboard.writeText(book.etsy_description)
+        setDescriptionCopied(true)
+        setTimeout(() => setDescriptionCopied(false), 2000)
     }
 
     const handleGenerateStory = async () => {
@@ -729,6 +804,70 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                 </div>
             </header>
 
+            {/* Story Setup: Characters + Learning Goal + Occasion */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <div className="flex justify-between items-start gap-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-200">🧑‍🎨 Story Setup</h3>
+                        <p className="text-sm text-slate-400 mt-1">เลือกตัวละครที่จะใช้ในเรื่องนี้ (ไม่บังคับ) เพื่อให้ AI design หน้าตาตัวละครสม่ำเสมอทุกหน้า</p>
+                    </div>
+                    <Link href="/dashboard/etsy/characters" className="text-xs text-purple-400 hover:text-white font-bold whitespace-nowrap">
+                        + Manage Characters
+                    </Link>
+                </div>
+
+                {allCharacters.length === 0 ? (
+                    <p className="text-xs text-slate-500">ยังไม่มีตัวละครในระบบ — <Link href="/dashboard/etsy/characters" className="text-purple-400 hover:underline">เพิ่มตัวละครที่นี่</Link></p>
+                ) : (
+                    <div className="flex flex-wrap gap-2">
+                        {allCharacters.map(c => {
+                            const isSelected = selectedCharacterIds.includes(c.id)
+                            return (
+                                <button
+                                    key={c.id}
+                                    onClick={() => toggleCharacter(c.id)}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${isSelected
+                                        ? 'bg-purple-600 border-purple-500 text-white'
+                                        : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-500'
+                                        }`}
+                                >
+                                    {isSelected ? '✓ ' : ''}{c.name}
+                                </button>
+                            )
+                        })}
+                    </div>
+                )}
+
+                <div className="grid md:grid-cols-2 gap-4 pt-2 border-t border-slate-800">
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 mb-1 block">Learning Goal (สำหรับ Etsy description)</label>
+                        <input
+                            type="text" value={learningGoal} onChange={e => setLearningGoal(e.target.value)}
+                            placeholder="e.g. How to prepare and organize their school bag independently"
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm focus:border-purple-500 outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 mb-1 block">Occasions (คั่นด้วยลูกน้ำ)</label>
+                        <input
+                            type="text" value={occasionText} onChange={e => setOccasionText(e.target.value)}
+                            placeholder="e.g. back to school, birthday gift for kids"
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm focus:border-purple-500 outline-none"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex justify-end">
+                    <button
+                        onClick={saveStorySetup}
+                        disabled={savingStorySetup}
+                        className="px-5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 rounded-lg text-xs font-bold"
+                    >
+                        {savingStorySetup ? 'Saving...' : 'Save Story Setup'}
+                    </button>
+                </div>
+            </div>
+
             {/* AI Generator Action */}
             <div className="bg-gradient-to-r from-purple-900/40 to-indigo-900/40 border border-purple-500/30 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
@@ -742,6 +881,59 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                 >
                     {generatingStory ? '✨ Gemini is writing...' : '✨ Generate Story & Prompts'}
                 </button>
+            </div>
+
+            {/* Etsy Listing Tools: Description Generator + Mockup Generator */}
+            <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+                    <div className="flex justify-between items-start gap-2">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-200">📝 Etsy Description</h3>
+                            <p className="text-sm text-slate-400 mt-1">สร้างคำอธิบายสินค้าสำหรับลง Etsy อัตโนมัติด้วย Gemini</p>
+                        </div>
+                        <button
+                            onClick={handleGenerateDescription}
+                            disabled={generatingDescription || !book.etsy_pages?.length}
+                            title={!book.etsy_pages?.length ? 'Generate the story first' : ''}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-xs font-bold shadow-lg shrink-0"
+                        >
+                            {generatingDescription ? '✨ Writing...' : book.etsy_description ? '🔁 Regenerate' : '✨ Generate'}
+                        </button>
+                    </div>
+                    {book.etsy_description && (
+                        <div className="space-y-2">
+                            <textarea
+                                value={book.etsy_description}
+                                onChange={e => setBook((prev: any) => ({ ...prev, etsy_description: e.target.value }))}
+                                onBlur={() => fetch(`/api/etsy/books/${id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ etsy_description: book.etsy_description })
+                                })}
+                                className="w-full h-48 bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs leading-relaxed focus:border-purple-500 outline-none"
+                            />
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] text-slate-500">{book.etsy_description.length} / 3000 chars</span>
+                                <button onClick={copyDescription} className="text-xs font-bold text-purple-400 hover:text-white">
+                                    {descriptionCopied ? '✓ Copied!' : '📋 Copy'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-200">🖼️ Mockup Generator</h3>
+                        <p className="text-sm text-slate-400 mt-1">สร้างภาพโปรโมทสำหรับ Etsy listing โดยดึงรูปปกและรูปแต่ละหน้าของเล่มนี้มาใช้อัตโนมัติ</p>
+                    </div>
+                    <Link
+                        href={`/dashboard/etsy/books/${id}/mockup`}
+                        className="mt-4 px-4 py-2.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 rounded-lg text-sm font-bold shadow-lg text-center"
+                    >
+                        🎨 Open Mockup Generator
+                    </Link>
+                </div>
             </div>
 
             {/* Pages Grid */}

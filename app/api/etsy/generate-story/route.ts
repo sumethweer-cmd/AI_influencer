@@ -14,6 +14,20 @@ export async function POST(req: Request) {
         const { data: book, error: bookErr } = await supabase.from('etsy_books').select('*').eq('id', book_id).single()
         if (bookErr || !book) throw new Error('Book not found')
 
+        // Get selected characters so the story/prompts stay consistent with their look
+        let characters: any[] = []
+        if (book.character_ids?.length) {
+            const { data: charData } = await supabase.from('etsy_characters').select('*').in('id', book.character_ids)
+            characters = charData || []
+        }
+        const charactersBlock = characters.length
+            ? `\nCHARACTERS (use these exact characters — keep their appearance consistent in every image_prompt):\n` +
+              characters.map((c: any) =>
+                  `- ${c.name}${c.species ? ` (${c.species})` : ''}: ${c.appearance || 'no appearance details given'}` +
+                  (c.personality ? ` Personality: ${c.personality}` : '')
+              ).join('\n') + '\n'
+            : ''
+
         // Get Gemini API Key (Priority: ETSY_GEMINI_API_KEY -> Global GEMINI_API_KEY)
         const { data: apiKeyConfig } = await supabase.from('etsy_configs').select('key_value').eq('key_name', 'ETSY_GEMINI_API_KEY').single()
         let apiKey = apiKeyConfig?.key_value?.trim()
@@ -42,12 +56,12 @@ You need to create a complete story for a children's coloring book with the foll
 - Theme: ${book.theme || 'General'}
 - Target Age: ${book.target_age}
 - Total Pages: ${book.total_pages}
-
+${charactersBlock}
 TASK:
 Write the story divided into exactly ${book.total_pages} pages.
 For each page, provide:
 1. story_text: 3-5 lines of engaging, age-appropriate story text.
-2. image_prompt: A highly detailed diffusion prompt for generating a clean, bold line-art coloring page image that matches the story_text. Make sure to specify "black and white, line art, coloring book style, bold lines, white background, no shading, no greyscale".
+2. image_prompt: A highly detailed diffusion prompt for generating a clean, bold line-art coloring page image that matches the story_text. ${characters.length ? 'Every image_prompt that includes a character MUST restate that character\'s appearance details above so the character looks the same on every page (do not just use the name).' : ''} Make sure to specify "black and white, line art, coloring book style, bold lines, white background, no shading, no greyscale".
 
 OUTPUT FORMAT:
 Return ONLY a valid JSON array of objects. Example:
