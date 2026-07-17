@@ -59,6 +59,9 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
     const [customImages, setCustomImages] = useState<{ label: string, url: string }[]>([])
     const [uploadingSlot, setUploadingSlot] = useState<string | null>(null)
 
+    // Show story text on page preview cards (like PDF Option D) so listing images don't look text-free
+    const [showPageText, setShowPageText] = useState(true)
+
     const captureRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => { fetchBook() }, [id])
@@ -103,6 +106,12 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
         ...((book.etsy_pages || []).sort((a: any, b: any) => a.page_number - b.page_number).map((p: any) => ({ label: `Page ${p.page_number}`, url: p.image_url })).filter((o: any) => o.url)),
         ...customImages,
     ] : []
+
+    // image_url -> story_text, so page preview cards can show a snippet of the actual story
+    const pageTextByUrl: Record<string, string> = {}
+    for (const p of (book?.etsy_pages || [])) {
+        if (p.image_url && p.story_text) pageTextByUrl[p.image_url] = p.story_text
+    }
 
     const uploadSlotImage = async (slotKey: string, file: File, onChange: (v: string) => void) => {
         setUploadingSlot(slotKey)
@@ -173,6 +182,31 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
             </div>
         </label>
     )
+
+    // A page preview card — either the plain image, or (when showPageText is on) an
+    // Option-D-style card: image on top 80%, a snippet of the actual story text below.
+    const PageThumb = ({ src, frameClass }: { src: string, frameClass: string }) => {
+        const imgSrc = src ? proxied(src) : PLACEHOLDER
+        const text = src ? pageTextByUrl[src] : undefined
+
+        if (showPageText && text) {
+            return (
+                <div className={`${frameClass} thumb-with-text`}>
+                    <div className="thumb-img-area">
+                        <img src={imgSrc} />
+                        <div className="wm-overlay" style={{ opacity: wmOpacity / 100 }}><WmTiles text={brand.toUpperCase()} /></div>
+                    </div>
+                    <div className="thumb-text-area"><span>{text}</span></div>
+                </div>
+            )
+        }
+        return (
+            <div className={frameClass}>
+                <img src={imgSrc} />
+                <div className="wm-overlay" style={{ opacity: wmOpacity / 100 }}><WmTiles text={brand.toUpperCase()} /></div>
+            </div>
+        )
+    }
 
     return (
         <div className={`${fredoka.variable} ${quicksand.variable} flex flex-col gap-6 max-w-7xl mx-auto pb-20`}>
@@ -259,6 +293,15 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
 
                     <div className="space-y-2">
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">4. รูปภาพ (ดึงจากเล่มนี้อัตโนมัติ — เปลี่ยนได้)</p>
+
+                        <label className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 cursor-pointer">
+                            <input type="checkbox" checked={showPageText} onChange={e => setShowPageText(e.target.checked)} className="accent-pink-500" />
+                            <span className="text-xs text-slate-300">
+                                แสดงข้อความนิทานบนรูปตัวอย่าง (Image 80% / Text 20%)
+                                <span className="block text-[10px] text-slate-500">ช่วยไม่ให้ลูกค้าคิดว่าไม่มีเนื้อเรื่อง — ใช้ได้เฉพาะช่องที่เลือกเป็นรูปหน้าในเล่ม (ไม่รวมปก/รูปอัปโหลด)</span>
+                            </span>
+                        </label>
+
                         {template === 1 ? (
                             <>
                                 <Slot slotKey="cover" label="ภาพปกหลัก (Cover Art)" value={coverSrc} onChange={setCoverSrc} />
@@ -307,14 +350,8 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                                         <p className="t1-sub">{sub}</p>
                                     </div>
                                     <div className="t1-mid">
-                                        <div className="t1-img-frame t1-back-left">
-                                            <img src={backLeftSrc ? proxied(backLeftSrc) : PLACEHOLDER} />
-                                            <div className="wm-overlay" style={{ opacity: wmOpacity / 100 }}><WmTiles text={brand.toUpperCase()} /></div>
-                                        </div>
-                                        <div className="t1-img-frame t1-back-right">
-                                            <img src={backRightSrc ? proxied(backRightSrc) : PLACEHOLDER} />
-                                            <div className="wm-overlay" style={{ opacity: wmOpacity / 100 }}><WmTiles text={brand.toUpperCase()} /></div>
-                                        </div>
+                                        <PageThumb src={backLeftSrc} frameClass="t1-img-frame t1-back-left" />
+                                        <PageThumb src={backRightSrc} frameClass="t1-img-frame t1-back-right" />
                                         <div className="t1-cover-book">
                                             <div className="t1-cover-header">
                                                 <p className="t1-cover-brand">{brand}</p>
@@ -332,10 +369,7 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                                     </div>
                                     <div className="t1-bottom-strip">
                                         {[b1, b2, b3, b4].map((src, i) => (
-                                            <div key={i} className={`t1-img-frame t1-strip-${i + 1}`}>
-                                                <img src={src ? proxied(src) : PLACEHOLDER} />
-                                                <div className="wm-overlay" style={{ opacity: wmOpacity / 100 }}><WmTiles text={brand.toUpperCase()} /></div>
-                                            </div>
+                                            <PageThumb key={i} src={src} frameClass={`t1-img-frame t1-strip-${i + 1}`} />
                                         ))}
                                     </div>
                                     <div className="t1-footer">🌸 {brand}</div>
@@ -352,10 +386,7 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
                                     </div>
                                     <div className="t2-grid">
                                         {[g1, g2, g3, g4].map((src, i) => (
-                                            <div key={i} className="t1-img-frame t2-cell">
-                                                <img src={src ? proxied(src) : PLACEHOLDER} />
-                                                <div className="wm-overlay" style={{ opacity: wmOpacity / 100 }}><WmTiles text={brand.toUpperCase()} /></div>
-                                            </div>
+                                            <PageThumb key={i} src={src} frameClass="t1-img-frame t2-cell" />
                                         ))}
                                     </div>
                                 </div>
@@ -424,6 +455,17 @@ export default function MockupGeneratorPage({ params }: { params: Promise<{ id: 
 
                 .wm-overlay { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; transform: rotate(15deg); pointer-events: none; overflow: hidden; }
                 .wm-overlay span { font-size: 9px; font-weight: 700; color: #333; letter-spacing: .1em; text-transform: uppercase; margin: 4px; }
+
+                /* Page preview card showing the story text too (Option D style: image 80% / text 20%) */
+                .thumb-with-text { display: flex; flex-direction: column; background: white; }
+                .thumb-with-text img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+                .thumb-img-area { position: relative; flex: 0 0 78%; overflow: hidden; }
+                .thumb-text-area { flex: 0 0 22%; display: flex; align-items: center; justify-content: center; padding: 3px 5px; overflow: hidden; }
+                .thumb-text-area span {
+                    font-family: var(--font-quicksand), sans-serif; font-weight: 700; color: #3a2f28;
+                    font-size: 6px; line-height: 1.25; text-align: center;
+                    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+                }
             `}</style>
         </div>
     )
