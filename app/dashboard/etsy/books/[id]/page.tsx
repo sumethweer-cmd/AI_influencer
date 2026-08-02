@@ -57,6 +57,83 @@ function fitTextToBox(font: any, text: string, maxWidth: number, maxHeight: numb
     return { lines, fontSize, lineHeight }
 }
 
+// Builds a single copy-pasteable text block with every prompt in the book,
+// in the {{character}} / {{title}} / {{theme}} + per-page order the team pastes into external tools.
+function buildPromptSheet(book: any) {
+    const characters = book.characters || []
+    const characterSection = characters.length
+        ? characters.map((c: any) => {
+            const bits = [c.name, c.species ? `(${c.species})` : ''].filter(Boolean).join(' ')
+            const details = [c.appearance, c.personality].filter(Boolean).join(' | ')
+            return details ? `${bits} — ${details}` : bits
+        }).join('\n')
+        : '(no characters selected)'
+
+    const lines: string[] = [
+        '{{character}}',
+        characterSection,
+        '',
+        '{{title}}',
+        book.title || '(untitled)',
+        '',
+        '{{theme}}',
+        book.theme || '(no theme)',
+        '',
+    ]
+
+    const pages = [...(book.etsy_pages || [])].sort((a: any, b: any) => a.page_number - b.page_number)
+    for (const p of pages) {
+        lines.push(`Page ${p.page_number}`)
+        lines.push(p.image_prompt || '(no prompt)')
+        lines.push('')
+    }
+
+    return lines.join('\n').trimEnd()
+}
+
+function PromptSheetModal({ book, onClose }: { book: any, onClose: () => void }) {
+    const [copied, setCopied] = useState(false)
+    const sheet = buildPromptSheet(book)
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(sheet)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div
+                className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl"
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="p-5 border-b border-slate-800 flex justify-between items-center shrink-0">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-200">📋 All Prompts</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Character, title, theme และ image prompt ของทุกหน้า รวมไว้ในที่เดียว</p>
+                    </div>
+                    <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none">✕</button>
+                </div>
+
+                <textarea
+                    readOnly
+                    value={sheet}
+                    className="flex-1 min-h-[300px] w-full bg-slate-950 p-4 text-xs font-mono text-slate-300 leading-relaxed outline-none resize-none"
+                />
+
+                <div className="p-4 border-t border-slate-800 flex justify-end gap-2 shrink-0">
+                    <button onClick={onClose} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold">
+                        Close
+                    </button>
+                    <button onClick={handleCopy} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold">
+                        {copied ? '✓ Copied!' : '📋 Copy All'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 export default function BookEditor({ params }: { params: Promise<{ id: string }> }) {
     const unwrappedParams = use(params)
     const id = unwrappedParams.id
@@ -69,6 +146,7 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
     const [exportingPDF, setExportingPDF] = useState(false)
     const [importingCSV, setImportingCSV] = useState(false)
     const [pdfLayout, setPdfLayout] = useState<'split' | 'image_only' | 'image_with_text' | 'top_image_bottom_text'>('split')
+    const [showPromptSheet, setShowPromptSheet] = useState(false)
     const coverFileRef = useRef<HTMLInputElement>(null)
     const csvFileRef = useRef<HTMLInputElement>(null)
 
@@ -942,7 +1020,14 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                     <h3 className="text-xl font-bold flex items-center gap-2">🖍️ Workspace <span className="text-sm font-normal text-slate-400">({book.etsy_pages?.length || 0} pages)</span></h3>
 
                     {book.etsy_pages?.length > 0 && (
-                        <div className="flex bg-slate-900 border border-slate-700 rounded-lg p-1 overflow-hidden ml-2">
+                        <div className="flex items-center gap-2 ml-2">
+                            <button
+                                onClick={() => setShowPromptSheet(true)}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-bold shadow-lg flex items-center gap-2"
+                            >
+                                📋 All Prompts
+                            </button>
+                        <div className="flex bg-slate-900 border border-slate-700 rounded-lg p-1 overflow-hidden">
                             <select
                                 value={pdfLayout}
                                 onChange={e => setPdfLayout(e.target.value as any)}
@@ -960,6 +1045,7 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                             >
                                 {exportingPDF ? '📄 Generating...' : '📄 Export'}
                             </button>
+                        </div>
                         </div>
                     )}
                 </div>
@@ -1053,6 +1139,8 @@ export default function BookEditor({ params }: { params: Promise<{ id: string }>
                     })}
                 </div>
             )}
+
+            {showPromptSheet && <PromptSheetModal book={book} onClose={() => setShowPromptSheet(false)} />}
         </div>
     )
 }
