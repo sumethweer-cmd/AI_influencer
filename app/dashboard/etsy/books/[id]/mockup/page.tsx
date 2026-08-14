@@ -2,13 +2,28 @@
 
 import React, { useState, useEffect, use, useRef } from 'react'
 import Link from 'next/link'
-import { Fredoka, Quicksand } from 'next/font/google'
+import localFont from 'next/font/local'
 
-// Self-host these fonts (served from our own domain at build time) instead of a
-// cross-origin Google Fonts <link> — modern-screenshot needs to embed the font
-// files into the exported PNG, and that only works reliably when it's same-origin.
-const fredoka = Fredoka({ subsets: ['latin'], weight: ['400', '600', '700'], variable: '--font-fredoka' })
-const quicksand = Quicksand({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-quicksand' })
+// Self-host these fonts as local files (instead of next/font/google, which fetches
+// from Google's CDN at build time and breaks the build whenever that fetch 404s) —
+// modern-screenshot also needs to embed the font files into the exported PNG, which
+// only works reliably when it's same-origin.
+const fredoka = localFont({
+    src: [
+        { path: '../../../../../fonts/Fredoka-400.ttf', weight: '400', style: 'normal' },
+        { path: '../../../../../fonts/Fredoka-600.ttf', weight: '600', style: 'normal' },
+        { path: '../../../../../fonts/Fredoka-700.ttf', weight: '700', style: 'normal' },
+    ],
+    variable: '--font-fredoka',
+})
+const quicksand = localFont({
+    src: [
+        { path: '../../../../../fonts/Quicksand-500.ttf', weight: '500', style: 'normal' },
+        { path: '../../../../../fonts/Quicksand-600.ttf', weight: '600', style: 'normal' },
+        { path: '../../../../../fonts/Quicksand-700.ttf', weight: '700', style: 'normal' },
+    ],
+    variable: '--font-quicksand',
+})
 
 const PLACEHOLDER = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect width="200" height="200" fill="%23f1f5f9"/%3E%3C/svg%3E'
 
