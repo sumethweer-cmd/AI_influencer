@@ -84,6 +84,10 @@ function buildPromptSheet(book: any) {
     const pages = [...(book.etsy_pages || [])].sort((a: any, b: any) => a.page_number - b.page_number)
     for (const p of pages) {
         lines.push(`Page ${p.page_number}`)
+        if (p.story_text) {
+            lines.push(p.story_text)
+            lines.push('')
+        }
         lines.push(p.image_prompt || '(no prompt)')
         lines.push('')
     }
