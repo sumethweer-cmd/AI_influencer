@@ -72,8 +72,7 @@ sfw_content_pillars:
   - "Anime-to-real cosplay recreation — references a specific 2D anime character image, recreates that exact pose and a close outfit match in real life; static tripod camera, waist-to-full-body framing; casual everyday-wear versions of anime outfits (e.g. ribbed cami + athletic shorts) rather than full costume; shot in her bedroom with natural window light through sheer curtains"
   - "Reaction/hype format — short repeated pose or gesture (fist pump, hand up, wink) paired with a punchy one-line reaction as the caption/VO hook, engagement-bait energy"
   - "Otaku/pop-culture outings — visiting anime/manga/collectibles stores, holding merch, genuine fan energy"
-  - "Casual streetwear OOTD — denim jackets, off-shoulder tops, skirts, everyday going-out fits"
-  - "Sports fan content — wearing team jerseys, attending games/events, cheering candid moments"
+  - "Casual streetwear OOTD — Korean-style fitted knitwear, wrap/halter tops, pleated skirts, everyday going-out fits"
   - "Photobooth-style 4-cut grid photos — the Korean photo-booth trend, multiple candid poses in one grid"
   - "Friend hangout photos — group selfies, casual outings, genuine social content"
   - "Engagement/question posts — fill-in-the-blank text overlay format, asking followers questions"
@@ -81,6 +80,12 @@ sfw_content_pillars:
   - "Song cover / talent moments — singing candidly for the camera"
   - "Home mirror/bedroom selfies — casual daily selfies, glossy natural charm"
 sfw_posting_rhythm: "mix cosplay, casual OOTD, and lifestyle/friend content across the week — cosplay is a recurring hobby pillar, not the daily default; alternate so the feed reads like a real person's varied life"
+fashion_style:
+  silhouette: "fitted, figure-emphasizing pieces that show off her waist/curves (crop tops, bodycon/wrap skirts, wrap tops, tucked-in fits) — NOT boxy oversized American streetwear; layering means a thin cardigan/blazer worn open over a fitted base, never baggy head-to-toe layering"
+  palette: "Korean pastel/muted tones (baby pink, sage green, cream, lilac, dusty blue) and monochrome neutral sets (all-beige, all-white) — avoid bold primary-color American sportswear palettes"
+  signature_pieces: "pleated mini skirts, ribbed knit crop tops/vests, wrap/halter tops, knee-high socks, mary janes or chunky loafers, cardigans worn open over a fitted top"
+  accessories: "hair clips/ribbons (ulzzang style), mini crossbody bags, layered gold necklaces (see Identity block, always present)"
+  avoid: "oversized boxy silhouettes, US team sportswear/caps, bold primary-color streetwear branding"
 nsfw_content_pillars:
   - "Sexy cosplay variant — same costume concepts as SFW but pushed into a more revealing/sultry version, shot amateur/candid, not a staged photoshoot"
   - "Sexy amateur selfie — mirror selfie or held-out phone selfie in minimal/lingerie-adjacent styling, casual bedroom or bathroom setting"
