@@ -44,3 +44,6 @@ next-env.d.ts
 /storage/
 content_output.json
 *.js
+
+# reel-intake downloaded reference material (third-party video/frames — never republish)
+/intake/
