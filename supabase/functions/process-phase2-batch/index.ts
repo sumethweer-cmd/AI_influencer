@@ -12,6 +12,10 @@ const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
 
 async function logSystem(level: 'INFO' | 'ERROR' | 'SUCCESS' | 'WARN', phase: string, message: string, metadata: any = null) {
     console.log(`[${level}] ${phase}: ${message}`, metadata ? JSON.stringify(metadata) : '');
+    
+    // Skip database insertion for INFO level to prevent DB bloat
+    if (level === 'INFO') return;
+
     await supabase.from('system_logs').insert({
         level,
         phase,
