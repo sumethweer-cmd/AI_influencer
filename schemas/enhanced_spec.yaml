@@ -1,0 +1,21 @@
+# enhanced_spec — output of prompt-enhancer.
+# Consumed by: comfyui-compiler.
+#
+# This is where content_spec + format_spec turn into an actual described scene.
+# Every behavior listed must trace back to a reason (the line being delivered,
+# the format's rules, or the character's tendencies) — never decoration for its
+# own sake.
+
+scene_description: |
+  Full natural-language description of what happens in the shot(s), written so
+  a compiler (or a human) could stage it without seeing anything else. Includes
+  body language, timing, and how the character_take line lands physically.
+
+shots:
+  - shot_number: 1
+    behavior: "what she's doing physically in this shot"
+    eye_behavior: "where her eyes go, from format_bibles/{visual_format}.md"
+    micro_movement: "small natural motion — weight shift, hand adjustment, etc."
+    delivers_line: null   # which part of character_take (if any) lands in this shot
+
+naturalism_notes: []   # anything explicitly added to avoid stiffness/static posing

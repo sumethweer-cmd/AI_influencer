@@ -1,0 +1,22 @@
+# content_input — the only thing a human ever has to provide.
+# Produced by: the human (via chat, either Entry A or Entry B).
+# Consumed by: content-calendar (Entry A) or content-director directly (Entry B).
+#
+# entry_point is set by whichever orchestrator skill picked up the request —
+# it is not something the human fills in themselves.
+
+entry_point: content_request   # content_calendar | content_request
+
+character: momo                 # must match characters/{name}/ — ask if ambiguous/missing
+
+# --- Entry A (content_calendar) fields ---
+week_theme: null                 # optional free text, e.g. "back to school"
+occasion: null                   # optional, e.g. "launch week"
+days_requested: 7                # default 7, ask if the human wants a different length
+
+# --- Entry B (content_request) fields ---
+content_idea: null                # e.g. "streamer reaction to a video about a woman dating multiple men at once"
+requested_delivery_format: null   # image_set | carousel | video_clip | story | null (let selector decide)
+platform: null                    # instagram_reels | tiktok | youtube_shorts | pinterest | facebook | null (let selector decide)
+
+constraints: []                   # anything explicit the human said not to do for this run

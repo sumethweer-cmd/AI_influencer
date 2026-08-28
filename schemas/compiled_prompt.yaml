@@ -1,0 +1,26 @@
+# compiled_prompt — output of comfyui-compiler. This is the final, generate-ready
+# artifact. One file per shot/slide (never merged across shots).
+#
+# Compilation is templating against model_specs/{active_model}.md, not free
+# reasoning — the compiler must not invent syntax or change creative intent.
+
+model: null   # which model_specs/{name}.md this was compiled against
+
+positive_prompt: |
+  Full self-contained positive prompt. Must include the character's locked
+  identity block (verbatim from characters/{name}/character_dna.md) as the
+  first tokens, followed by the scene from enhanced_spec.
+
+negative_prompt: |
+  Character's negative-prompt baseline (verbatim) + anything shot-specific.
+
+# Present only for delivery_format == video_clip.
+motion: null
+
+params: {}   # only what the model_spec says is required — never invent fields
+             # (no aspect_ratio/resolution here unless the model_spec says so)
+
+source_refs:
+  content_spec: null
+  format_spec: null
+  enhanced_spec: null
