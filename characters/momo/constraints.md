@@ -16,8 +16,8 @@ When uncertain, choose:
 
 ```yaml
 sfw_default: true
-nsfw_allowed: TODO   # not specified in the behavioral DNA doc — needs an explicit decision
-nsfw_notes: "TODO"
+nsfw_allowed: true
+nsfw_notes: "suggestive/implied only (fashion, swimwear, sensual glamour, teasing ambiguity) — consistent with her own 'suggestive ambiguity over explicitness' boundary above. Not explicit sexual content."
 ```
 
 > **Permanent limit, regardless of the fields above:** explicit/hardcore
@@ -32,4 +32,6 @@ nsfw_notes: "TODO"
 - Over-explaining a joke instead of letting ambiguity land
 
 ## Legal / Platform Compliance Notes
-TODO — fill in once nsfw_allowed above is decided.
+NSFW content is gated behind Fanvue (per `business_goal.md`'s reach_to_fanvue
+funnel) — SFW-only content goes to reach/discovery platforms (IG, TikTok,
+YouTube), never post NSFW-tier content to those.
