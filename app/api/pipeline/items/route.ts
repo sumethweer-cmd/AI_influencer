@@ -6,10 +6,14 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url)
         const character = searchParams.get('character')
         const status = searchParams.get('status')
+        const scheduledFrom = searchParams.get('scheduled_from')
+        const scheduledTo = searchParams.get('scheduled_to')
 
         let query = supabase.from('pipeline_content_items').select('*').order('created_at', { ascending: false })
         if (character) query = query.eq('character', character)
         if (status) query = query.eq('status', status)
+        if (scheduledFrom) query = query.gte('scheduled_date', scheduledFrom)
+        if (scheduledTo) query = query.lte('scheduled_date', scheduledTo)
 
         const { data, error } = await query
         if (error) throw error

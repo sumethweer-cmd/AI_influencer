@@ -17,12 +17,25 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const id = (await params).id
         const body = await req.json()
 
-        // only note/status are meant to be human-editable from the dashboard;
-        // everything else is written by the pipeline at creation time
-        const { note, status } = body
+        // note/status/scheduling/follow-up metrics are human-editable from the
+        // dashboard; everything else is written by the pipeline at creation time
+        const {
+            note, status, scheduled_date, posted_at,
+            views, retention_pct, likes, comments_count, shares,
+            rating, follow_up_notes,
+        } = body
         const updateData: any = {}
         if (note !== undefined) updateData.note = note
         if (status !== undefined) updateData.status = status
+        if (scheduled_date !== undefined) updateData.scheduled_date = scheduled_date
+        if (posted_at !== undefined) updateData.posted_at = posted_at
+        if (views !== undefined) updateData.views = views
+        if (retention_pct !== undefined) updateData.retention_pct = retention_pct
+        if (likes !== undefined) updateData.likes = likes
+        if (comments_count !== undefined) updateData.comments_count = comments_count
+        if (shares !== undefined) updateData.shares = shares
+        if (rating !== undefined) updateData.rating = rating
+        if (follow_up_notes !== undefined) updateData.follow_up_notes = follow_up_notes
 
         const { data, error } = await supabase.from('pipeline_content_items').update(updateData).eq('id', id).select()
         if (error) throw error
