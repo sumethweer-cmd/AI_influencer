@@ -66,12 +66,32 @@ files that were actually used — never the reasoning trail that produced them.
 This is deliberate: a validator sharing context with the layer that just wrote
 the prompt tends to grade its own work leniently.
 
-- On `pass: true` → done, hand `compiled_prompt` back to the caller.
+- On `pass: true` → done, hand `compiled_prompt` back to the caller AND write
+  the output (Step 3 below).
 - On `pass: false` → read `retry_layer`, re-invoke that skill and every skill
   after it in the pipeline order above (never just patch one field in place —
   downstream layers may depend on what changed). Re-validate. Cap at 3 retries;
   if still failing, stop and surface the validation_report to a human instead
   of looping forever.
+
+## Step 3 — Write output
+
+Testing-phase convention (plain files, no Supabase yet): write ONLY the final
+compiled prompt as plain text, nothing else for now —
+
+```
+content_output/{character}/{date}/item{NN}_compiled_prompt.txt
+```
+
+Content of that file is exactly the text that gets pasted into ComfyUI/the
+model's UI: for `output_granularity: per_content_item` models (e.g.
+minimax-h3), the full structured sections as one text block; for
+`per_shot` models (e.g. krea), one file per shot —
+`item{NN}_shot{N}_compiled_prompt.txt`.
+
+This is intentionally minimal — once this proves out in real use, expand to
+the full `content_spec`/`format_spec`/`enhanced_spec`/`validation_report.yaml`
+file set for proper review/debugging trail. Don't build that yet.
 
 ## Notes
 - This skill owns state for exactly one content item. `content-calendar` runs

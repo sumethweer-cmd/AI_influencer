@@ -43,6 +43,7 @@ next-env.d.ts
 # User Local Storage
 /storage/
 content_output.json
+/content_output/
 *.js
 
 # reel-intake downloaded reference material (third-party video/frames — never republish)
