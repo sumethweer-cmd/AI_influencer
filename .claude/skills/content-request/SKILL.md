@@ -66,32 +66,44 @@ files that were actually used — never the reasoning trail that produced them.
 This is deliberate: a validator sharing context with the layer that just wrote
 the prompt tends to grade its own work leniently.
 
-- On `pass: true` → done, hand `compiled_prompt` back to the caller AND write
-  the output (Step 3 below).
+- On `pass: true` → hand `compiled_prompt` back to the caller AND write the
+  output (Step 3 below) with `status: pending`.
 - On `pass: false` → read `retry_layer`, re-invoke that skill and every skill
   after it in the pipeline order above (never just patch one field in place —
   downstream layers may depend on what changed). Re-validate. Cap at 3 retries;
-  if still failing, stop and surface the validation_report to a human instead
-  of looping forever.
+  if still failing, still write the output (Step 3) but with `status: qc_fail`
+  and the failing `validation_report` attached — a human reviews it on the
+  `/dashboard/content-pipeline` queue instead of it silently disappearing.
 
-## Step 3 — Write output
+## Step 3 — Write output (local .txt + push to Supabase)
 
-Testing-phase convention (plain files, no Supabase yet): write ONLY the final
-compiled prompt as plain text, nothing else for now —
-
+Still write the local `.txt` for quick copy-paste into ComfyUI/the model's UI:
 ```
 content_output/{character}/{date}/item{NN}_compiled_prompt.txt
 ```
+(`output_granularity: per_content_item` models like minimax-h3 → the full
+structured sections as one file; `per_shot` models like krea → one file per
+shot, `item{NN}_shot{N}_compiled_prompt.txt`.)
 
-Content of that file is exactly the text that gets pasted into ComfyUI/the
-model's UI: for `output_granularity: per_content_item` models (e.g.
-minimax-h3), the full structured sections as one text block; for
-`per_shot` models (e.g. krea), one file per shot —
-`item{NN}_shot{N}_compiled_prompt.txt`.
+**Also push the same item to Supabase**, so it shows up on the
+`/dashboard/content-pipeline` review queue: write a small JSON file with the
+item's fields (see the shape documented at the top of
+`scripts/push-content-item.mjs`) and run:
+```
+node scripts/push-content-item.mjs /path/to/item.json
+```
+Include `content_category`, `core_mechanic`, `delivery_format`,
+`visual_format`, `platform`, `model`, `character_take`, `compiled_prompt`
+(the exact text — for `per_shot` models with multiple shots, push one row
+per shot), and the full `validation_report`. The script derives a `.srt`
+automatically for `minimax-h3`-shaped prompts from the shot timestamps; leave
+it to the script, don't hand-generate one.
 
-This is intentionally minimal — once this proves out in real use, expand to
-the full `content_spec`/`format_spec`/`enhanced_spec`/`validation_report.yaml`
-file set for proper review/debugging trail. Don't build that yet.
+**Before creating a new item, check the queue for unresolved work on this
+character**: query `pipeline_content_items` (or ask a human) for rows with
+`status: qc_fail` and a `note` — that note is a human telling you what to fix
+next time, not just a QC log. Read it before writing a fresh item on the same
+topic/character so you don't repeat the same mistake.
 
 ## Notes
 - This skill owns state for exactly one content item. `content-calendar` runs

@@ -7,13 +7,15 @@ import Link from 'next/link'
 export default function TopNav() {
     const pathname = usePathname()
     const isEtsy = pathname?.startsWith('/dashboard/etsy')
+    const isPipeline = pathname?.startsWith('/dashboard/content-pipeline')
+    const isLegacyInfluencer = !isEtsy && !isPipeline
 
     return (
         <nav className="border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
-                        <span className="text-2xl">{isEtsy ? '🎨' : '🦀'}</span>
+                        <span className="text-2xl">{isEtsy ? '🎨' : isPipeline ? '🧬' : '🦀'}</span>
                         <h1 className="text-xl font-bold bg-gradient-to-r from-orange-400 to-rose-400 bg-clip-text text-transparent">
                             Nong Kung Agency
                         </h1>
@@ -23,10 +25,10 @@ export default function TopNav() {
                     <div className="bg-slate-900 rounded-lg p-1 flex border border-slate-800 ml-4">
                         <Link
                             href="/dashboard"
-                            className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${!isEtsy ? 'bg-emerald-600 shadow-md text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${isLegacyInfluencer ? 'bg-emerald-600 shadow-md text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
                                 }`}
                         >
-                            📸 Influencer
+                            📸 Influencer (Legacy)
                         </Link>
                         <Link
                             href="/dashboard/etsy"
@@ -34,6 +36,13 @@ export default function TopNav() {
                                 }`}
                         >
                             🖍️ Etsy Books
+                        </Link>
+                        <Link
+                            href="/dashboard/content-pipeline"
+                            className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${isPipeline ? 'bg-cyan-600 shadow-md text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                }`}
+                        >
+                            🧬 Content Pipeline
                         </Link>
                     </div>
                 </div>
@@ -46,8 +55,13 @@ export default function TopNav() {
                             <Link href="/dashboard/etsy/characters" className="hover:text-purple-400 transition-colors">🧑‍🎨 Characters</Link>
                             <Link href="/dashboard/etsy/settings" className="hover:text-purple-400 transition-colors">⚙️ Settings & Fonts</Link>
                         </>
+                    ) : isPipeline ? (
+                        // Content Pipeline Navigation
+                        <>
+                            <Link href="/dashboard/content-pipeline" className="hover:text-cyan-400 transition-colors">Queue</Link>
+                        </>
                     ) : (
-                        // Influencer Navigation
+                        // Influencer (Legacy) Navigation
                         <>
                             <Link href="/dashboard" className="hover:text-orange-400 transition-colors">Dashboard</Link>
                             <Link href="/dashboard/workflows" className="hover:text-orange-400 transition-colors">Workflows</Link>
