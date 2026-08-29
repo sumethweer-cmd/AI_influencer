@@ -1,12 +1,15 @@
 # Model Spec: {{model_name}}
 
 > Copy this file to `model_specs/{{model_name}}.md` for each ComfyUI
-> checkpoint/workflow actually in use. `comfyui-compiler` reads whichever one
-> is marked `active: true` — never invents syntax that isn't documented here.
+> checkpoint/workflow actually in use. `comfyui-compiler` picks the active
+> model_spec whose `scope` matches the item's `delivery_format` — never
+> invents syntax that isn't documented here.
 
 ```yaml
 model_name: "{{e.g. checkpoint/LoRA name}}"
-active: false   # exactly one model_specs/*.md should be active: true at a time
+active: false
+scope: [{{e.g. image_set, carousel, story}} | {{e.g. video_clip}}]   # which delivery_format values this model handles — more than one model_specs/*.md can be active: true at once, as long as their scopes don't overlap
+output_granularity: per_shot   # per_shot | per_content_item — see schemas/compiled_prompt.yaml
 comfyui_workflow_ref: "{{path or name of the ComfyUI workflow JSON this targets}}"
 ```
 

@@ -17,7 +17,8 @@ When uncertain, choose:
 ```yaml
 sfw_default: true
 nsfw_allowed: true
-nsfw_notes: "suggestive/implied only (fashion, swimwear, sensual glamour, teasing ambiguity) — consistent with her own 'suggestive ambiguity over explicitness' boundary above. Not explicit sexual content."
+nsfw_default_level: "suggestive/implied only (fashion, swimwear, sensual glamour, teasing ambiguity) — consistent with her own 'suggestive ambiguity over explicitness' boundary above."
+nsfw_explicit_override: "allowed ONLY when the human explicitly requests explicit/nude content for that specific content item — never the pipeline's own default, and never inferred from business_goal or platform alone."
 ```
 
 > **Permanent limit, regardless of the fields above:** explicit/hardcore

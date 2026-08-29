@@ -1,20 +1,39 @@
 # compiled_prompt — output of comfyui-compiler. This is the final, generate-ready
-# artifact. One file per shot/slide (never merged across shots).
+# artifact.
+#
+# Granularity depends on the active model_spec, not a fixed rule: some models
+# (classic image-diffusion checkpoints) want one compiled_prompt PER SHOT/SLIDE;
+# others (e.g. minimax-h3, which generates a whole multi-shot video from one
+# structured prompt) want ONE compiled_prompt for the entire content item, with
+# shots embedded inside via that model's own notation (e.g. H3's [Shot N]
+# markers). Check the active model_specs/{name}.md's own framing note for which
+# applies — comfyui-compiler must not guess.
 #
 # Compilation is templating against model_specs/{active_model}.md, not free
 # reasoning — the compiler must not invent syntax or change creative intent.
 
-model: null   # which model_specs/{name}.md this was compiled against
+model: null            # which model_specs/{name}.md this was compiled against
+output_granularity: null   # per_shot | per_content_item — copied from the model_spec, not decided here
 
+# --- Shape A: classic image-diffusion models (output_granularity: per_shot) ---
 positive_prompt: |
   Full self-contained positive prompt. Must include the character's locked
   identity block (verbatim from characters/{name}/character_dna.md) as the
-  first tokens, followed by the scene from enhanced_spec.
+  first tokens, followed by the scene from enhanced_spec. One file per shot.
 
 negative_prompt: |
   Character's negative-prompt baseline (verbatim) + anything shot-specific.
 
-# Present only for delivery_format == video_clip.
+# --- Shape B: structured multi-shot models like minimax-h3
+# (output_granularity: per_content_item) — fields per that model's own
+# section names, e.g. subject_definitions/summary/retention_analysis/
+# integrated_multimodal_description/overall_soundscape/non_diegetic_music.
+# Don't force Shape A's positive/negative split onto these models.
+structured_sections: {}
+
+# Present only for delivery_format == video_clip on models that separate motion
+# from the main description (most structured models fold this into the
+# description itself instead — check the model_spec).
 motion: null
 
 params: {}   # only what the model_spec says is required — never invent fields
