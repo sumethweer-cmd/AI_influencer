@@ -31,5 +31,6 @@ Avoid:
   `prompt-enhancer` naturalism notes (pauses, self-interruption, mid-sentence gesture).
 
 ## Best Suited For
-`opinion`, `fan_interaction`, `storytelling` — general "talking directly to
-camera" content.
+`opinion`, `fan_interaction`, `storytelling`, `educational` (general
+explainer tone, not an intimate/confiding one — see `selfie_cam.md` for
+that variant) — general "talking directly to camera" content.
