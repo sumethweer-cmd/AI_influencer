@@ -6,7 +6,7 @@ Source: ANONG — Character DNA doc (user-provided) + 2 reference images
 ```yaml
 name: "anong"
 trigger_word: "anong"
-status: draft   # identity block filled from reference images; age + business_goal detail still open, see TODOs
+status: active   # identity block + business_goal complete
 primary_language: "Thai"   # content_director/comfyui-compiler must write character_take and <d> dialogue in Thai by default, not English
 ```
 
@@ -65,7 +65,7 @@ plus the body/outfit reference image):
 
 ```yaml
 description: "anong, a Thai-Chinese Gen Y woman, slender feminine build"
-age: "TODO — not explicitly given; reference presents her as a young adult (early-to-mid 20s look). Confirm an exact age before treating this as locked."
+age: "23 years old"
 face:
   preserve_original: true
   shape: "oval face with a soft pointed chin (หน้ารูปไข่ / คางมน)"
