@@ -38,12 +38,21 @@ phrased per the model spec's syntax rules. Negative prompt = character's
 negative baseline (verbatim) + anything shot-specific.
 
 **Shape B (structured, e.g. minimax-h3):** fill `structured_sections` using
-exactly the section names/order that model_spec documents (e.g.
-`subject_definitions`/`summary`/`retention_analysis`/
-`integrated_multimodal_description`/`overall_soundscape`/`non_diegetic_music`
-for minimax-h3) — all of `enhanced_spec`'s shots go into the one relevant
-section (e.g. `integrated_multimodal_description`'s `[Shot N]` markers), not
-split across files.
+exactly the section names/order that model_spec documents (for minimax-h3:
+`subject_definitions`/`summary`/`retention_analysis`/`detailed_description`/
+`overall_soundscape`/`non_diegetic_music` — note the description field is
+`detailed_description`, and reference pictures are written as `<Picture N>`
+directly in prose, not wrapped in a `<Subject N>` layer) — all of
+`enhanced_spec`'s shots go into the one relevant section (`detailed_description`'s
+`[Shot N]` markers, each later shot starting `At MM:SS.mmm, the camera cuts
+to...`), not split across files.
+
+For minimax-h3 specifically: every beat/pause enhanced_spec called for must
+carry its numeric duration through into the prose (`holding a clear beat of
+about 0.8 seconds`) — don't compress it back down to a vague "she pauses."
+Prepend the output file header convention documented in `model_specs/minimax-h3.md`
+(`# CONTENT — <title>`, `# Date:`, `# Character: ... | Mode:`, etc.) before
+the six sections.
 
 `params` = only fields the model_spec actually documents as required. Do not
 add `aspect_ratio`/resolution unless the model spec says to.

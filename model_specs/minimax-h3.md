@@ -1,171 +1,153 @@
 # Model Spec: MiniMax H3
 
-Source: https://github.com/MiniMax-AI/MiniMax-H3/tree/main/.agents/skills/h3-prompt-writing (SKILL.md + references/base-en.txt)
+Source of truth: **3 real production prompts** the team already generated
+with this model (Momo — "BoyfriendFromAnotherNation", "ParachuteBusiness",
+"CabinCrewOutfit"), not the external repos referenced earlier this session —
+those got two structural details wrong, corrected below.
 
 ```yaml
 model_name: "minimax-h3"
 active: true
 scope: [video_clip]
-output_granularity: per_content_item   # one compiled_prompt.yaml per item, all shots embedded inside via [Shot N] markers — never split across files
+output_granularity: per_content_item   # one compiled_prompt per item, all shots embedded inside via [Shot N] markers — never split across files
+default_mode: "Ref2VA (full-reference)"
 comfyui_workflow_ref: "TODO — which ComfyUI workflow JSON wraps this model in this project's setup"
 ```
 
 > **This is a video+audio generation model, structurally different from a
 > classic image-diffusion checkpoint.** One generation call produces a whole
-> multi-shot video (visuals + dialogue + ambient sound + music together), not
-> a single still frame. `comfyui-compiler` must treat one H3 prompt as one
-> content item's full video, not one file per shot — see the open question at
-> the bottom of this file.
+> multi-shot video (visuals + dialogue + ambient sound + music together).
 
-## Input Modes (pick one per content item)
+## Mode: Ref2VA (full-reference) — the project default
 
-| Mode | Use when |
-|---|---|
-| T2VA | No reference image — build the whole video from text alone |
-| **Reference mode (default for this project)** | **Picture 1 = Momo's locked identity reference, always.** Uses the `subject_definitions`/`retention_analysis` mechanism below — see decision below. |
-| FL2VA / L2VA | Not used by default in this project — revisit only if a specific item needs a locked end-frame |
+Every real example uses **Ref2VA**, not the simpler I2VA-style "reference
+mode" documented here earlier. Momo's identity picture, her outfit picture,
+and the background/setting picture are all supplied as separate labeled
+references in one call.
 
-> **Project decision:** every content item with `delivery_format: video_clip`
-> uses reference mode with **Picture 1 always bound to Momo**,
-> `retention_analysis: fully_preserved`, AND her full physical description is
-> still appended in `subject_definitions` (not relying on the image alone —
-> reinforces identity in text too):
-> ```
-> <Subject 1> is Momo, whose identity comes from <Picture 1>: 20-year-old very
-> slender Korean beauty, shoulder-length wavy creamy blonde hair, flawless
-> dewy Korean glass skin, glossy lips, soft natural makeup, small perky
-> natural B-cup breasts, extremely small defined waist, exceptionally long
-> slim elegant legs, small tattoo of a heart and a rainbow on her left upper
-> arm, no other tattoos, m0m0. Preserve exactly.
-> ```
-> Additional reference pictures (Picture 2, 3, ...) for outfits/props/
-> background are not standardized yet — handle per-item until a pattern
-> emerges from real use.
->
-> The actual Picture 1 image file is supplied by the user at generation
-> time (handled outside this pipeline) — `comfyui-compiler` just needs to
-> reference `<Picture 1>` correctly in the prompt text, it doesn't need to
-> produce or locate the image itself.
+**Two corrections from what was documented before:**
+1. The description field is called **`detailed_description`**, not
+   `integrated_multimodal_description`.
+2. **`<Picture N>` is referenced directly** in prose — there is no
+   `<Subject N>` abstraction layer. Write `Momo <Picture 1>, wearing
+   <Picture 2>, sits in her gaming chair <Picture 3>...`, naming her by name
+   inline with the picture tag, not `<Subject 1> (S1)...`.
 
-## Prompt Syntax Rules — Reference Mode (Picture 1 = Momo, project default)
+## Six sections, in order (verified shape)
 
-Source: `artfat-comfyui-llm-prompter/prompts/V0_MiniMax_H3_Video.txt` — a
-more specific practical template than the base official skill, built exactly
-around "one or more reference pictures define reusable subjects." This is
-what `comfyui-compiler` should follow whenever the item has a Momo reference image.
-
-**Tags**: `<Picture N>` the image file · `<Subject N>` a reusable element
-carried over from a reference (person, object, outfit, location, pose,
-style) · `[Shot N]` the scene identifier. One Picture can define several
-Subjects.
-
-**Six sections, in order:**
 ```
 subject_definitions:
-<Subject 1> is Momo, whose identity comes from <Picture 1>. Preserve her face, hair, tattoo, and body per characters/momo/character_dna.md's Locked Identity Block.
-<Subject 2> is [outfit/prop/background, if a second reference picture is used]...
+<Picture 1> [Character] - [full locked identity description, verbatim from character_dna.md] - [what this picture defines, e.g. "the woman seated in the gaming chair who answers the off-screen question and speaks directly into the camera"].
+<Picture 2> [Character]'s outfit, worn continuously throughout the scene.
+<Picture 3> is [the setting/background] - visible as the background throughout the scene.
 
 summary:
-One bracketed task type (e.g. [Image-to-video]), then one paragraph describing the shot.
+[reference generation] or [keyframe completion] — one paragraph describing what happens across the whole clip, naming what each Picture defines.
 
 retention_analysis:
-<Subject 1> (appears in [Shot 1]): fully_preserved — retain identity, hair, tattoo, and body exactly.
-<Subject 2> (appears in [Shot 1]): [preservation level] — ...
+<Picture 1> (appears in [Shot 1], [Shot 2], ...): fully_preserved - identity, facial features, and expressions retained exactly across all shots.
+<Picture 2> (appears in [Shot 1], ...): fully_preserved - the outfit retained unchanged across all shots.
+<Picture 3> (appears in [Shot 1], ...): fully_preserved - the setting retained as the background throughout.
 
-integrated_multimodal_description:
-[Shot 1] Begin exactly from <Picture 1>. Describe what CHANGES over time, in the order it happens — not what's already visible/static in the reference (the model can already see it; re-describing it starves the motion). Name exactly ONE camera instruction per generation (e.g. [Push in], [Static shot]) — never combine several moves.
+detailed_description:
+One overall-style/setting sentence, then [Shot 1] ... [Shot 2] At MM:SS.mmm, ... — see Shot/Timing rules below.
 
 overall_soundscape:
-Diegetic sound only (room tone, movement, contact, environment).
+Diegetic sound only — room tone, ambient hum, fabric rustle, audible reactions (e.g. a genuine laugh).
 
 non_diegetic_music:
 Score for the audience only, or N/A.
 ```
 
-**Retention levels**: `fully_preserved` (keep visual detail completely — use
-this for Momo's identity, always), `partially_preserved` (only named
-elements), `attribute_transfer` (quality/action, not the subject itself),
-`weak_reference` (loose guidance only).
+**`summary` line tags**: `[reference generation]` for a fresh scene built from
+the references, `[keyframe completion]` when one Picture is literally the
+opening frame the video completes from (e.g. she's already posed in the
+reference image and the video starts exactly there).
 
-**Dialogue**: `<Subject 1> (S1) looks into the camera and physically speaks:
-<d>[English] the exact line.</d>` — write the line exactly as it should be
-said, short enough to fit the clip duration.
+**Retention levels**: `fully_preserved` (use for identity/outfit/setting —
+all three verified examples use this for every Picture, every shot),
+`partially_preserved`, `attribute_transfer`, `weak_reference` — available if
+a future item needs looser preservation, but default to `fully_preserved`
+for anything identity-critical.
 
-**Limits**: up to 9 images, 3 videos, 3 audio files, 12 files total per generation.
+## Shot / Timing Rules (verified — H3 supports precise timestamps)
 
-## Prompt Syntax Rules — Base Modes (T2VA, no reference — fallback only)
-
-**Part 1 (I2VA/FL2VA/L2VA only, omit for T2VA):** one alignment-instruction
-line, then a blank line, then Part 2. Exact wording per mode:
-- I2VA: `For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.`
-- FL2VA: `How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot N) aligns with the S.SS-second mark of the target video.`
-- L2VA: `How the reference pictures align with the target video — <Picture 1> (from [Shot N]) aligns with the S.SS-second mark of the target video.`
-
-**Part 2 — three core fields, in this order:**
-```
-integrated_multimodal_description: [Shot 1] ...
-overall_soundscape: ...
-non_diegetic_music: ...
-```
-
-- `integrated_multimodal_description` — the whole visual+action+dialogue
-  timeline, all shots embedded as `[Shot N]` markers within this ONE field
-  (not separate files per shot). First shot has no timestamp; later shots
-  start with a strictly increasing cut time: `[Shot 2] At 00:03.500, ...`.
-  State style + composition at the very start of `[Shot 1]` (e.g.
-  `Live-action, cinematic, ...`).
-- `overall_soundscape` — 1-4 sentences, ambient/physical/non-verbal sound only
-  (not dialogue/music). Use `N/A` only if the user explicitly wants total silence.
-- `non_diegetic_music` — 1-3 sentences, audience-only background score
-  (instrumentation/tempo/dynamics, no mood words). Use `N/A` if none.
-
-## Camera Motion Vocabulary (motion type + amplitude + speed)
-
-Write as a natural-language action within the shot, not stacked labels:
-`The camera pushes in with small amplitude at slow speed toward...`
-
-Motion types: `Zoom In/Out`, `Push In/Pull Out`, `Pan Left/Right`, `Truck
-Left/Right`, `Tilt Up/Down`, `Pedestal Up/Down`, `Arc Shot`, `Tracking Shot`,
-`Static Shot`, `Shake Slightly/Strongly`, `POV`, `Roll Clockwise/Counterclockwise`.
-Amplitude (`with small/large amplitude`) and speed (`at slow/fast speed`) —
-omit both when medium/normal (the default).
+- First shot has no timestamp. Every later shot starts with `At MM:SS.mmm,
+  the camera cuts to...` — always increasing, always this decimal format
+  (`00:04.600`, `00:06.150`, `00:10.700`).
+- **Every pause/beat gets an explicit numeric duration, not a vague "a
+  pause."** Verified phrasing: `holding a clear beat of about 0.8 seconds`,
+  `holding a full 1.1-second silence`, `a shorter beat of about 0.6 seconds`.
+  This is a hard requirement, not a nice-to-have — `prompt-enhancer` must
+  write real numbers here, and `prompt-validator`'s naturalism check should
+  flag a beat/pause with no duration attached.
+- A cut should land on a real structural beat (new expression, new info, a
+  punchline) — matches the general "camera motion" vocabulary documented
+  below, just applied with real timestamps instead of vague cut cues.
 
 ## Dialogue / Speaker Rules
 
-Speaking/singing subjects get a stable ID: `(S1)`, `(S2)`, compound `(S1,S2)`
-for simultaneous speech. Same ID across shots for the same speaker; silent
-characters get no ID. On first appearance, establish identity via visible +
-audible cues (age, gender, pitch, timbre, rate, accent).
+Same `(S1)`/`(S2)` mechanic as documented before, but **verified in real use
+for two-person exchanges**: an off-screen second speaker is a normal,
+supported pattern for Q&A / fan-interaction content —
+```
+An off-screen friend's voice (S2), warm and casual, asks from just beside the camera, <d>[English] Do you have a boyfriend?</d>
+Momo (S1) answers almost immediately at a relaxed, confident pace, <d>[English] Yeah.</d>
+```
+`(S2)` never needs a Picture reference if they stay off-screen the whole clip.
+Delivery pace is part of the line, not just the words — `at a relaxed,
+confident pace`, `at a plain, matter-of-fact pace`, `at a proud, satisfied
+pace` are all doing real work; don't drop pacing description to save words.
 
-```
-The young woman with a quiet, breathy voice (S1) says: <d>[English] I get off at the next station.</d>
-```
-Only the language tag + verbatim user-provided spoken content go inside
-`<d>...</d>` — never translate/rewrite it. Voiceover uses the exact phrase
-`says in an off-screen voiceover`, immediately followed by a note that the
-on-screen character's lips stay closed. Dialogue crossing a cut uses
-`<scenetrans>`; speech cut off by video end uses `<cutoff>`.
+## Naturalism — the actual bar, not a vague "make it natural"
+
+This is the single biggest gap in what was documented before. Verified
+examples never write a generic "she smiles" or "she laughs" — every reaction
+has a specific, physical, slightly-imperfect tell:
+- `one hand rising to cover her mouth, nose scrunching, shoulders bouncing softly`
+- `glancing off to the side toward her monitor as if deciding how much to reveal, absent-mindedly spinning her chair a few inches`
+- `she can't hold it anymore, breaking into a light, genuine giggle`
+- `one eyebrow very slightly raised as if daring the viewer to guess what's coming`
+
+Straight-faced setup before a punchline is a deliberate, named technique in
+these examples (`holding a full 1.1-second silence with direct eye contact
+and a completely deadpan expression`) — the stillness before the reveal is
+what sells the timing; don't confuse this with the "avoid complete stillness"
+rule elsewhere, which is about the absence of ANY natural micro-movement
+across a whole shot, not a deliberate held beat before a punchline.
+
+Real production files literally track this as a revision note — treat
+"reduce stiff, posed AI look" as an explicit, recurring self-check for
+`prompt-enhancer`, not just a background goal.
 
 ## On-Screen Text
 Visible banners/signs/subtitles go in English double quotes, verbatim,
 untranslated: `A red neon sign reading "营业中" glows above the doorway.`
 
 ## Required `params` fields
-None beyond the structured text fields above — H3's entire spec lives in the
-prompt text itself, not a separate params object. `comfyui-compiler` should
-leave `compiled_prompt.params` empty for this model.
+None — H3's entire spec lives in the six structured fields above. Leave
+`compiled_prompt.params` empty for this model.
 
-## Worked Example (T2VA shape, for reference)
-See `references/base-en.txt` Case 1-4 in the source repo for full worked
-examples per mode (T2VA/I2VA/FL2VA/L2VA) — not duplicated here in full,
-fetch from source if a worked example is needed for a specific mode.
+## Output File Header Convention (adopt this — genuinely useful, seen in every real example)
+
+Every real `compiled_prompt` file opens with a short metadata header before
+the six sections — `comfyui-compiler` should write one too:
+```
+# CONTENT — <short title>
+# Date: <date>
+# Character: <name> | Mode: Ref2VA (full-reference)
+# Setting per request: <setting, if it's a recurring one worth naming>
+# Assumption: <anything inferred rather than stated, e.g. "outfit = <Picture 2> reused from prior content">
+# Pillar: <content_dna category / pillar this belongs to>
+```
 
 ---
 
-## RESOLVED (per user decision)
-- Video content always uses reference mode with Picture 1 = Momo, `fully_preserved`, identity reinforced in text too (see the block above).
-- Additional reference pictures (outfit/prop/background) handled per-item for now, not standardized.
-- Actual Picture 1 image file is supplied by the user at generation time — not this pipeline's job to produce it.
-- One `compiled_prompt` per content item (not per shot) for this model — see `schemas/compiled_prompt.yaml` (updated).
+## RESOLVED (verified against real production files — this session's earlier assumptions corrected)
+- Mode is **Ref2VA**, field name is **`detailed_description`**, Picture tags used directly (no Subject layer) — corrects the earlier "reference mode" write-up.
+- Beats/pauses need explicit numeric durations; reactions need specific physical micro-tells — corrects the earlier vague "natural micro-movement" guidance.
+- Off-screen second speaker `(S2)` is a supported, normal pattern for Q&A content.
+- Output files should carry the metadata header shown above.
+- One `compiled_prompt` per content item (not per shot) for this model — see `schemas/compiled_prompt.yaml`.
 - Image-generation model confirmed: **Krea** — see `model_specs/krea.md`.
-- NSFW default: suggestive/implied (per `characters/momo/constraints.md`). Explicit is allowed ONLY when the human explicitly asks for it on that specific content item — never the pipeline's own default.
+- NSFW default: suggestive/implied (per each character's `constraints.md`). Explicit is allowed ONLY when the human explicitly asks for it on that specific content item.

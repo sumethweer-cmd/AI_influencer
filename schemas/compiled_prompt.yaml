@@ -26,8 +26,8 @@ negative_prompt: |
 
 # --- Shape B: structured multi-shot models like minimax-h3
 # (output_granularity: per_content_item) — fields per that model's own
-# section names, e.g. subject_definitions/summary/retention_analysis/
-# integrated_multimodal_description/overall_soundscape/non_diegetic_music.
+# section names, e.g. minimax-h3's subject_definitions/summary/
+# retention_analysis/detailed_description/overall_soundscape/non_diegetic_music.
 # Don't force Shape A's positive/negative split onto these models.
 structured_sections: {}
 

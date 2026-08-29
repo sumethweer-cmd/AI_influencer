@@ -44,3 +44,19 @@ unless explicitly told otherwise.
 ## Best Suited For
 `reaction_commentary`, `opinion` content_dna — this format exists specifically
 for "watching/reacting to something on screen" content.
+
+## Verified Setup (from real production content)
+The RGB gaming-chair setup is the concrete, repeatedly-used version of this
+bible: character seated in a gaming chair, blurred PC tower + monitor glow
+out of focus behind her, soft ambient RGB lighting (cool purples/blues)
+slowly shifting across the background. Small natural gestures fit this setup
+well — a chair spin of a few inches, leaning into the armrest, one leg tucked
+under her.
+
+## Q&A / Fan-Interaction Variant
+This format also supports a second, off-screen speaker asking the question
+that starts the item (see `model_specs/minimax-h3.md`'s Dialogue/Speaker
+Rules for the `(S2)` mechanic) — e.g. an off-screen friend asking a question
+that Momo then answers into the camera. Good fit for `fan_interaction.md`
+content that wants a more "caught in conversation" feel than `selfie_cam.md`'s
+direct-to-viewer intimacy.

@@ -30,10 +30,10 @@ Attention KPI alone once real performance data exists.
 
 ## Platforms
 
-- **TikTok** — organic reach + TikTok Shop (see `platform_specs/tiktok.md`)
-- **Shopee** — affiliate/commerce destination (see `platform_specs/shopee.md`, new)
-
-> Assumption flagged: treating "tiktok shoppee" as two destinations — TikTok
-> (content + TikTok Shop) and Shopee (separate affiliate/commerce platform)
-> — correct this if "shoppee" was actually meant as shorthand for TikTok
-> Shop specifically, not the separate Shopee app.
+**Confirmed: one clip, two destinations.** content-request produces a single
+compiled item per piece of content — the same video gets distributed to both
+TikTok and Shopee, not separately regenerated per platform. `delivery-format-
+selector`/`comfyui-compiler` should pick technical constraints (aspect ratio,
+duration, safe zones) that satisfy BOTH `platform_specs/tiktok.md` and
+`platform_specs/shopee.md` at once (both are already 9:16/1080x1920/short-form,
+so this is a non-issue in practice — the two specs don't actually conflict).
