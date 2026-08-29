@@ -73,10 +73,12 @@ function generateSrtFromH3(compiledPrompt) {
     if (entries.length === 0) return null
 
     const fmt = (sec) => {
-        const h = String(Math.floor(sec / 3600)).padStart(2, '0')
-        const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0')
-        const s = String(Math.floor(sec % 60)).padStart(2, '0')
-        const ms = String(Math.round((sec % 1) * 1000)).padStart(3, '0')
+        const totalMs = Math.round(sec * 1000)
+        const ms = String(totalMs % 1000).padStart(3, '0')
+        const totalSec = Math.floor(totalMs / 1000)
+        const h = String(Math.floor(totalSec / 3600)).padStart(2, '0')
+        const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0')
+        const s = String(totalSec % 60).padStart(2, '0')
         return `${h}:${m}:${s},${ms}`
     }
 
