@@ -1,0 +1,30 @@
+# content_spec — output of content-director.
+# Consumed by: delivery-format-selector, format-router, prompt-enhancer, prompt-validator.
+#
+# character_take is the load-bearing field: it is the character's actual voice
+# (a scripted line, reaction, or caption seed) — not an abstract tag. Everything
+# downstream exists to stage and photograph THIS line, not a generic mood.
+
+content_category: reaction_commentary   # must match an existing content_dna/{name}.md
+core_mechanic: streamer_reaction        # short label for the content_dna structure being used
+
+source_topic: "the human's original idea, verbatim or lightly cleaned up"
+
+character_take: |
+  The actual line(s) in the character's voice — dialogue, caption seed, or
+  reaction — written using that character's speaking_style.md + humor_style.md.
+  This must read like something the character would really say, not a
+  paraphrase of the topic.
+
+character_behavior: []   # e.g. [playful, teasing, flirty_undertone] — from personality.md/humor_style.md
+audience_emotion: []     # e.g. [amusement, mild_shock, relatability]
+
+business_goal_alignment:
+  goal: null              # copied from characters/{name}/business_goal.md, e.g. reach_to_fanvue | ugc_niche_mixed
+  cta_beat: null           # null | soft_cta | hard_cta — whether this item should end on a call-to-action, per the goal's content_mix rules
+
+# Populated only when this content_spec came from content-calendar (Entry A);
+# null for a standalone content-request (Entry B).
+calendar_context:
+  day: null
+  week_theme: null

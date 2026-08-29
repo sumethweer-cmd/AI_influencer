@@ -1,0 +1,20 @@
+# format_spec — output of delivery-format-selector + format-router combined.
+# Consumed by: prompt-enhancer, comfyui-compiler.
+
+# --- delivery-format-selector output ---
+delivery_format: video_clip   # image_set | carousel | video_clip | story
+delivery_format_reason: "short free-text: why this format fits the goal for this item"
+
+# Only meaningful when delivery_format == carousel — everything else is null.
+carousel:
+  slide_count: null
+  continuity_seed: null        # shared seed/reference locked across all slides
+  narrative_progression: null  # 1-line description of how slide 1 -> N tells one story
+
+# --- format-router output (only when delivery_format is video_clip or a
+# single-shot image — carousels and stories mostly skip this) ---
+visual_format: streamer_desk_cam   # must match an existing format_bibles/{name}.md, or null
+
+# --- platform technical constraints (read-only lookup, not decided here) ---
+platform: instagram_reels
+platform_constraints_ref: platform_specs/instagram_reels.md

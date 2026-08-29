@@ -1,0 +1,34 @@
+# validation_report — output of prompt-validator.
+# Consumed by: the calling orchestrator (content-director/content-request/
+# content-calendar), to decide whether to GENERATE or reprocess a specific layer.
+#
+# checks.technical runs first and is deterministic (script/regex-checkable).
+# The rest requires judgment and MUST be produced by a fresh subagent that only
+# sees compiled_prompt + the referenced DNA/spec files — never the conversation
+# that produced them — to avoid grading its own work leniently.
+
+pass: false
+
+checks:
+  technical:
+    pass: true
+    notes: ""             # syntax/required-field/reference issues — deterministic
+  character:
+    pass: true
+    notes: ""             # does this feel like the intended character?
+  content:
+    pass: true
+    notes: ""             # is the hook/character_take/core_mechanic preserved?
+  format:
+    pass: true
+    notes: ""             # does physical behavior match visual_format's rules?
+  naturalism:
+    pass: true
+    notes: ""             # believable movement, not overly static, no conflicts?
+
+# Set only when pass == false. Must be exactly one of the layer names below —
+# the orchestrator re-runs from this layer down, it does not restart from zero.
+retry_layer: null   # content_director | delivery_format_selector | format_router
+                     # | prompt_enhancer | comfyui_compiler
+
+retry_reason: ""
