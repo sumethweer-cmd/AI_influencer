@@ -7,8 +7,8 @@ Source: MOMO — Character DNA v1.0 (Behavioral Identity & Personality System).
 
 ```yaml
 name: "momo"
-trigger_word: "TODO — not yet defined, needs a visual/physical DNA doc"
-status: draft   # behavioral DNA complete; flip to active once identity block + business_goal are filled
+trigger_word: "m0m0"
+status: draft   # identity block + business_goal filled; remaining opens are refinements, see constraints.md/business_goal.md TODOs
 ```
 
 ## One-Sentence Definition
@@ -42,24 +42,45 @@ The casual exit matters as much as the twist: punchline → small smile → retu
 to whatever she was doing. She should never look like she's waiting for
 applause.
 
-## TODO — Locked Identity Block (physical/visual)
+## Locked Identity Block (verbatim in every prompt — never paraphrase between shots)
 
 ```yaml
-description: "TODO"
-age: "TODO"
-face: {preserve_original: true, makeup: "TODO"}
-hair: {color: "TODO", style: "TODO"}
-body: {frame: "TODO"}
-distinguishing_marks: []
+description: "m0m0, a 20-year-old very slender Korean beauty"
+age: "20 years old"
+face:
+  preserve_original: true
+  makeup: "flawless dewy Korean glass skin, glossy lips, soft natural makeup"
+hair:
+  color: "creamy blonde"
+  style: "shoulder-length wavy"
+body:
+  frame: "very slender"
+  waist: "extremely small, defined"
+  chest: "small perky natural B-cup"
+  legs: "exceptionally long, slim, elegant"
+  skin:
+    tone: "Korean glass skin"
+    texture: "flawless, dewy"
+distinguishing_marks:
+  - "small tattoo of a heart and a rainbow on her left upper arm"
+constraints:
+  - "no other tattoos anywhere on her body"
 ```
-> Blocking: needs a separate visual-identity doc. `content-director` and
-> `comfyui-compiler` cannot produce a real prompt for Momo until this is filled.
+
+> `m0m0` must be the first token of every positive prompt. The Identity Block
+> above is reused word-for-word across every shot in one content item — never
+> paraphrased differently between shots (per `comfyui-compiler`'s Step 0 rule).
 
 ## Negative Prompt Baseline
 
 ```
-TODO — depends on the identity block above
+low quality, blurry, distorted anatomy, extra limbs, bad hands, deformed face,
+extra tattoos, mismatched tattoo placement, missing tattoo, plastic-looking skin,
+unnatural pose, watermark, text, logo, overexposed, 3D render look
 ```
+> This is a reasonable default baseline (quality/anatomy + the explicit "no
+> other tattoos" constraint above) — not dictated verbatim by you, so review
+> and adjust if you want it different.
 
 ## North Star
 
