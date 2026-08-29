@@ -34,12 +34,33 @@ to keep slides connected rather than independent), fill in:
 `behavior`, `eye_behavior` (pull from the format bible's Eye Behavior rules),
 `micro_movement`, and which part of `character_take` (if any) this shot delivers.
 
+**For video content (any model where `output_granularity: per_content_item`,
+e.g. minimax-h3): be specific, not generic.** This is the single most common
+way a shot reads as AI-generated instead of a real clip:
+- Never write "she smiles" / "she laughs" alone — write the specific physical
+  tell: which hand moves where, what the shoulders/nose/eyebrows do. Verified
+  real examples: `one hand rising to cover her mouth, nose scrunching,
+  shoulders bouncing softly`; `one eyebrow very slightly raised as if daring
+  the viewer to guess what's coming`.
+- Every pause/beat gets a real number, not "a pause" — `holding a clear beat
+  of about 0.8 seconds`, not "she pauses." `model_specs/minimax-h3.md`'s
+  Naturalism section documents this as a hard requirement, not a style choice.
+- A deliberately held straight-faced/still beat right before a punchline is a
+  valid, real technique (builds the joke's timing) — this is different from
+  the "avoid complete stillness" rule below, which is about a shot having no
+  natural micro-movement at all across its whole duration, not one
+  intentional held beat.
+
 ## Step 2 — Naturalism check (self-check before handing off)
 
-- Is any shot describing complete stillness for its entire duration? If so, add
-  a micro-movement per the format bible's Movement Rules.
+- Is any shot describing complete stillness for its entire duration (not a
+  deliberate pre-punchline hold, but the whole shot)? If so, add a
+  micro-movement per the format bible's Movement Rules.
 - Are eye behaviors consistent with the format (e.g. `streamer_desk_cam` should
   not have every shot making direct camera contact)?
+- For video content: does every named pause have a number attached? Does every
+  reaction name a specific physical tell instead of a generic word like
+  "smiles"/"laughs" on its own?
 - List anything explicitly added purely to avoid stiffness in `naturalism_notes`.
 
 ## Output
