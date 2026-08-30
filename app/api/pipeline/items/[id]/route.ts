@@ -20,12 +20,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         // note/status/scheduling/follow-up metrics are human-editable from the
         // dashboard; everything else is written by the pipeline at creation time
         const {
-            note, status, scheduled_date, posted_at,
+            note, title, status, scheduled_date, posted_at,
             views, retention_pct, likes, comments_count, shares,
             rating, follow_up_notes,
         } = body
         const updateData: any = {}
         if (note !== undefined) updateData.note = note
+        if (title !== undefined) updateData.title = title
         if (status !== undefined) updateData.status = status
         if (scheduled_date !== undefined) updateData.scheduled_date = scheduled_date
         if (posted_at !== undefined) updateData.posted_at = posted_at

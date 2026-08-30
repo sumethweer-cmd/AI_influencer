@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     try {
         const body = await req.json()
         const {
-            character, content_category, core_mechanic, delivery_format,
+            character, title, content_category, core_mechanic, delivery_format,
             visual_format, platform, model, character_take, compiled_prompt,
             srt_content, validation_report, status,
         } = body
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         }
 
         const { data, error } = await supabase.from('pipeline_content_items').insert([{
-            character, content_category, core_mechanic, delivery_format,
+            character, title, content_category, core_mechanic, delivery_format,
             visual_format, platform, model, character_take, compiled_prompt,
             srt_content, validation_report, status: status || 'pending',
         }]).select()
