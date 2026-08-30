@@ -354,23 +354,64 @@ function FollowUpField({ label, value, onChange, type = 'text', step }: { label:
     )
 }
 
-const postAsset = async (formData: FormData) => {
-    let res: Response
-    try {
-        res = await fetch('/api/pipeline/assets', { method: 'POST', body: formData })
-    } catch (e: any) {
-        throw new Error(`Network error — upload didn't reach the server: ${e.message}`)
-    }
+const readJsonOrThrow = async (res: Response, context: string) => {
     let json: any
     try {
         json = await res.json()
     } catch {
-        throw new Error(`Server returned an unreadable response (HTTP ${res.status}). The file may be too large for the server to accept.`)
+        throw new Error(`${context} returned an unreadable response (HTTP ${res.status}). This usually means the request was rejected before it reached our server (e.g. a platform size limit).`)
     }
-    if (!res.ok || !json.success) {
-        throw new Error(json?.error || `Upload failed (HTTP ${res.status})`)
+    if (!res.ok || json.success === false) {
+        throw new Error(json?.error || `${context} failed (HTTP ${res.status})`)
     }
-    return json.data
+    return json
+}
+
+// Uploads a file straight to GCS via a signed URL (never passes through our
+// own server), then records its metadata — avoids the ~4.5MB request-body
+// limit serverless platforms impose on API routes, which video clips blow
+// past easily.
+const uploadAsset = async (file: File, meta: {
+    character?: string | null, itemId?: string | null, pictureSlot?: number | null, assetType?: string, label?: string,
+}) => {
+    let signRes: Response
+    try {
+        signRes = await fetch('/api/pipeline/assets/signed-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/octet-stream', character: meta.character, itemId: meta.itemId }),
+        })
+    } catch (e: any) {
+        throw new Error(`Network error requesting an upload URL: ${e.message}`)
+    }
+    const { uploadUrl, publicUrl, storagePath } = await readJsonOrThrow(signRes, 'Requesting an upload slot')
+
+    let putRes: Response
+    try {
+        putRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            body: file,
+        })
+    } catch (e: any) {
+        throw new Error(`Network error uploading the file to storage: ${e.message}`)
+    }
+    if (!putRes.ok) {
+        throw new Error(`Storage rejected the upload (HTTP ${putRes.status}). The file may be too large or the storage URL expired — try again.`)
+    }
+
+    const finalizeRes = await fetch('/api/pipeline/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            storagePath, url: publicUrl,
+            character: meta.character, label: meta.label || file.name,
+            itemId: meta.itemId, pictureSlot: meta.pictureSlot, assetType: meta.assetType || 'reference',
+            contentType: file.type || null, sizeBytes: file.size,
+        }),
+    })
+    const finalized = await readJsonOrThrow(finalizeRes, 'Saving the upload')
+    return finalized.data
 }
 
 const downloadAsset = async (url: string, label: string) => {
@@ -421,14 +462,10 @@ function ItemAssets({ item }: { item: any }) {
         setUploadingSlot(slot)
         setError(null)
         try {
-            const formData = new FormData()
-            formData.append('file', file)
-            formData.append('item_id', item.id)
-            formData.append('character', item.character)
-            formData.append('picture_slot', String(slot))
-            formData.append('asset_type', 'reference')
-            formData.append('label', `${item.title || item.character} — Picture ${slot}`)
-            await postAsset(formData)
+            await uploadAsset(file, {
+                character: item.character, itemId: item.id, pictureSlot: slot, assetType: 'reference',
+                label: `${item.title || item.character} — Picture ${slot}`,
+            })
             fetchAssets()
         } catch (e: any) {
             console.error(e)
@@ -444,13 +481,7 @@ function ItemAssets({ item }: { item: any }) {
         setError(null)
         try {
             for (const file of Array.from(files)) {
-                const formData = new FormData()
-                formData.append('file', file)
-                formData.append('item_id', item.id)
-                formData.append('character', item.character)
-                formData.append('asset_type', 'output')
-                formData.append('label', file.name)
-                await postAsset(formData)
+                await uploadAsset(file, { character: item.character, itemId: item.id, assetType: 'output', label: file.name })
             }
             fetchAssets()
         } catch (e: any) {
@@ -836,11 +867,7 @@ function AssetsTab() {
         setError(null)
         try {
             for (const file of Array.from(files)) {
-                const formData = new FormData()
-                formData.append('file', file)
-                if (uploadCharacter) formData.append('character', uploadCharacter)
-                formData.append('label', uploadLabel || file.name)
-                await postAsset(formData)
+                await uploadAsset(file, { character: uploadCharacter || null, label: uploadLabel || file.name })
             }
             fetchAssets()
         } catch (e: any) {
