@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { deleteFromGCS } from '@/lib/storage'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
+
+const BUCKET = 'pipeline-assets'
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -11,7 +12,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         if (fetchError) throw fetchError
 
         if (asset?.storage_path) {
-            await deleteFromGCS(asset.storage_path)
+            await supabaseAdmin.storage.from(BUCKET).remove([asset.storage_path])
         }
 
         const { error } = await supabase.from('pipeline_assets').delete().eq('id', id)

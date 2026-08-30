@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
+import { supabase } from '@/lib/supabase'
 
 const STATUS_STYLES: Record<string, string> = {
     pending: 'bg-slate-800 text-slate-300',
@@ -367,10 +368,10 @@ const readJsonOrThrow = async (res: Response, context: string) => {
     return json
 }
 
-// Uploads a file straight to GCS via a signed URL (never passes through our
-// own server), then records its metadata — avoids the ~4.5MB request-body
-// limit serverless platforms impose on API routes, which video clips blow
-// past easily.
+// Uploads a file straight to Supabase Storage via a signed upload token
+// (never passes through our own Next.js server), then records its metadata
+// — avoids the ~4.5MB request-body limit serverless platforms impose on API
+// routes, which video clips blow past easily.
 const uploadAsset = async (file: File, meta: {
     character?: string | null, itemId?: string | null, pictureSlot?: number | null, assetType?: string, label?: string,
 }) => {
@@ -379,32 +380,25 @@ const uploadAsset = async (file: File, meta: {
         signRes = await fetch('/api/pipeline/assets/signed-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/octet-stream', character: meta.character, itemId: meta.itemId }),
+            body: JSON.stringify({ filename: file.name, character: meta.character, itemId: meta.itemId }),
         })
     } catch (e: any) {
-        throw new Error(`Network error requesting an upload URL: ${e.message}`)
+        throw new Error(`Network error requesting an upload slot: ${e.message}`)
     }
-    const { uploadUrl, publicUrl, storagePath } = await readJsonOrThrow(signRes, 'Requesting an upload slot')
+    const { path, token, publicUrl } = await readJsonOrThrow(signRes, 'Requesting an upload slot')
 
-    let putRes: Response
-    try {
-        putRes = await fetch(uploadUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': file.type || 'application/octet-stream' },
-            body: file,
-        })
-    } catch (e: any) {
-        throw new Error(`Network error uploading the file to storage: ${e.message}`)
-    }
-    if (!putRes.ok) {
-        throw new Error(`Storage rejected the upload (HTTP ${putRes.status}). The file may be too large or the storage URL expired — try again.`)
+    const { error: uploadError } = await supabase.storage.from('pipeline-assets').uploadToSignedUrl(path, token, file, {
+        contentType: file.type || 'application/octet-stream',
+    })
+    if (uploadError) {
+        throw new Error(`Storage rejected the upload: ${uploadError.message}`)
     }
 
     const finalizeRes = await fetch('/api/pipeline/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            storagePath, url: publicUrl,
+            path, url: publicUrl,
             character: meta.character, label: meta.label || file.name,
             itemId: meta.itemId, pictureSlot: meta.pictureSlot, assetType: meta.assetType || 'reference',
             contentType: file.type || null, sizeBytes: file.size,
