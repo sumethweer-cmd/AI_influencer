@@ -320,7 +320,7 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                         />
                     </details>
 
-                    <ItemPictureSlots item={item} />
+                    <ItemAssets item={item} />
 
                     {item.validation_report && (
                         <details className="text-xs">
@@ -354,10 +354,22 @@ function FollowUpField({ label, value, onChange, type = 'text', step }: { label:
     )
 }
 
-function ItemPictureSlots({ item }: { item: any }) {
+const downloadAsset = async (url: string, label: string) => {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const objUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = objUrl
+    link.download = label
+    link.click()
+    URL.revokeObjectURL(objUrl)
+}
+
+function ItemAssets({ item }: { item: any }) {
     const [assets, setAssets] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [uploadingSlot, setUploadingSlot] = useState<number | null>(null)
+    const [uploadingOutput, setUploadingOutput] = useState(false)
 
     const maxSlot = useMemo(() => {
         const matches = [...(item.compiled_prompt || '').matchAll(/<Picture (\d+)>/g)]
@@ -381,7 +393,9 @@ function ItemPictureSlots({ item }: { item: any }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item.id])
 
-    const assetForSlot = (slot: number) => assets.find(a => a.picture_slot === slot)
+    const referenceAssets = assets.filter(a => a.asset_type !== 'output')
+    const outputAssets = assets.filter(a => a.asset_type === 'output')
+    const assetForSlot = (slot: number) => referenceAssets.find(a => a.picture_slot === slot)
 
     const uploadToSlot = async (slot: number, file: File) => {
         setUploadingSlot(slot)
@@ -391,6 +405,7 @@ function ItemPictureSlots({ item }: { item: any }) {
             formData.append('item_id', item.id)
             formData.append('character', item.character)
             formData.append('picture_slot', String(slot))
+            formData.append('asset_type', 'reference')
             formData.append('label', `${item.title || item.character} — Picture ${slot}`)
             await fetch('/api/pipeline/assets', { method: 'POST', body: formData })
             fetchAssets()
@@ -401,65 +416,119 @@ function ItemPictureSlots({ item }: { item: any }) {
         }
     }
 
-    const removeSlot = async (assetId: string) => {
-        if (!confirm('Remove this reference image?')) return
+    const uploadOutput = async (files: FileList | null) => {
+        if (!files || files.length === 0) return
+        setUploadingOutput(true)
+        try {
+            for (const file of Array.from(files)) {
+                const formData = new FormData()
+                formData.append('file', file)
+                formData.append('item_id', item.id)
+                formData.append('character', item.character)
+                formData.append('asset_type', 'output')
+                formData.append('label', file.name)
+                await fetch('/api/pipeline/assets', { method: 'POST', body: formData })
+            }
+            fetchAssets()
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setUploadingOutput(false)
+        }
+    }
+
+    const removeAsset = async (assetId: string) => {
+        if (!confirm('Remove this file?')) return
         await fetch(`/api/pipeline/assets/${assetId}`, { method: 'DELETE' })
         fetchAssets()
     }
 
-    const downloadAsset = async (url: string, label: string) => {
-        const res = await fetch(url)
-        const blob = await res.blob()
-        const objUrl = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = objUrl
-        link.download = label
-        link.click()
-        URL.revokeObjectURL(objUrl)
-    }
-
     return (
-        <div>
-            <label className="text-xs font-bold text-slate-400 block mb-1">
-                🖼️ Reference Images (Picture 1-{maxSlot}) {loading && <span className="text-cyan-400 font-normal">loading...</span>}
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {Array.from({ length: maxSlot }, (_, i) => i + 1).map(slot => {
-                    const asset = assetForSlot(slot)
-                    return (
-                        <div key={slot} className="bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex flex-col">
-                            <div className="aspect-square bg-slate-900 flex items-center justify-center relative">
-                                {asset ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={asset.url} alt={`Picture ${slot}`} className="w-full h-full object-cover" />
-                                ) : (
-                                    <span className="text-slate-600 text-xs">{slot === 1 ? 'Character' : `Picture ${slot}`}</span>
-                                )}
-                            </div>
-                            <div className="p-1.5 flex flex-col gap-1">
-                                <div className="text-[10px] text-slate-500 text-center">Picture {slot}</div>
-                                <div className="flex gap-1">
-                                    <label className="flex-1 text-[10px] font-bold bg-slate-800 hover:bg-slate-700 rounded-md py-1 text-center cursor-pointer">
-                                        {uploadingSlot === slot ? '...' : (asset ? '🔁 Replace' : '⬆️ Upload')}
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={e => { if (e.target.files?.[0]) uploadToSlot(slot, e.target.files[0]) }}
-                                            disabled={uploadingSlot !== null}
-                                        />
-                                    </label>
-                                    {asset && (
-                                        <>
-                                            <button onClick={() => downloadAsset(asset.url, `${item.character}_${slugify(item.title)}_picture${slot}`)} className="text-[10px] font-bold bg-slate-800 hover:bg-slate-700 rounded-md px-1.5">⬇️</button>
-                                            <button onClick={() => removeSlot(asset.id)} className="text-[10px] font-bold bg-rose-950/50 hover:bg-rose-900/50 text-rose-400 rounded-md px-1.5">✕</button>
-                                        </>
+        <div className="flex flex-col gap-5">
+            <div>
+                <label className="text-xs font-bold text-slate-400 block mb-1">
+                    🖼️ Reference Images (Picture 1-{maxSlot}) {loading && <span className="text-cyan-400 font-normal">loading...</span>}
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {Array.from({ length: maxSlot }, (_, i) => i + 1).map(slot => {
+                        const asset = assetForSlot(slot)
+                        return (
+                            <div key={slot} className="bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex flex-col">
+                                <div className="aspect-square bg-slate-900 flex items-center justify-center relative">
+                                    {asset ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={asset.url} alt={`Picture ${slot}`} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-slate-600 text-xs">{slot === 1 ? 'Character' : `Picture ${slot}`}</span>
                                     )}
                                 </div>
+                                <div className="p-1.5 flex flex-col gap-1">
+                                    <div className="text-[10px] text-slate-500 text-center">Picture {slot}</div>
+                                    <div className="flex gap-1">
+                                        <label className="flex-1 text-[10px] font-bold bg-slate-800 hover:bg-slate-700 rounded-md py-1 text-center cursor-pointer">
+                                            {uploadingSlot === slot ? '...' : (asset ? '🔁 Replace' : '⬆️ Upload')}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={e => { if (e.target.files?.[0]) uploadToSlot(slot, e.target.files[0]) }}
+                                                disabled={uploadingSlot !== null}
+                                            />
+                                        </label>
+                                        {asset && (
+                                            <>
+                                                <button onClick={() => downloadAsset(asset.url, `${item.character}_${slugify(item.title)}_picture${slot}`)} className="text-[10px] font-bold bg-slate-800 hover:bg-slate-700 rounded-md px-1.5">⬇️</button>
+                                                <button onClick={() => removeAsset(asset.id)} className="text-[10px] font-bold bg-rose-950/50 hover:bg-rose-900/50 text-rose-400 rounded-md px-1.5">✕</button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    )
-                })}
+                        )
+                    })}
+                </div>
+            </div>
+
+            <div>
+                <label className="text-xs font-bold text-slate-400 block mb-1">
+                    🎬 Generated Output (final clip/render for this content)
+                </label>
+                <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {outputAssets.map(asset => (
+                            <div key={asset.id} className="bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex flex-col">
+                                <div className="aspect-square bg-slate-900 flex items-center justify-center">
+                                    {asset.content_type?.startsWith('video/') ? (
+                                        <video src={asset.url} controls className="w-full h-full object-cover" />
+                                    ) : asset.content_type?.startsWith('image/') ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={asset.url} alt={asset.label} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-3xl">📄</span>
+                                    )}
+                                </div>
+                                <div className="p-1.5 flex flex-col gap-1">
+                                    <div className="text-[10px] text-slate-500 truncate text-center" title={asset.label}>{asset.label}</div>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => downloadAsset(asset.url, asset.label)} className="flex-1 text-[10px] font-bold bg-slate-800 hover:bg-slate-700 rounded-md py-1">⬇️ Download</button>
+                                        <button onClick={() => removeAsset(asset.id)} className="text-[10px] font-bold bg-rose-950/50 hover:bg-rose-900/50 text-rose-400 rounded-md px-1.5">✕</button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <label className="px-4 py-2 bg-cyan-900/40 border border-cyan-700 text-cyan-300 rounded-lg text-xs font-bold cursor-pointer text-center w-fit">
+                        {uploadingOutput ? 'Uploading...' : '⬆️ Upload generated clip / image'}
+                        <input
+                            type="file"
+                            multiple
+                            accept="video/*,image/*"
+                            className="hidden"
+                            onChange={e => uploadOutput(e.target.files)}
+                            disabled={uploadingOutput}
+                        />
+                    </label>
+                </div>
             </div>
         </div>
     )
@@ -577,7 +646,7 @@ function CalendarTab() {
                         return (
                             <div
                                 key={dateStr}
-                                className={`min-h-[100px] bg-slate-900 border rounded-xl p-2 flex flex-col gap-1 cursor-pointer ${isToday ? 'border-cyan-600' : 'border-slate-800'}`}
+                                className={`min-h-[100px] bg-slate-900 border rounded-xl p-2 flex flex-col gap-1 cursor-pointer hover:border-cyan-700 ${isToday ? 'border-cyan-600' : 'border-slate-800'}`}
                                 onClick={() => setPickerDate(dateStr)}
                             >
                                 <div className={`text-xs font-bold ${isToday ? 'text-cyan-400' : 'text-slate-500'}`}>{day}</div>
@@ -586,7 +655,6 @@ function CalendarTab() {
                                         key={it.id}
                                         className={`text-[10px] px-1.5 py-1 rounded-md truncate ${STATUS_STYLES[it.status] || STATUS_STYLES.pending}`}
                                         title={`${it.character} — ${it.title || it.core_mechanic || it.content_category || ''}`}
-                                        onClick={(e) => { e.stopPropagation(); if (confirm(`Unschedule "${it.title || it.core_mechanic || it.content_category}"?`)) clearDate(it.id) }}
                                     >
                                         {CHAR_EMOJI[it.character] || '🎭'} {it.title || it.core_mechanic || it.content_category || 'item'}
                                     </div>
@@ -598,17 +666,90 @@ function CalendarTab() {
             )}
 
             {pickerDate && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setPickerDate(null)}>
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                        <h3 className="font-bold mb-4">Assign content to {pickerDate}</h3>
+                <DayDetailDialog
+                    date={pickerDate}
+                    items={itemsByDate[pickerDate] || []}
+                    unscheduled={unscheduled}
+                    onAssign={(itemId) => assignDate(itemId, pickerDate)}
+                    onClear={clearDate}
+                    onClose={() => setPickerDate(null)}
+                />
+            )}
+        </div>
+    )
+}
+
+function DayDetailDialog({ date, items, unscheduled, onAssign, onClear, onClose }: {
+    date: string, items: any[], unscheduled: any[],
+    onAssign: (itemId: string) => void, onClear: (itemId: string) => void, onClose: () => void,
+}) {
+    const [showAssign, setShowAssign] = useState(items.length === 0)
+
+    const statLine = (it: any) => {
+        const parts: string[] = []
+        if (it.views != null) parts.push(`👁️ ${it.views}`)
+        if (it.likes != null) parts.push(`❤️ ${it.likes}`)
+        if (it.comments_count != null) parts.push(`💬 ${it.comments_count}`)
+        if (it.shares != null) parts.push(`🔁 ${it.shares}`)
+        if (it.retention_pct != null) parts.push(`⏱️ ${it.retention_pct}%`)
+        if (it.rating != null) parts.push('⭐'.repeat(it.rating))
+        return parts
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <h3 className="font-bold mb-4">{date}</h3>
+
+                {items.length === 0 ? (
+                    <p className="text-sm text-slate-400 mb-4">No content scheduled for this day yet.</p>
+                ) : (
+                    <div className="flex flex-col gap-2 mb-4">
+                        {items.map(it => {
+                            const stats = statLine(it)
+                            return (
+                                <div key={it.id} className="bg-slate-950 border border-slate-800 rounded-lg p-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <div className="font-bold text-sm truncate">
+                                                {CHAR_EMOJI[it.character] || '🎭'} {it.title || it.core_mechanic || it.content_category || 'item'}
+                                            </div>
+                                            <div className="text-xs text-slate-500">{it.character}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${STATUS_STYLES[it.status] || STATUS_STYLES.pending}`}>
+                                                {STATUS_LABELS[it.status] || it.status}
+                                            </span>
+                                            <button
+                                                onClick={() => { if (confirm(`Unschedule "${it.title || it.core_mechanic}"?`)) onClear(it.id) }}
+                                                className="text-[10px] font-bold bg-rose-950/50 hover:bg-rose-900/50 text-rose-400 rounded-md px-1.5 py-1"
+                                            >✕</button>
+                                        </div>
+                                    </div>
+                                    {stats.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2 mt-2 text-xs text-slate-400">
+                                            {stats.map((s, i) => <span key={i}>{s}</span>)}
+                                        </div>
+                                    ) : (
+                                        <div className="text-xs text-slate-600 mt-2">No performance data logged yet — add it from the Queue tab once posted.</div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+
+                {showAssign ? (
+                    <div>
+                        <div className="text-xs font-bold text-slate-400 mb-2">+ Assign content to this day</div>
                         {unscheduled.length === 0 ? (
-                            <p className="text-sm text-slate-400">No unscheduled items available. All items are either scheduled or already posted.</p>
+                            <p className="text-sm text-slate-400">No unscheduled items available.</p>
                         ) : (
                             <div className="flex flex-col gap-2">
                                 {unscheduled.map(it => (
                                     <button
                                         key={it.id}
-                                        onClick={() => assignDate(it.id, pickerDate)}
+                                        onClick={() => onAssign(it.id)}
                                         className="text-left px-3 py-2 bg-slate-950 border border-slate-800 hover:border-cyan-600 rounded-lg text-sm"
                                     >
                                         <span className="font-bold">{CHAR_EMOJI[it.character] || '🎭'} {it.title || it.core_mechanic || it.content_category || 'item'}</span>
@@ -617,10 +758,13 @@ function CalendarTab() {
                                 ))}
                             </div>
                         )}
-                        <button onClick={() => setPickerDate(null)} className="mt-4 text-xs text-slate-500 hover:text-white">Close</button>
                     </div>
-                </div>
-            )}
+                ) : (
+                    <button onClick={() => setShowAssign(true)} className="text-xs font-bold text-cyan-400 hover:text-white">+ Assign more content to this day</button>
+                )}
+
+                <button onClick={onClose} className="mt-4 text-xs text-slate-500 hover:text-white block">Close</button>
+            </div>
         </div>
     )
 }
@@ -678,17 +822,6 @@ function AssetsTab() {
         if (!confirm('Delete this asset permanently?')) return
         await fetch(`/api/pipeline/assets/${id}`, { method: 'DELETE' })
         fetchAssets()
-    }
-
-    const downloadAsset = async (url: string, label: string) => {
-        const res = await fetch(url)
-        const blob = await res.blob()
-        const objUrl = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = objUrl
-        link.download = label
-        link.click()
-        URL.revokeObjectURL(objUrl)
     }
 
     return (

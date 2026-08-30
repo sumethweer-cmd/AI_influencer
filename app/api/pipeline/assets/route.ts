@@ -8,11 +8,13 @@ export async function GET(req: Request) {
         const character = searchParams.get('character')
         const itemId = searchParams.get('item_id')
         const generalOnly = searchParams.get('general') === 'true'
+        const assetType = searchParams.get('asset_type')
 
         let query = supabase.from('pipeline_assets').select('*').order('created_at', { ascending: false })
         if (character) query = query.eq('character', character)
         if (itemId) query = query.eq('content_item_id', itemId)
         if (generalOnly) query = query.is('content_item_id', null)
+        if (assetType) query = query.eq('asset_type', assetType)
 
         const { data, error } = await query
         if (error) throw error
@@ -31,6 +33,7 @@ export async function POST(req: Request) {
         const itemId = (formData.get('item_id') as string) || null
         const pictureSlotRaw = formData.get('picture_slot') as string
         const pictureSlot = pictureSlotRaw ? Number(pictureSlotRaw) : null
+        const assetType = (formData.get('asset_type') as string) || 'reference'
 
         if (!file) {
             return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 })
@@ -64,6 +67,7 @@ export async function POST(req: Request) {
             label,
             content_item_id: itemId,
             picture_slot: pictureSlot,
+            asset_type: assetType,
             storage_path: `pipeline-assets/${storagePath}`,
             url: publicUrl,
             content_type: file.type || null,
