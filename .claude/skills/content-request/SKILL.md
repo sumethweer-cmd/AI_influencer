@@ -92,7 +92,10 @@ item's fields (see the shape documented at the top of
 ```
 node scripts/push-content-item.mjs /path/to/item.json
 ```
-Include `content_category`, `core_mechanic`, `delivery_format`,
+Include a short human-readable `title` (a few words, e.g. "GPS" or "Dating
+an Asian Girl" — this is what the dashboard queue/calendar and downloaded
+filenames show, so give every item one; don't leave it to the mechanic
+slug), `content_category`, `core_mechanic`, `delivery_format`,
 `visual_format`, `platform`, `model`, `character_take`, `compiled_prompt`
 (the exact text — for `per_shot` models with multiple shots, push one row
 per shot), and the full `validation_report`. The script derives a `.srt`

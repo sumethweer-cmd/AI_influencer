@@ -4,9 +4,11 @@
 // see .claude/skills/content-request/SKILL.md Step 3.
 //
 // Usage: node scripts/push-content-item.mjs path/to/item.json
-// item.json shape: { character, content_category, core_mechanic,
+// item.json shape: { character, title, content_category, core_mechanic,
 //   delivery_format, visual_format, platform, model, character_take,
 //   compiled_prompt, validation_report, status }
+// title is a short human-readable name (e.g. "GPS") shown in the dashboard
+// queue/calendar and used for downloaded filenames — always include one.
 // compiled_prompt is the raw text (H3's six sections, or Krea's prose) —
 // srt_content is derived automatically for H3-shaped prompts, left null otherwise.
 
@@ -103,6 +105,7 @@ async function main() {
 
     const { data, error } = await supabase.from('pipeline_content_items').insert([{
         character: item.character,
+        title: item.title ?? null,
         content_category: item.content_category ?? null,
         core_mechanic: item.core_mechanic ?? null,
         delivery_format: item.delivery_format ?? null,

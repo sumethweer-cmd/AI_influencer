@@ -18,6 +18,13 @@ const STATUS_LABELS: Record<string, string> = {
 
 const CHAR_EMOJI: Record<string, string> = { momo: '💜', anong: '🇹🇭' }
 
+const slugify = (s: string) =>
+    (s || 'untitled')
+        .trim()
+        .replace(/[\\/:*?"<>|]/g, '')
+        .replace(/\s+/g, '_')
+        .slice(0, 60)
+
 const downloadText = (filename: string, content: string) => {
     const blob = new Blob([content], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
@@ -148,6 +155,7 @@ function QueueTab() {
 
 function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded: boolean, onToggle: () => void, onUpdated: () => void }) {
     const [note, setNote] = useState(item.note || '')
+    const [title, setTitle] = useState(item.title || '')
     const [status, setStatus] = useState(item.status)
     const [scheduledDate, setScheduledDate] = useState(item.scheduled_date || '')
     const [followUp, setFollowUp] = useState({
@@ -191,11 +199,13 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                     <span className="text-lg">{CHAR_EMOJI[item.character] || '🎭'}</span>
                     <div className="min-w-0">
                         <div className="font-bold text-sm truncate">
-                            {item.character} — {item.content_category || 'uncategorized'}
-                            {item.core_mechanic ? <span className="text-slate-500 font-normal"> · {item.core_mechanic}</span> : null}
+                            {item.title || item.core_mechanic || 'Untitled'}
+                            <span className="text-slate-500 font-normal"> — {item.character}</span>
                         </div>
                         <div className="text-xs text-slate-500 truncate">
-                            {item.delivery_format} {item.visual_format ? `· ${item.visual_format}` : ''} {item.platform ? `· ${item.platform}` : ''} {item.model ? `· ${item.model}` : ''}
+                            {item.content_category || 'uncategorized'}
+                            {item.core_mechanic ? ` · ${item.core_mechanic}` : ''}
+                            {' · '}{item.delivery_format} {item.visual_format ? `· ${item.visual_format}` : ''} {item.platform ? `· ${item.platform}` : ''} {item.model ? `· ${item.model}` : ''}
                             {item.scheduled_date ? ` · 📅 ${item.scheduled_date}` : ''}
                         </div>
                     </div>
@@ -210,6 +220,17 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
 
             {expanded && (
                 <div className="border-t border-slate-800 p-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 block mb-1">Title</label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            onBlur={() => saveFields({ title })}
+                            placeholder="ตั้งชื่อสั้นๆ ให้จำง่าย เช่น 'GPS' หรือ 'Dating an Asian Girl'"
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-cyan-500 outline-none"
+                        />
+                    </div>
                     {item.character_take && (
                         <div>
                             <label className="text-xs font-bold text-slate-400 block mb-1">Character Take</label>
@@ -219,14 +240,14 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
 
                     <div className="flex flex-wrap gap-2">
                         <button
-                            onClick={() => downloadText(`${item.character}_${item.id}_compiled_prompt.txt`, item.compiled_prompt)}
+                            onClick={() => downloadText(`${item.character}_${slugify(item.title)}_compiled_prompt.txt`, item.compiled_prompt)}
                             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-bold"
                         >
                             📄 Download .txt
                         </button>
                         {item.srt_content && (
                             <button
-                                onClick={() => downloadText(`${item.character}_${item.id}.srt`, item.srt_content)}
+                                onClick={() => downloadText(`${item.character}_${slugify(item.title)}.srt`, item.srt_content)}
                                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-bold"
                             >
                                 💬 Download .srt
@@ -450,10 +471,10 @@ function CalendarTab() {
                                     <div
                                         key={it.id}
                                         className={`text-[10px] px-1.5 py-1 rounded-md truncate ${STATUS_STYLES[it.status] || STATUS_STYLES.pending}`}
-                                        title={`${it.character} — ${it.core_mechanic || it.content_category || ''}`}
-                                        onClick={(e) => { e.stopPropagation(); if (confirm(`Unschedule "${it.core_mechanic || it.content_category}"?`)) clearDate(it.id) }}
+                                        title={`${it.character} — ${it.title || it.core_mechanic || it.content_category || ''}`}
+                                        onClick={(e) => { e.stopPropagation(); if (confirm(`Unschedule "${it.title || it.core_mechanic || it.content_category}"?`)) clearDate(it.id) }}
                                     >
-                                        {CHAR_EMOJI[it.character] || '🎭'} {it.core_mechanic || it.content_category || 'item'}
+                                        {CHAR_EMOJI[it.character] || '🎭'} {it.title || it.core_mechanic || it.content_category || 'item'}
                                     </div>
                                 ))}
                             </div>
@@ -476,8 +497,8 @@ function CalendarTab() {
                                         onClick={() => assignDate(it.id, pickerDate)}
                                         className="text-left px-3 py-2 bg-slate-950 border border-slate-800 hover:border-cyan-600 rounded-lg text-sm"
                                     >
-                                        <span className="font-bold">{CHAR_EMOJI[it.character] || '🎭'} {it.character}</span>
-                                        <span className="text-slate-500"> — {it.core_mechanic || it.content_category || 'item'}</span>
+                                        <span className="font-bold">{CHAR_EMOJI[it.character] || '🎭'} {it.title || it.core_mechanic || it.content_category || 'item'}</span>
+                                        <span className="text-slate-500"> — {it.character}</span>
                                     </button>
                                 ))}
                             </div>
