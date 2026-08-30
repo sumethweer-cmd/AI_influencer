@@ -211,6 +211,36 @@ export async function listGCSFiles(folderPath: string): Promise<string[]> {
 }
 
 /**
+ * Generates a v4 signed URL the browser can PUT a file to directly, bypassing
+ * our own server entirely. Needed for anything that could exceed a serverless
+ * function's request-body limit (e.g. video clips) — the file never passes
+ * through our API route, only its metadata does afterwards.
+ */
+export async function getSignedUploadUrl(
+  bucket: string,
+  filePath: string,
+  contentType: string,
+  expiresInMs: number = 15 * 60 * 1000
+): Promise<string> {
+  if (!storageClient) {
+    throw new Error('Google Cloud Storage is not configured in environment variables.');
+  }
+
+  const fullPath = `${bucket}/${filePath}`;
+  const [url] = await storageClient
+    .bucket(gcsBucketName)
+    .file(fullPath)
+    .getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: Date.now() + expiresInMs,
+      contentType,
+    });
+
+  return url;
+}
+
+/**
  * Fetches a file buffer from GCS.
  */
 export async function getGCSFileBuffer(filePath: string): Promise<{ buffer: Buffer; contentType: string } | null> {
