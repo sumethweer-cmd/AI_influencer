@@ -354,6 +354,25 @@ function FollowUpField({ label, value, onChange, type = 'text', step }: { label:
     )
 }
 
+const postAsset = async (formData: FormData) => {
+    let res: Response
+    try {
+        res = await fetch('/api/pipeline/assets', { method: 'POST', body: formData })
+    } catch (e: any) {
+        throw new Error(`Network error — upload didn't reach the server: ${e.message}`)
+    }
+    let json: any
+    try {
+        json = await res.json()
+    } catch {
+        throw new Error(`Server returned an unreadable response (HTTP ${res.status}). The file may be too large for the server to accept.`)
+    }
+    if (!res.ok || !json.success) {
+        throw new Error(json?.error || `Upload failed (HTTP ${res.status})`)
+    }
+    return json.data
+}
+
 const downloadAsset = async (url: string, label: string) => {
     const res = await fetch(url)
     const blob = await res.blob()
@@ -370,6 +389,7 @@ function ItemAssets({ item }: { item: any }) {
     const [loading, setLoading] = useState(true)
     const [uploadingSlot, setUploadingSlot] = useState<number | null>(null)
     const [uploadingOutput, setUploadingOutput] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
     const maxSlot = useMemo(() => {
         const matches = [...(item.compiled_prompt || '').matchAll(/<Picture (\d+)>/g)]
@@ -399,6 +419,7 @@ function ItemAssets({ item }: { item: any }) {
 
     const uploadToSlot = async (slot: number, file: File) => {
         setUploadingSlot(slot)
+        setError(null)
         try {
             const formData = new FormData()
             formData.append('file', file)
@@ -407,10 +428,11 @@ function ItemAssets({ item }: { item: any }) {
             formData.append('picture_slot', String(slot))
             formData.append('asset_type', 'reference')
             formData.append('label', `${item.title || item.character} — Picture ${slot}`)
-            await fetch('/api/pipeline/assets', { method: 'POST', body: formData })
+            await postAsset(formData)
             fetchAssets()
-        } catch (e) {
+        } catch (e: any) {
             console.error(e)
+            setError(e.message)
         } finally {
             setUploadingSlot(null)
         }
@@ -419,6 +441,7 @@ function ItemAssets({ item }: { item: any }) {
     const uploadOutput = async (files: FileList | null) => {
         if (!files || files.length === 0) return
         setUploadingOutput(true)
+        setError(null)
         try {
             for (const file of Array.from(files)) {
                 const formData = new FormData()
@@ -427,11 +450,12 @@ function ItemAssets({ item }: { item: any }) {
                 formData.append('character', item.character)
                 formData.append('asset_type', 'output')
                 formData.append('label', file.name)
-                await fetch('/api/pipeline/assets', { method: 'POST', body: formData })
+                await postAsset(formData)
             }
             fetchAssets()
-        } catch (e) {
+        } catch (e: any) {
             console.error(e)
+            setError(e.message)
         } finally {
             setUploadingOutput(false)
         }
@@ -445,6 +469,12 @@ function ItemAssets({ item }: { item: any }) {
 
     return (
         <div className="flex flex-col gap-5">
+            {error && (
+                <div className="bg-rose-950/50 border border-rose-800 text-rose-300 text-xs rounded-lg px-3 py-2 flex items-start justify-between gap-2">
+                    <span>⚠️ {error}</span>
+                    <button onClick={() => setError(null)} className="shrink-0 text-rose-400 hover:text-white">✕</button>
+                </div>
+            )}
             <div>
                 <label className="text-xs font-bold text-slate-400 block mb-1">
                     🖼️ Reference Images (Picture 1-{maxSlot}) {loading && <span className="text-cyan-400 font-normal">loading...</span>}
@@ -778,6 +808,7 @@ function AssetsTab() {
     const [uploading, setUploading] = useState(false)
     const [uploadCharacter, setUploadCharacter] = useState('')
     const [uploadLabel, setUploadLabel] = useState('')
+    const [error, setError] = useState<string | null>(null)
 
     const fetchAssets = async () => {
         setLoading(true)
@@ -802,17 +833,19 @@ function AssetsTab() {
     const handleFiles = async (files: FileList | null) => {
         if (!files || files.length === 0) return
         setUploading(true)
+        setError(null)
         try {
             for (const file of Array.from(files)) {
                 const formData = new FormData()
                 formData.append('file', file)
                 if (uploadCharacter) formData.append('character', uploadCharacter)
                 formData.append('label', uploadLabel || file.name)
-                await fetch('/api/pipeline/assets', { method: 'POST', body: formData })
+                await postAsset(formData)
             }
             fetchAssets()
-        } catch (e) {
+        } catch (e: any) {
             console.error(e)
+            setError(e.message)
         } finally {
             setUploading(false)
         }
@@ -826,6 +859,12 @@ function AssetsTab() {
 
     return (
         <div className="flex flex-col gap-6">
+            {error && (
+                <div className="bg-rose-950/50 border border-rose-800 text-rose-300 text-xs rounded-lg px-3 py-2 flex items-start justify-between gap-2">
+                    <span>⚠️ {error}</span>
+                    <button onClick={() => setError(null)} className="shrink-0 text-rose-400 hover:text-white">✕</button>
+                </div>
+            )}
             <div
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files) }}
