@@ -272,6 +272,7 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                                 type="date"
                                 value={scheduledDate}
                                 onChange={e => { setScheduledDate(e.target.value); saveFields({ scheduled_date: e.target.value || null }) }}
+                                style={{ colorScheme: 'dark' }}
                                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm"
                             />
                         </div>
@@ -319,6 +320,8 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                         />
                     </details>
 
+                    <ItemPictureSlots item={item} />
+
                     {item.validation_report && (
                         <details className="text-xs">
                             <summary className="cursor-pointer text-slate-400 font-bold">Validation Report</summary>
@@ -347,6 +350,117 @@ function FollowUpField({ label, value, onChange, type = 'text', step }: { label:
                 onBlur={() => onChange(local)}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-sm"
             />
+        </div>
+    )
+}
+
+function ItemPictureSlots({ item }: { item: any }) {
+    const [assets, setAssets] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+    const [uploadingSlot, setUploadingSlot] = useState<number | null>(null)
+
+    const maxSlot = useMemo(() => {
+        const matches = [...(item.compiled_prompt || '').matchAll(/<Picture (\d+)>/g)]
+        return matches.length ? Math.max(...matches.map(m => Number(m[1]))) : 3
+    }, [item.compiled_prompt])
+
+    const fetchAssets = async () => {
+        setLoading(true)
+        try {
+            const res = await fetch(`/api/pipeline/assets?item_id=${item.id}`).then(r => r.json())
+            if (res.success) setAssets(res.data)
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchAssets()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [item.id])
+
+    const assetForSlot = (slot: number) => assets.find(a => a.picture_slot === slot)
+
+    const uploadToSlot = async (slot: number, file: File) => {
+        setUploadingSlot(slot)
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('item_id', item.id)
+            formData.append('character', item.character)
+            formData.append('picture_slot', String(slot))
+            formData.append('label', `${item.title || item.character} — Picture ${slot}`)
+            await fetch('/api/pipeline/assets', { method: 'POST', body: formData })
+            fetchAssets()
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setUploadingSlot(null)
+        }
+    }
+
+    const removeSlot = async (assetId: string) => {
+        if (!confirm('Remove this reference image?')) return
+        await fetch(`/api/pipeline/assets/${assetId}`, { method: 'DELETE' })
+        fetchAssets()
+    }
+
+    const downloadAsset = async (url: string, label: string) => {
+        const res = await fetch(url)
+        const blob = await res.blob()
+        const objUrl = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = objUrl
+        link.download = label
+        link.click()
+        URL.revokeObjectURL(objUrl)
+    }
+
+    return (
+        <div>
+            <label className="text-xs font-bold text-slate-400 block mb-1">
+                🖼️ Reference Images (Picture 1-{maxSlot}) {loading && <span className="text-cyan-400 font-normal">loading...</span>}
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {Array.from({ length: maxSlot }, (_, i) => i + 1).map(slot => {
+                    const asset = assetForSlot(slot)
+                    return (
+                        <div key={slot} className="bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex flex-col">
+                            <div className="aspect-square bg-slate-900 flex items-center justify-center relative">
+                                {asset ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={asset.url} alt={`Picture ${slot}`} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-slate-600 text-xs">{slot === 1 ? 'Character' : `Picture ${slot}`}</span>
+                                )}
+                            </div>
+                            <div className="p-1.5 flex flex-col gap-1">
+                                <div className="text-[10px] text-slate-500 text-center">Picture {slot}</div>
+                                <div className="flex gap-1">
+                                    <label className="flex-1 text-[10px] font-bold bg-slate-800 hover:bg-slate-700 rounded-md py-1 text-center cursor-pointer">
+                                        {uploadingSlot === slot ? '...' : (asset ? '🔁 Replace' : '⬆️ Upload')}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={e => { if (e.target.files?.[0]) uploadToSlot(slot, e.target.files[0]) }}
+                                            disabled={uploadingSlot !== null}
+                                        />
+                                    </label>
+                                    {asset && (
+                                        <>
+                                            <button onClick={() => downloadAsset(asset.url, `${item.character}_${slugify(item.title)}_picture${slot}`)} className="text-[10px] font-bold bg-slate-800 hover:bg-slate-700 rounded-md px-1.5">⬇️</button>
+                                            <button onClick={() => removeSlot(asset.id)} className="text-[10px] font-bold bg-rose-950/50 hover:bg-rose-900/50 text-rose-400 rounded-md px-1.5">✕</button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
         </div>
     )
 }
@@ -526,6 +640,7 @@ function AssetsTab() {
         try {
             const params = new URLSearchParams()
             if (characterFilter) params.set('character', characterFilter)
+            params.set('general', 'true')
             const res = await fetch(`/api/pipeline/assets?${params.toString()}`).then(r => r.json())
             if (res.success) setAssets(res.data)
         } catch (e) {
