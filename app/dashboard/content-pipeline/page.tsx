@@ -158,6 +158,10 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
     const [note, setNote] = useState(item.note || '')
     const [title, setTitle] = useState(item.title || '')
     const [status, setStatus] = useState(item.status)
+    const [compiledPrompt, setCompiledPrompt] = useState(item.compiled_prompt || '')
+    const [srtContent, setSrtContent] = useState(item.srt_content || '')
+    const [savingPrompt, setSavingPrompt] = useState(false)
+    const [savingSrt, setSavingSrt] = useState(false)
     const [scheduledDate, setScheduledDate] = useState(item.scheduled_date || '')
     const [followUp, setFollowUp] = useState({
         views: item.views ?? '',
@@ -183,6 +187,38 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
             console.error(e)
         } finally {
             setSaving(false)
+        }
+    }
+
+    const saveCompiledPrompt = async () => {
+        setSavingPrompt(true)
+        try {
+            await fetch(`/api/pipeline/items/${item.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ compiled_prompt: compiledPrompt }),
+            })
+            onUpdated()
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setSavingPrompt(false)
+        }
+    }
+
+    const saveSrtContent = async () => {
+        setSavingSrt(true)
+        try {
+            await fetch(`/api/pipeline/items/${item.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ srt_content: srtContent }),
+            })
+            onUpdated()
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setSavingSrt(false)
         }
     }
 
@@ -255,6 +291,55 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                             </button>
                         )}
                     </div>
+
+                    <details className="text-xs">
+                        <summary className="cursor-pointer text-slate-400 font-bold">📄 Compiled Prompt (view / edit)</summary>
+                        <div className="mt-2 flex flex-col gap-2">
+                            <textarea
+                                value={compiledPrompt}
+                                onChange={e => setCompiledPrompt(e.target.value)}
+                                spellCheck={false}
+                                className="w-full h-72 bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap focus:border-cyan-500 outline-none"
+                            />
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={saveCompiledPrompt}
+                                    disabled={savingPrompt || compiledPrompt === item.compiled_prompt}
+                                    className="px-4 py-1.5 bg-cyan-900/40 border border-cyan-700 text-cyan-300 rounded-lg text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {savingPrompt ? 'Saving...' : '💾 Save Prompt'}
+                                </button>
+                                {compiledPrompt !== item.compiled_prompt && !savingPrompt && (
+                                    <span className="text-amber-400">unsaved changes</span>
+                                )}
+                            </div>
+                        </div>
+                    </details>
+
+                    <details className="text-xs">
+                        <summary className="cursor-pointer text-slate-400 font-bold">💬 SRT (view / edit)</summary>
+                        <div className="mt-2 flex flex-col gap-2">
+                            <textarea
+                                value={srtContent}
+                                onChange={e => setSrtContent(e.target.value)}
+                                spellCheck={false}
+                                placeholder="No .srt yet — you can write/paste one here and save it."
+                                className="w-full h-48 bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap focus:border-cyan-500 outline-none"
+                            />
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={saveSrtContent}
+                                    disabled={savingSrt || srtContent === (item.srt_content || '')}
+                                    className="px-4 py-1.5 bg-cyan-900/40 border border-cyan-700 text-cyan-300 rounded-lg text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {savingSrt ? 'Saving...' : '💾 Save SRT'}
+                                </button>
+                                {srtContent !== (item.srt_content || '') && !savingSrt && (
+                                    <span className="text-amber-400">unsaved changes</span>
+                                )}
+                            </div>
+                        </div>
+                    </details>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
