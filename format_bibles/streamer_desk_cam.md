@@ -53,6 +53,14 @@ slowly shifting across the background. Small natural gestures fit this setup
 well — a chair spin of a few inches, leaning into the armrest, one leg tucked
 under her.
 
+Not every character needs the same setup — this is Momo's established look,
+not a requirement of the format itself (Camera/Body/Eyes/Movement/Lighting
+rules above are setup-agnostic). Anong's first use of this format (2026-09-01,
+"AI Tier List") used a plainer home computer desk instead — simple desk,
+monitor glow, soft ambient room lighting, no RGB — fitting her less-gamer
+aesthetic; treat that as her reference setup going forward rather than
+reusing Momo's gaming chair by default.
+
 ## Q&A / Fan-Interaction Variant
 This format also supports a second, off-screen speaker asking the question
 that starts the item (see `model_specs/minimax-h3.md`'s Dialogue/Speaker
