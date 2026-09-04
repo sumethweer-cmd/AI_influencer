@@ -19,6 +19,19 @@ const STATUS_LABELS: Record<string, string> = {
 
 const CHAR_EMOJI: Record<string, string> = { momo: '💜', anong: '🇹🇭' }
 
+const PLATFORMS = [
+    { key: 'tiktok', label: 'TikTok', emoji: '🎵' },
+    { key: 'instagram', label: 'Instagram', emoji: '📸' },
+    { key: 'facebook', label: 'Facebook', emoji: '📘' },
+] as const
+
+const toDatetimeLocal = (iso: string) => {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const slugify = (s: string) =>
     (s || 'untitled')
         .trim()
@@ -106,6 +119,15 @@ function QueueTab() {
         }
     }
 
+    // Applied after an ItemCard successfully saves a field — merges the change
+    // straight into local state instead of re-fetching the whole list. Re-fetching
+    // flips `loading` back to true, which swaps the entire item list out for a
+    // "Loading..." placeholder for a moment — visually indistinguishable from a
+    // full page refresh, and it drops scroll position + any expanded cards.
+    const patchItemLocal = (id: string, patch: Record<string, any>) => {
+        setItems(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i))
+    }
+
     const characters = Array.from(new Set(items.map(i => i.character))).sort()
 
     return (
@@ -145,7 +167,7 @@ function QueueTab() {
                             item={item}
                             expanded={expandedId === item.id}
                             onToggle={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                            onUpdated={fetchItems}
+                            onSaved={patchItemLocal}
                         />
                     ))}
                 </div>
@@ -154,7 +176,7 @@ function QueueTab() {
     )
 }
 
-function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded: boolean, onToggle: () => void, onUpdated: () => void }) {
+function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: boolean, onToggle: () => void, onSaved: (id: string, patch: Record<string, any>) => void }) {
     const [note, setNote] = useState(item.note || '')
     const [title, setTitle] = useState(item.title || '')
     const [status, setStatus] = useState(item.status)
@@ -163,6 +185,8 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
     const [savingPrompt, setSavingPrompt] = useState(false)
     const [savingSrt, setSavingSrt] = useState(false)
     const [scheduledDate, setScheduledDate] = useState(item.scheduled_date || '')
+    const [postedAt, setPostedAt] = useState(item.posted_at ? toDatetimeLocal(item.posted_at) : '')
+    const [platformMetrics, setPlatformMetrics] = useState<Record<string, any>>(item.platform_metrics || {})
     const [followUp, setFollowUp] = useState({
         views: item.views ?? '',
         retention_pct: item.retention_pct ?? '',
@@ -174,6 +198,8 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
     })
     const [saving, setSaving] = useState(false)
 
+    // Saves straight to the row and patches the parent's local list — no
+    // whole-list refetch, so the page never flashes back to a loading state.
     const saveFields = async (fields: Record<string, any>) => {
         setSaving(true)
         try {
@@ -182,7 +208,7 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(fields),
             })
-            onUpdated()
+            onSaved(item.id, fields)
         } catch (e) {
             console.error(e)
         } finally {
@@ -198,7 +224,7 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ compiled_prompt: compiledPrompt }),
             })
-            onUpdated()
+            onSaved(item.id, { compiled_prompt: compiledPrompt })
         } catch (e) {
             console.error(e)
         } finally {
@@ -214,7 +240,7 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ srt_content: srtContent }),
             })
-            onUpdated()
+            onSaved(item.id, { srt_content: srtContent })
         } catch (e) {
             console.error(e)
         } finally {
@@ -227,6 +253,19 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
         setFollowUp(updated)
         const parsed = value === '' ? null : (key === 'follow_up_notes' ? value : Number(value))
         saveFields({ [key]: parsed })
+    }
+
+    const savePostedAt = (value: string) => {
+        setPostedAt(value)
+        saveFields({ posted_at: value ? new Date(value).toISOString() : null })
+    }
+
+    const savePlatformField = (platform: string, field: string, value: string) => {
+        const current = platformMetrics[platform] || {}
+        const parsed = value === '' ? null : Number(value)
+        const updated = { ...platformMetrics, [platform]: { ...current, [field]: parsed } }
+        setPlatformMetrics(updated)
+        saveFields({ platform_metrics: updated })
     }
 
     return (
@@ -244,6 +283,7 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                             {item.core_mechanic ? ` · ${item.core_mechanic}` : ''}
                             {' · '}{item.delivery_format} {item.visual_format ? `· ${item.visual_format}` : ''} {item.platform ? `· ${item.platform}` : ''} {item.model ? `· ${item.model}` : ''}
                             {item.scheduled_date ? ` · 📅 ${item.scheduled_date}` : ''}
+                            {item.posted_at ? ` · 🕐 ${new Date(item.posted_at).toLocaleString()}` : ''}
                         </div>
                     </div>
                 </div>
@@ -341,7 +381,7 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                         </div>
                     </details>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         <div>
                             <label className="text-xs font-bold text-slate-400 block mb-1">Status</label>
                             <select
@@ -358,6 +398,16 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                                 type="date"
                                 value={scheduledDate}
                                 onChange={e => { setScheduledDate(e.target.value); saveFields({ scheduled_date: e.target.value || null }) }}
+                                style={{ colorScheme: 'dark' }}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 block mb-1">Posted At (วัน+เวลาที่ลงจริง)</label>
+                            <input
+                                type="datetime-local"
+                                value={postedAt}
+                                onChange={e => savePostedAt(e.target.value)}
                                 style={{ colorScheme: 'dark' }}
                                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm"
                             />
@@ -379,24 +429,59 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
 
                     <details className="text-xs" open={status === 'posted'}>
                         <summary className="cursor-pointer text-slate-400 font-bold">📈 Follow-up / Performance</summary>
-                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <FollowUpField label="Views" value={followUp.views} onChange={v => saveFollowUpField('views', v)} type="number" />
-                            <FollowUpField label="Retention %" value={followUp.retention_pct} onChange={v => saveFollowUpField('retention_pct', v)} type="number" step="0.1" />
-                            <FollowUpField label="Likes" value={followUp.likes} onChange={v => saveFollowUpField('likes', v)} type="number" />
-                            <FollowUpField label="Comments" value={followUp.comments_count} onChange={v => saveFollowUpField('comments_count', v)} type="number" />
-                            <FollowUpField label="Shares" value={followUp.shares} onChange={v => saveFollowUpField('shares', v)} type="number" />
-                            <div>
-                                <label className="text-[10px] font-bold text-slate-500 block mb-1">Rating (1-5)</label>
-                                <select
-                                    value={followUp.rating}
-                                    onChange={e => saveFollowUpField('rating', e.target.value)}
-                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-sm"
-                                >
-                                    <option value="">—</option>
-                                    {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'⭐'.repeat(n)}</option>)}
-                                </select>
+
+                        <div className="mt-3">
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Total (all platforms combined)</label>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <FollowUpField label="Views" value={followUp.views} onChange={v => saveFollowUpField('views', v)} type="number" />
+                                <FollowUpField label="Retention %" value={followUp.retention_pct} onChange={v => saveFollowUpField('retention_pct', v)} type="number" step="0.1" />
+                                <FollowUpField label="Likes" value={followUp.likes} onChange={v => saveFollowUpField('likes', v)} type="number" />
+                                <FollowUpField label="Comments" value={followUp.comments_count} onChange={v => saveFollowUpField('comments_count', v)} type="number" />
+                                <FollowUpField label="Shares" value={followUp.shares} onChange={v => saveFollowUpField('shares', v)} type="number" />
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Rating (1-5)</label>
+                                    <select
+                                        value={followUp.rating}
+                                        onChange={e => saveFollowUpField('rating', e.target.value)}
+                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-sm"
+                                    >
+                                        <option value="">—</option>
+                                        {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'⭐'.repeat(n)}</option>)}
+                                    </select>
+                                </div>
                             </div>
                         </div>
+
+                        <div className="mt-4">
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Breakdown by Platform</label>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs border-separate border-spacing-y-1">
+                                    <thead>
+                                        <tr className="text-slate-500 text-left">
+                                            <th className="pr-2 font-bold">Platform</th>
+                                            <th className="px-1 font-bold">Views</th>
+                                            <th className="px-1 font-bold">Likes</th>
+                                            <th className="px-1 font-bold">Comments</th>
+                                            <th className="px-1 font-bold">Shares</th>
+                                            <th className="px-1 font-bold">Retention %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {PLATFORMS.map(p => (
+                                            <tr key={p.key} className="bg-slate-950">
+                                                <td className="pr-2 py-1.5 pl-2 rounded-l-lg font-bold whitespace-nowrap">{p.emoji} {p.label}</td>
+                                                <td className="px-1"><PlatformMetricInput value={platformMetrics[p.key]?.views} onChange={v => savePlatformField(p.key, 'views', v)} /></td>
+                                                <td className="px-1"><PlatformMetricInput value={platformMetrics[p.key]?.likes} onChange={v => savePlatformField(p.key, 'likes', v)} /></td>
+                                                <td className="px-1"><PlatformMetricInput value={platformMetrics[p.key]?.comments} onChange={v => savePlatformField(p.key, 'comments', v)} /></td>
+                                                <td className="px-1"><PlatformMetricInput value={platformMetrics[p.key]?.shares} onChange={v => savePlatformField(p.key, 'shares', v)} /></td>
+                                                <td className="px-1 rounded-r-lg"><PlatformMetricInput value={platformMetrics[p.key]?.retention_pct} onChange={v => savePlatformField(p.key, 'retention_pct', v)} step="0.1" /></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                         <textarea
                             value={followUp.follow_up_notes}
                             onChange={e => setFollowUp({ ...followUp, follow_up_notes: e.target.value })}
@@ -419,6 +504,22 @@ function ItemCard({ item, expanded, onToggle, onUpdated }: { item: any, expanded
                 </div>
             )}
         </div>
+    )
+}
+
+function PlatformMetricInput({ value, onChange, step }: { value: any, onChange: (v: string) => void, step?: string }) {
+    const [local, setLocal] = useState(value ?? '')
+    useEffect(() => setLocal(value ?? ''), [value])
+    return (
+        <input
+            type="number"
+            step={step}
+            value={local}
+            onChange={e => setLocal(e.target.value)}
+            onBlur={() => onChange(local)}
+            placeholder="—"
+            className="w-20 bg-slate-900 border border-slate-700 rounded-md px-2 py-1 text-xs"
+        />
     )
 }
 
@@ -723,7 +824,9 @@ function CalendarTab() {
             body: JSON.stringify({ scheduled_date: date }),
         })
         setPickerDate(null)
-        fetchData()
+        const moved = unscheduled.find(i => i.id === itemId)
+        setUnscheduled(prev => prev.filter(i => i.id !== itemId))
+        if (moved) setItems(prev => [...prev, { ...moved, scheduled_date: date }])
     }
 
     const clearDate = async (itemId: string) => {
@@ -732,7 +835,9 @@ function CalendarTab() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ scheduled_date: null }),
         })
-        fetchData()
+        const cleared = items.find(i => i.id === itemId)
+        setItems(prev => prev.filter(i => i.id !== itemId))
+        if (cleared) setUnscheduled(prev => [...prev, { ...cleared, scheduled_date: null }])
     }
 
     // build the grid: leading blanks + days of month

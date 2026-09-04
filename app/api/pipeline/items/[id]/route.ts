@@ -22,7 +22,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const {
             note, title, status, scheduled_date, posted_at,
             views, retention_pct, likes, comments_count, shares,
-            rating, follow_up_notes, compiled_prompt, srt_content,
+            rating, follow_up_notes, compiled_prompt, srt_content, platform_metrics,
         } = body
         const updateData: any = {}
         if (note !== undefined) updateData.note = note
@@ -39,6 +39,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         if (shares !== undefined) updateData.shares = shares
         if (rating !== undefined) updateData.rating = rating
         if (follow_up_notes !== undefined) updateData.follow_up_notes = follow_up_notes
+        if (platform_metrics !== undefined) updateData.platform_metrics = platform_metrics
 
         const { data, error } = await supabase.from('pipeline_content_items').update(updateData).eq('id', id).select()
         if (error) throw error
