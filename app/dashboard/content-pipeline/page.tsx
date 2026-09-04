@@ -610,6 +610,7 @@ function ItemAssets({ item }: { item: any }) {
     const [loading, setLoading] = useState(true)
     const [uploadingSlot, setUploadingSlot] = useState<number | null>(null)
     const [uploadingOutput, setUploadingOutput] = useState(false)
+    const [uploadingAnalytics, setUploadingAnalytics] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     const maxSlot = useMemo(() => {
@@ -634,8 +635,9 @@ function ItemAssets({ item }: { item: any }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item.id])
 
-    const referenceAssets = assets.filter(a => a.asset_type !== 'output')
+    const referenceAssets = assets.filter(a => a.asset_type === 'reference' || !a.asset_type)
     const outputAssets = assets.filter(a => a.asset_type === 'output')
+    const analyticsAssets = assets.filter(a => a.asset_type === 'analytics')
     const assetForSlot = (slot: number) => referenceAssets.find(a => a.picture_slot === slot)
 
     const uploadToSlot = async (slot: number, file: File) => {
@@ -669,6 +671,23 @@ function ItemAssets({ item }: { item: any }) {
             setError(e.message)
         } finally {
             setUploadingOutput(false)
+        }
+    }
+
+    const uploadAnalytics = async (files: FileList | null) => {
+        if (!files || files.length === 0) return
+        setUploadingAnalytics(true)
+        setError(null)
+        try {
+            for (const file of Array.from(files)) {
+                await uploadAsset(file, { character: item.character, itemId: item.id, assetType: 'analytics', label: file.name })
+            }
+            fetchAssets()
+        } catch (e: any) {
+            console.error(e)
+            setError(e.message)
+        } finally {
+            setUploadingAnalytics(false)
         }
     }
 
@@ -767,6 +786,46 @@ function ItemAssets({ item }: { item: any }) {
                             className="hidden"
                             onChange={e => uploadOutput(e.target.files)}
                             disabled={uploadingOutput}
+                        />
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label className="text-xs font-bold text-slate-400 block mb-1">
+                    📊 Analytics Screenshots (retention graph, traffic source, ฯลฯ)
+                </label>
+                <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {analyticsAssets.map(asset => (
+                            <div key={asset.id} className="bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex flex-col">
+                                <div className="aspect-square bg-slate-900 flex items-center justify-center">
+                                    {asset.content_type?.startsWith('image/') ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={asset.url} alt={asset.label} className="w-full h-full object-contain" />
+                                    ) : (
+                                        <span className="text-3xl">📄</span>
+                                    )}
+                                </div>
+                                <div className="p-1.5 flex flex-col gap-1">
+                                    <div className="text-[10px] text-slate-500 truncate text-center" title={asset.label}>{asset.label}</div>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => downloadAsset(asset.url, asset.label)} className="flex-1 text-[10px] font-bold bg-slate-800 hover:bg-slate-700 rounded-md py-1">⬇️ Download</button>
+                                        <button onClick={() => removeAsset(asset.id)} className="text-[10px] font-bold bg-rose-950/50 hover:bg-rose-900/50 text-rose-400 rounded-md px-1.5">✕</button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <label className="px-4 py-2 bg-cyan-900/40 border border-cyan-700 text-cyan-300 rounded-lg text-xs font-bold cursor-pointer text-center w-fit">
+                        {uploadingAnalytics ? 'Uploading...' : '⬆️ Upload analytics screenshot'}
+                        <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            className="hidden"
+                            onChange={e => uploadAnalytics(e.target.files)}
+                            disabled={uploadingAnalytics}
                         />
                     </label>
                 </div>
