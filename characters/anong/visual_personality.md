@@ -36,6 +36,19 @@ Natural, warm, lifestyle-photography feel — not studio/editorial. Settings:
 cozy home interiors, cafés, beach/resort, outdoor daylight — consistent
 with a "curator sharing her actual life" premise, not a staged set.
 
+**Actually vary the setting — don't default to "cozy home interior corner"
+every time.** Confirmed failure (2026-09-05): a batch of 10 items in one
+sitting independently invented near-identical "cozy home living-room corner
+in soft warm evening lighting" settings, because that's the safest-sounding
+option when no specific setting is given — the result read as repetitive
+and lazy across the batch. Before writing a setting, check what other items
+already scheduled/generated nearby (same day/week) used, and deliberately
+pick a *different* one from the list above (café, beach/resort, outdoor
+daylight, or a genuinely different room/corner of the home — kitchen,
+balcony, bedroom vanity, car) rather than reaching for the same living-room
+default reflexively. "Cozy home interior" is one option among several, not
+the fallback for every item.
+
 ## Prompt Enhancer Guidance
 
 **Prefer**: natural smile with visible teeth or a soft closed-mouth smile,

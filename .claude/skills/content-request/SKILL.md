@@ -30,7 +30,7 @@ prompt-enhancer         → enhanced_spec.yaml
 comfyui-compiler        → compiled_prompt.yaml (one per shot/slide)
      │
      ▼
-prompt-validator (run as a subagent, not inline — see below)
+prompt-validator (TEMPORARILY DISABLED 2026-09-05 — see Step 2, skip straight through)
      │
   ┌──┴──┐
  PASS  FAIL → reprocess from validation_report.retry_layer, re-running every
@@ -60,6 +60,23 @@ objects between steps.
 
 ## Step 2 — Validation loop
 
+**TEMPORARILY DISABLED (2026-09-05, per human instruction) — do not invoke
+`prompt-validator` right now.** The human paused this step because the
+content itself (content-director's dialogue, prompt-enhancer's delivery) was
+still reading as bland/textbook and it wasn't worth spending validator tokens
+polishing the technical/format correctness of writing that needed a creative
+rewrite first, not a compliance check. Skip straight to Step 3 and write
+output with `status: pending` (never `qc_fail` while this is disabled — there's
+no validation_report to attach). Set `validation_report: null`.
+
+**Re-enable this step once a human confirms the creative quality problem is
+fixed** (see content-director's Voice Check and prompt-enhancer's Human
+Delivery Check, both added 2026-09-05) — at that point, restore the block
+below and go back to always validating:
+
+<details>
+<summary>Validation loop (restore when re-enabled)</summary>
+
 Invoke `prompt-validator` **as a subagent** (Agent tool), giving it only:
 `compiled_prompt.yaml` + the specific DNA/content_dna/format_bible/platform_spec
 files that were actually used — never the reasoning trail that produced them.
@@ -74,6 +91,8 @@ the prompt tends to grade its own work leniently.
   if still failing, still write the output (Step 3) but with `status: qc_fail`
   and the failing `validation_report` attached — a human reviews it on the
   `/dashboard/content-pipeline` queue instead of it silently disappearing.
+
+</details>
 
 ## Step 3 — Write output (local .txt + push to Supabase)
 
@@ -101,6 +120,25 @@ slug), `content_category`, `core_mechanic`, `delivery_format`,
 per shot), and the full `validation_report`. The script derives a `.srt`
 automatically for `minimax-h3`-shaped prompts from the shot timestamps; leave
 it to the script, don't hand-generate one.
+
+If invoked by `content-calendar` with a `scheduled_date` already decided,
+include it in the pushed item. `scheduled_time` ("HH:MM") is optional — the
+script auto-suggests a posting-time slot from `content_category`/`platform`
+(Thai TikTok peak-hour heuristic; see `suggestScheduledTime` in
+`scripts/push-content-item.mjs`) when omitted, so only pass it explicitly if
+this item needs a different slot than the default.
+
+**If `comfyui-compiler` split the item into multiple duration-limited
+segments** (minimax-h3 items over ~15s — see that model spec's "Duration
+Limit" section), push each segment as its own row, in order:
+1. Push segment 1 normally (no `parent_content_item_id`/`segment_number` —
+   or `segment_number: 1`). This row's returned id is the group's anchor.
+2. Push each later segment with the same `title`/`character_take`/
+   `core_mechanic` (they're all one piece of content), its own
+   `compiled_prompt`/`srt_content`, `parent_content_item_id` set to segment
+   1's row id, and `segment_number` set to 2, 3, etc.
+Local `.txt` files follow the same pattern as per-shot models:
+`item{NN}_part{N}_compiled_prompt.txt` per segment.
 
 **Before creating a new item, check the queue for unresolved work on this
 character**: query `pipeline_content_items` (or ask a human) for rows with

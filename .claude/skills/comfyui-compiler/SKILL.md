@@ -45,7 +45,8 @@ exactly the section names/order that model_spec documents (for minimax-h3:
 directly in prose, not wrapped in a `<Subject N>` layer) — all of
 `enhanced_spec`'s shots go into the one relevant section (`detailed_description`'s
 `[Shot N]` markers, each later shot starting `At MM:SS.mmm, the camera cuts
-to...`), not split across files.
+to...`) — normally not split across files, **except** the duration-limit
+split below, which does produce multiple files/rows by design.
 
 For minimax-h3 specifically: every beat/pause enhanced_spec called for must
 carry its numeric duration through into the prose (`holding a clear beat of
@@ -53,6 +54,17 @@ about 0.8 seconds`) — don't compress it back down to a vague "she pauses."
 Prepend the output file header convention documented in `model_specs/minimax-h3.md`
 (`# CONTENT — <title>`, `# Date:`, `# Character: ... | Mode:`, etc.) before
 the six sections.
+
+**Duration check (minimax-h3 only, do this before finalizing):** estimate
+total runtime (word count at ~2.5-3 words/sec + all pause durations). If it
+exceeds ~15 seconds, split into multiple complete H3 prompts at a shot
+boundary per `model_specs/minimax-h3.md`'s "Duration Limit" section — each
+segment gets its own full six-section prompt (identity/outfit/setting
+repeated in full, not referenced), and segment 2+ must describe her state as
+continuing exactly where the previous segment ended. Produce one
+`compiled_prompt` per segment; `content-request` pushes each as its own row
+(segment 1 plain, later segments carrying `parent_content_item_id` +
+`segment_number` — see that skill's Step 3).
 
 `params` = only fields the model_spec actually documents as required. Do not
 add `aspect_ratio`/resolution unless the model spec says to.

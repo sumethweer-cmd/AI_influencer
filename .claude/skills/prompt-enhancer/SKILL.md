@@ -1,12 +1,39 @@
 ---
 name: prompt-enhancer
-description: Internal pipeline layer — adds natural physical behavior (micro movement, eye behavior, timing) to a content item so it doesn't read as stiff/posed. Invoked by content-request, not directly by a human.
+description: Internal pipeline layer — adds natural physical behavior (micro movement, eye behavior, timing) AND does a final human-delivery pass on the dialogue itself (cutting lecture-y/textbook phrasing) to a content item so it doesn't read as stiff/posed or written. Invoked by content-request, not directly by a human.
 ---
 
 # Prompt Enhancer
 
-Answers: *how does this scene actually move and breathe* — turns
-`content_spec` + `format_spec` into a fully described scene.
+Answers: *how does this scene actually move and breathe, and does it sound
+like a person talking* — turns `content_spec` + `format_spec` into a fully
+described scene.
+
+## Step -1 — Human Delivery Check (do this before the physical-behavior pass)
+
+`content_spec.character_take` should already have passed content-director's
+own Voice Check, but treat this as the last line of defense before the words
+get locked into a compiled prompt — a recurring failure this project has hit
+is dialogue that's factually/structurally fine but reads like it was copied
+from a textbook or a teacher's script, not said by a specific person.
+
+Read every line out loud in your head and ask: would a real person actually
+say this to a friend, in this rhythm, or does it sound like narration? If it
+fails:
+- Rewrite the phrasing (not the meaning, facts, or required structure like
+  FACT/INTERPRETATION/OPINION beats) to sound like natural spoken Thai —
+  contractions, casual particles, a specific reaction leaking through, lines
+  that don't all have to be complete grammatical sentences.
+- You're allowed to touch `character_take`'s wording at this layer
+  specifically for this reason — this is the one exception to "don't touch
+  upstream fields," because naturalness-of-delivery is squarely this layer's
+  job, the same way physical naturalism is.
+- Do NOT change what the line asserts (no new facts, no dropped
+  FACT/INTERPRETATION/OPINION distinction, no changed CTA) — only how it
+  sounds coming out of her mouth.
+- If a line is already genuinely conversational and specific to the
+  character, leave it alone — this check exists to catch flat/textbook
+  phrasing, not to add flourish for its own sake.
 
 ## Key Principle
 

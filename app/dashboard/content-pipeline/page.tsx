@@ -130,6 +130,23 @@ function QueueTab() {
 
     const characters = Array.from(new Set(items.map(i => i.character))).sort()
 
+    // Group multi-segment items (a minimax-h3 item split above the 15s
+    // generation limit — see model_specs/minimax-h3.md) so segment 2+ render
+    // as parts of one card instead of confusing duplicate-titled cards.
+    // A "primary" row has no parent; its segments are itself plus any rows
+    // whose parent_content_item_id points back to it, ordered by segment_number.
+    const primaryItems = items.filter(i => !i.parent_content_item_id)
+    const segmentsByParent = useMemo(() => {
+        const map: Record<string, any[]> = {}
+        for (const i of items) {
+            if (!i.parent_content_item_id) continue
+            map[i.parent_content_item_id] = map[i.parent_content_item_id] || []
+            map[i.parent_content_item_id].push(i)
+        }
+        for (const id in map) map[id].sort((a, b) => (a.segment_number ?? 99) - (b.segment_number ?? 99))
+        return map
+    }, [items])
+
     return (
         <>
             <div className="flex flex-wrap gap-3 items-center">
@@ -161,10 +178,11 @@ function QueueTab() {
                 </div>
             ) : (
                 <div className="flex flex-col gap-4">
-                    {items.map(item => (
+                    {primaryItems.map(item => (
                         <ItemCard
                             key={item.id}
                             item={item}
+                            segments={segmentsByParent[item.id] ? [item, ...segmentsByParent[item.id]] : null}
                             expanded={expandedId === item.id}
                             onToggle={() => setExpandedId(expandedId === item.id ? null : item.id)}
                             onSaved={patchItemLocal}
@@ -176,15 +194,30 @@ function QueueTab() {
     )
 }
 
-function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: boolean, onToggle: () => void, onSaved: (id: string, patch: Record<string, any>) => void }) {
+function ItemCard({ item, segments, expanded, onToggle, onSaved }: { item: any, segments?: any[] | null, expanded: boolean, onToggle: () => void, onSaved: (id: string, patch: Record<string, any>) => void }) {
     const [note, setNote] = useState(item.note || '')
     const [title, setTitle] = useState(item.title || '')
     const [status, setStatus] = useState(item.status)
-    const [compiledPrompt, setCompiledPrompt] = useState(item.compiled_prompt || '')
-    const [srtContent, setSrtContent] = useState(item.srt_content || '')
+    // Multi-segment items (a minimax-h3 item split above the 15s generation
+    // limit — see model_specs/minimax-h3.md) share one card; only the
+    // compiled prompt / SRT / download section switches per part. Everything
+    // else (scheduling, note, assets, follow-up) belongs to the whole piece
+    // and is always read/written on the primary (segment 1) row, `item`.
+    const [activeSegmentIdx, setActiveSegmentIdx] = useState(0)
+    const activeSegment = segments ? segments[activeSegmentIdx] : item
+    const [compiledPrompt, setCompiledPrompt] = useState(activeSegment.compiled_prompt || '')
+    const [srtContent, setSrtContent] = useState(activeSegment.srt_content || '')
     const [savingPrompt, setSavingPrompt] = useState(false)
     const [savingSrt, setSavingSrt] = useState(false)
+
+    // Re-sync the prompt/SRT editors when the active part changes.
+    useEffect(() => {
+        setCompiledPrompt(activeSegment.compiled_prompt || '')
+        setSrtContent(activeSegment.srt_content || '')
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeSegment.id])
     const [scheduledDate, setScheduledDate] = useState(item.scheduled_date || '')
+    const [scheduledTime, setScheduledTime] = useState(item.scheduled_time ? item.scheduled_time.slice(0, 5) : '')
     const [postedAt, setPostedAt] = useState(item.posted_at ? toDatetimeLocal(item.posted_at) : '')
     const [platformMetrics, setPlatformMetrics] = useState<Record<string, any>>(item.platform_metrics || {})
     const [followUp, setFollowUp] = useState({
@@ -219,12 +252,12 @@ function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: 
     const saveCompiledPrompt = async () => {
         setSavingPrompt(true)
         try {
-            await fetch(`/api/pipeline/items/${item.id}`, {
+            await fetch(`/api/pipeline/items/${activeSegment.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ compiled_prompt: compiledPrompt }),
             })
-            onSaved(item.id, { compiled_prompt: compiledPrompt })
+            onSaved(activeSegment.id, { compiled_prompt: compiledPrompt })
         } catch (e) {
             console.error(e)
         } finally {
@@ -235,12 +268,12 @@ function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: 
     const saveSrtContent = async () => {
         setSavingSrt(true)
         try {
-            await fetch(`/api/pipeline/items/${item.id}`, {
+            await fetch(`/api/pipeline/items/${activeSegment.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ srt_content: srtContent }),
             })
-            onSaved(item.id, { srt_content: srtContent })
+            onSaved(activeSegment.id, { srt_content: srtContent })
         } catch (e) {
             console.error(e)
         } finally {
@@ -282,12 +315,17 @@ function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: 
                             {item.content_category || 'uncategorized'}
                             {item.core_mechanic ? ` · ${item.core_mechanic}` : ''}
                             {' · '}{item.delivery_format} {item.visual_format ? `· ${item.visual_format}` : ''} {item.platform ? `· ${item.platform}` : ''} {item.model ? `· ${item.model}` : ''}
-                            {item.scheduled_date ? ` · 📅 ${item.scheduled_date}` : ''}
+                            {item.scheduled_date ? ` · 📅 ${item.scheduled_date}${item.scheduled_time ? ` ${item.scheduled_time.slice(0, 5)}` : ''}` : ''}
                             {item.posted_at ? ` · 🕐 ${new Date(item.posted_at).toLocaleString()}` : ''}
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
+                    {segments && segments.length > 1 && (
+                        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-indigo-900/50 text-indigo-300" title="Split into multiple generation calls — see model_specs/minimax-h3.md's 15s duration limit">
+                            🎬 {segments.length} parts
+                        </span>
+                    )}
                     <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${STATUS_STYLES[status] || STATUS_STYLES.pending}`}>
                         {STATUS_LABELS[status] || status}
                     </span>
@@ -315,16 +353,32 @@ function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: 
                         </div>
                     )}
 
+                    {segments && segments.length > 1 && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-400">🎬 Generation parts:</span>
+                            {segments.map((seg, i) => (
+                                <button
+                                    key={seg.id}
+                                    onClick={() => setActiveSegmentIdx(i)}
+                                    className={`px-3 py-1 rounded-lg text-xs font-bold border ${activeSegmentIdx === i ? 'bg-indigo-900/50 border-indigo-600 text-indigo-300' : 'bg-slate-950 border-slate-700 text-slate-400 hover:border-slate-500'}`}
+                                >
+                                    Part {seg.segment_number ?? i + 1}/{segments.length}
+                                </button>
+                            ))}
+                            <span className="text-[11px] text-slate-500">generate each part separately, then join the clips in order</span>
+                        </div>
+                    )}
+
                     <div className="flex flex-wrap gap-2">
                         <button
-                            onClick={() => downloadText(`${item.character}_${slugify(item.title)}_compiled_prompt.txt`, item.compiled_prompt)}
+                            onClick={() => downloadText(`${item.character}_${slugify(item.title)}${segments && segments.length > 1 ? `_part${activeSegment.segment_number ?? activeSegmentIdx + 1}` : ''}_compiled_prompt.txt`, activeSegment.compiled_prompt)}
                             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-bold"
                         >
                             📄 Download .txt
                         </button>
-                        {item.srt_content && (
+                        {activeSegment.srt_content && (
                             <button
-                                onClick={() => downloadText(`${item.character}_${slugify(item.title)}.srt`, item.srt_content)}
+                                onClick={() => downloadText(`${item.character}_${slugify(item.title)}${segments && segments.length > 1 ? `_part${activeSegment.segment_number ?? activeSegmentIdx + 1}` : ''}.srt`, activeSegment.srt_content)}
                                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-bold"
                             >
                                 💬 Download .srt
@@ -333,7 +387,9 @@ function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: 
                     </div>
 
                     <details className="text-xs">
-                        <summary className="cursor-pointer text-slate-400 font-bold">📄 Compiled Prompt (view / edit)</summary>
+                        <summary className="cursor-pointer text-slate-400 font-bold">
+                            📄 Compiled Prompt (view / edit){segments && segments.length > 1 ? ` — Part ${activeSegment.segment_number ?? activeSegmentIdx + 1}/${segments.length}` : ''}
+                        </summary>
                         <div className="mt-2 flex flex-col gap-2">
                             <textarea
                                 value={compiledPrompt}
@@ -344,12 +400,12 @@ function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: 
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={saveCompiledPrompt}
-                                    disabled={savingPrompt || compiledPrompt === item.compiled_prompt}
+                                    disabled={savingPrompt || compiledPrompt === activeSegment.compiled_prompt}
                                     className="px-4 py-1.5 bg-cyan-900/40 border border-cyan-700 text-cyan-300 rounded-lg text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     {savingPrompt ? 'Saving...' : '💾 Save Prompt'}
                                 </button>
-                                {compiledPrompt !== item.compiled_prompt && !savingPrompt && (
+                                {compiledPrompt !== activeSegment.compiled_prompt && !savingPrompt && (
                                     <span className="text-amber-400">unsaved changes</span>
                                 )}
                             </div>
@@ -357,7 +413,9 @@ function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: 
                     </details>
 
                     <details className="text-xs">
-                        <summary className="cursor-pointer text-slate-400 font-bold">💬 SRT (view / edit)</summary>
+                        <summary className="cursor-pointer text-slate-400 font-bold">
+                            💬 SRT (view / edit){segments && segments.length > 1 ? ` — Part ${activeSegment.segment_number ?? activeSegmentIdx + 1}/${segments.length}` : ''}
+                        </summary>
                         <div className="mt-2 flex flex-col gap-2">
                             <textarea
                                 value={srtContent}
@@ -369,19 +427,19 @@ function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: 
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={saveSrtContent}
-                                    disabled={savingSrt || srtContent === (item.srt_content || '')}
+                                    disabled={savingSrt || srtContent === (activeSegment.srt_content || '')}
                                     className="px-4 py-1.5 bg-cyan-900/40 border border-cyan-700 text-cyan-300 rounded-lg text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     {savingSrt ? 'Saving...' : '💾 Save SRT'}
                                 </button>
-                                {srtContent !== (item.srt_content || '') && !savingSrt && (
+                                {srtContent !== (activeSegment.srt_content || '') && !savingSrt && (
                                     <span className="text-amber-400">unsaved changes</span>
                                 )}
                             </div>
                         </div>
                     </details>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>
                             <label className="text-xs font-bold text-slate-400 block mb-1">Status</label>
                             <select
@@ -398,6 +456,16 @@ function ItemCard({ item, expanded, onToggle, onSaved }: { item: any, expanded: 
                                 type="date"
                                 value={scheduledDate}
                                 onChange={e => { setScheduledDate(e.target.value); saveFields({ scheduled_date: e.target.value || null }) }}
+                                style={{ colorScheme: 'dark' }}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 block mb-1">Scheduled Time (แนะนำตามช่วง peak)</label>
+                            <input
+                                type="time"
+                                value={scheduledTime}
+                                onChange={e => { setScheduledTime(e.target.value); saveFields({ scheduled_time: e.target.value || null }) }}
                                 style={{ colorScheme: 'dark' }}
                                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm"
                             />
@@ -859,11 +927,15 @@ function CalendarTab() {
     const fetchData = async () => {
         setLoading(true)
         try {
+            // Segment 2+ of a split minimax-h3 item (see model_specs/minimax-h3.md's
+            // 15s duration limit) are generation sub-parts of one piece of content,
+            // not independently postable — only the primary (segment 1) row gets a
+            // calendar slot, so later segments are filtered out here.
             const scheduledRes = await fetch(`/api/pipeline/items?scheduled_from=${fmt(rangeStart)}&scheduled_to=${fmt(rangeEnd)}`).then(r => r.json())
-            if (scheduledRes.success) setItems(scheduledRes.data)
+            if (scheduledRes.success) setItems(scheduledRes.data.filter((i: any) => !i.parent_content_item_id))
 
             const allRes = await fetch(`/api/pipeline/items`).then(r => r.json())
-            if (allRes.success) setUnscheduled(allRes.data.filter((i: any) => !i.scheduled_date))
+            if (allRes.success) setUnscheduled(allRes.data.filter((i: any) => !i.scheduled_date && !i.parent_content_item_id))
         } catch (e) {
             console.error(e)
         } finally {
@@ -910,6 +982,9 @@ function CalendarTab() {
             if (!it.scheduled_date) continue
             map[it.scheduled_date] = map[it.scheduled_date] || []
             map[it.scheduled_date].push(it)
+        }
+        for (const date in map) {
+            map[date].sort((a, b) => (a.scheduled_time || '99:99').localeCompare(b.scheduled_time || '99:99'))
         }
         return map
     }, [items])
@@ -958,9 +1033,9 @@ function CalendarTab() {
                                     <div
                                         key={it.id}
                                         className={`text-[10px] px-1.5 py-1 rounded-md truncate ${STATUS_STYLES[it.status] || STATUS_STYLES.pending}`}
-                                        title={`${it.character} — ${it.title || it.core_mechanic || it.content_category || ''}`}
+                                        title={`${it.scheduled_time ? it.scheduled_time.slice(0, 5) + ' — ' : ''}${it.character} — ${it.title || it.core_mechanic || it.content_category || ''}`}
                                     >
-                                        {CHAR_EMOJI[it.character] || '🎭'} {it.title || it.core_mechanic || it.content_category || 'item'}
+                                        {it.scheduled_time ? `${it.scheduled_time.slice(0, 5)} ` : ''}{CHAR_EMOJI[it.character] || '🎭'} {it.title || it.core_mechanic || it.content_category || 'item'}
                                     </div>
                                 ))}
                             </div>
@@ -1018,7 +1093,9 @@ function DayDetailDialog({ date, items, unscheduled, onAssign, onClear, onClose 
                                             <div className="font-bold text-sm truncate">
                                                 {CHAR_EMOJI[it.character] || '🎭'} {it.title || it.core_mechanic || it.content_category || 'item'}
                                             </div>
-                                            <div className="text-xs text-slate-500">{it.character}</div>
+                                            <div className="text-xs text-slate-500">
+                                                {it.character}{it.scheduled_time ? ` · 🕐 ${it.scheduled_time.slice(0, 5)}` : ''}
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
                                             <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${STATUS_STYLES[it.status] || STATUS_STYLES.pending}`}>

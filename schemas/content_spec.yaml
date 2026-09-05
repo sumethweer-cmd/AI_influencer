@@ -10,6 +10,13 @@ core_mechanic: streamer_reaction        # short label for the content_dna struct
 
 source_topic: "the human's original idea, verbatim or lightly cleaned up"
 
+# One line naming the existing joke/premise/skit this was adapted from (per
+# content-director's Step 1.5 — search before inventing), e.g. "adapted from
+# an English 'whose phone is this' prank-call joke format found via search".
+# Null only when content-director genuinely couldn't find a fitting existing
+# premise after searching and had to originate one — not the default case.
+source_reference: null
+
 character_take: |
   The actual line(s) in the character's voice — dialogue, caption seed, or
   reaction — written using that character's speaking_style.md + humor_style.md.

@@ -84,6 +84,20 @@ for anything identity-critical.
 - A cut should land on a real structural beat (new expression, new info, a
   punchline) — matches the general "camera motion" vocabulary documented
   below, just applied with real timestamps instead of vague cut cues.
+- **When the visual_format calls for locked/fixed framing across shots
+  (e.g. `pov_qa_reaction.md`, `silent_reaction_beats.md`, `pov_comedy.md` —
+  "one cut per beat" with NO camera movement), say so explicitly and
+  negatively, not just descriptively.** Writing "the camera cuts to the same
+  fixed close-up framing" at every shot boundary is a weak signal — restating
+  a description of the framing reads to the model as *setting up* a shot, so
+  repeating it at each cut can itself introduce drift (a slight zoom,
+  re-angle, or reframe) even though the intent is a single locked framing
+  broken only by hard edit points. Instead, state the negative directly:
+  `the camera cuts on the beat — same distance, same angle, same framing as
+  the previous shot, no zoom or reframe` (or equivalent explicit "unchanged
+  from previous shot" phrasing). Confirmed failure mode (2026-09-05): a
+  pov_qa_reaction item generated visible zoom/refocus drift between its 3
+  shots despite each one saying "cuts to the same fixed close-up framing."
 
 ## Dialogue / Speaker Rules
 
@@ -119,6 +133,70 @@ across a whole shot, not a deliberate held beat before a punchline.
 Real production files literally track this as a revision note — treat
 "reduce stiff, posed AI look" as an explicit, recurring self-check for
 `prompt-enhancer`, not just a background goal.
+
+## Duration Limit — Split Above ~15 Seconds (per-item generation constraint, 2026-09-05)
+
+A single H3 generation call reliably degrades past roughly 15 seconds — long
+items must be split into multiple separate compiled prompts (each its own
+generation call), not one long prompt. This is a **generation-length limit**,
+distinct from the earlier "shot duration must match speech pace" rule (that
+one is about internal timing accuracy; this one is about total call length).
+
+- Estimate total runtime the same way as before (word count at ~2.5-3
+  words/sec + all pause durations). If the total exceeds ~15 seconds, split
+  the shot sequence into 2+ segments at a natural shot boundary — **never
+  mid-line, mid-sentence, or mid-pause**.
+- Each segment must be a **complete, self-contained H3 prompt** with all six
+  sections (`subject_definitions` through `non_diegetic_music`) — not a
+  fragment. Copy the full locked identity block, outfit, and setting into
+  every segment; a later segment doesn't inherit anything from an earlier
+  one at generation time, since each is a separate call.
+- **Continuity across segments is your job to write in, not something the
+  model infers**: segment 2's opening line/shot must describe her current
+  state as a continuation of exactly where segment 1 left off (same
+  expression/posture/emotional beat she ended on, described fresh at the
+  start of segment 2's own `detailed_description`) so the two clips read as
+  one continuous scene when joined, not two disconnected takes.
+- In `comfyui-compiler`'s output: write each segment as its own complete
+  `compiled_prompt`, and push each as its own `pipeline_content_items` row
+  per `content-request/SKILL.md` Step 3's segment-push convention (segment 1
+  first, then later segments referencing its row id via
+  `parent_content_item_id` + their own `segment_number`).
+
+## Camera/Lighting Realism (required — avoid the "AI slop" look)
+
+Confirmed failure (2026-09-05, human review after testing generated clips):
+lighting was never specified, and the result "looks very AI, very AI slop" —
+too clean/glossy, reading as an obviously synthetic render rather than
+real footage. **Every compiled prompt must explicitly state a natural,
+imperfect camera/lighting quality** unless the item specifically calls for
+something more polished (e.g. a deliberately editorial/studio piece, which
+should be rare per `visual_personality.md`'s "not studio/editorial" default):
+- Natural/ambient light, not studio-lit — window light, overhead room light,
+  outdoor daylight, whatever the actual setting would really have.
+- Handheld phone-camera quality/aesthetic — the implied "camera" in most of
+  these formats (selfie_cam, POV formats, candid_single_take) *is* a phone,
+  so say so: phrase like `natural handheld phone-camera quality, slight
+  natural imperfection, not overly polished/glossy`.
+- This is a default requirement to add explicitly to every compiled prompt's
+  scene-setting language (subject_definitions' Picture 3 / detailed_description's
+  opening line), not something to assume the model infers on its own.
+
+## Shot Duration Must Match Actual Speech Pace (do not assert a timestamp that doesn't fit the words)
+
+Confirmed failure (2026-09-05): items where the declared shot duration
+didn't actually match how long the dialogue takes to say at natural pace
+caused visible visual flip-flopping/drift between cuts — the model has to
+"catch up," which reads as the image changing back and forth rather than a
+clean cut. Before finalizing shot timestamps:
+- Compute actual speech duration from word count (Thai: ~2.5-3 words/sec)
+  and add the described pause durations — the shot's total declared length
+  must equal (or very slightly exceed) that sum, never assert a shorter
+  window than the dialogue+pauses actually need.
+- If a shot's dialogue+pauses don't fit its assigned timeframe, the fix is
+  to shorten the dialogue or lengthen the timestamp — never leave a
+  mismatch and hope the model compresses the delivery to fit, since that's
+  exactly what produces the visual instability described above.
 
 ## On-Screen Text
 Visible banners/signs/subtitles go in English double quotes, verbatim,
