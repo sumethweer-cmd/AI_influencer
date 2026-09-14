@@ -5,9 +5,10 @@ description: Step 1 of the Reel Machine — turn any viral short-form reel into 
 
 # reel-intake
 
-Goal: understand EXACTLY how a viral reel is built — frame by frame, word by word — so `seedance-prompter`
-can rebuild the *format* with your own model. You clone the mechanic — never the person, their face, handle,
-exact lines, or their file.
+Goal: understand EXACTLY how a viral reel is built — frame by frame, word by word — so the resulting
+`teardown.md` can drive this repo's own pipeline (`storyboard-builder` for a visual storyboard, then
+`content-request`/`comfyui-compiler` for the actual generate-ready prompt) to rebuild the *format* with
+your own model. You clone the mechanic — never the person, their face, handle, exact lines, or their file.
 
 ## Input → Output
 - **Input:** a reel LINK, or a FILE the user drops in (both work — file always wins if given).
@@ -70,8 +71,15 @@ directly — the output contract stays the same (`intake/<slug>/` with the files
 - Transcript: `whisper reference.mp4 --model small --word_timestamps True --output_format all --output_dir intake/<slug>`
 
 ## The teardown is the handoff
-`seedance-prompter` reads `teardown.md` + `words.json` to set the word budget, pause structure, beat map,
-camera POV and look. Keep the FORM, change the content: your model, your angle, your own or licensed audio.
+This repo has no `seedance-prompter` — the handoff goes to two skills of our own instead:
+- `storyboard-builder` reads `teardown.md` + `words.json` first and turns it into a scene-by-scene visual
+  storyboard (character/setting/script/lighting/camera/action per beat), with an actual reference image
+  generated per scene via the OpenAI or Gemini image API — for the user to review before committing to a
+  full generation.
+- `content-request`/`comfyui-compiler` then takes the approved storyboard/teardown as the content idea and
+  compiles it into a real, model-specific (`minimax-h3`) generate-ready prompt, same as any other content
+  item in this pipeline.
+Keep the FORM, change the content: your model, your angle, your own or licensed audio.
 
 ## Anti-patterns
 - Do NOT stall on a blocked download — the manual file path is a first-class input, not an error.
@@ -81,7 +89,7 @@ camera POV and look. Keep the FORM, change the content: your model, your angle, 
 - Do NOT write a vibe summary — every beat gets its second; every line gets its speaker tag.
 - Do NOT dump 100 frames into context — contact sheet first, single frames only where detail matters.
 
-## QA — before handing off to seedance-prompter
+## QA — before handing off to storyboard-builder
 - `intake/<slug>/` has: reference.mp4, frames/, contact-sheet.jpg, transcript.txt + words.json, teardown.md.
 - Beat table covers the full duration; every line tagged (speaker/gender/on-off-cam); look described
   (lens/vignette/camera height/holder).
