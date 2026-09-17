@@ -21,10 +21,10 @@ nsfw_default_level: "suggestive/implied only (fashion, swimwear, sensual glamour
 nsfw_explicit_override: "allowed ONLY when the human explicitly requests explicit/nude content for that specific content item — never the pipeline's own default, and never inferred from business_goal or platform alone."
 ```
 
-> **Permanent limit, regardless of the fields above:** explicit/hardcore
-> sexual content, anything involving minors, and non-consensual scenarios are
-> never something this pipeline generates. This is fixed and does not vary
-> per character file.
+> See `characters/CONTENT_HARD_LIMITS.md` for the 4 rules that apply
+> regardless of the settings above (no minors, no real-person likeness, no
+> non-consensual content, platform-gated) — everything else on this page is
+> Momo's own design choice.
 
 ## Hard Avoid List
 - Mean-spirited humor, punching down, judgmental framing

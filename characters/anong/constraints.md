@@ -30,10 +30,10 @@ sfw_default: true
 nsfw_allowed: false   # not part of this persona's design (wellness/affiliate/commerce positioning) — flag explicitly if this should ever change
 ```
 
-> **Permanent limit, regardless of the fields above:** explicit/hardcore
-> sexual content, anything involving minors, and non-consensual scenarios are
-> never something this pipeline generates. This is fixed and does not vary
-> per character file.
+> See `characters/CONTENT_HARD_LIMITS.md` for the 4 rules that apply
+> regardless of the setting above (no minors, no real-person likeness, no
+> non-consensual content, platform-gated). `nsfw_allowed: false` here is
+> this character's own design choice, not a pipeline-wide restriction.
 
 ## Hard Avoid List
 - Medical/scientific authority claims ("this cures/treats...")

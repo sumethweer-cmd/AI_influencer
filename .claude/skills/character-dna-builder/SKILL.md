@@ -29,11 +29,14 @@ Creates `characters/{slug}/`:
 - `constraints.md` — hard boundaries, sfw/nsfw flags, hard avoid list
 - `business_goal.md` — monetization goal, funnel structure, KPI framing
 
-Use the two existing characters (`characters/anong/`, `characters/momo/`) as
-the ground-truth schema reference — read 2-3 of their files before writing
-the new ones, so field names/structure match exactly. Do not invent new
+`characters/TEMPLATE/` holds the blank schema (`{{placeholder}}` fields) for
+all 7 files — copy its structure section-for-section, filling placeholders
+from the interview. Cross-check against the two filled examples
+(`characters/anong/`, `characters/momo/`) when a placeholder's expected
+shape isn't obvious from TEMPLATE alone (e.g. what a filled-in funnel
+structure or a Locked Identity Block actually looks like). Do not invent new
 top-level sections; downstream skills only read the sections that already
-exist in Anong/Momo's files.
+exist in these files.
 
 ## Step 1 — Interview the user
 
@@ -104,9 +107,28 @@ content":
       monetization is about fandom/attraction/support, not a claim needing
       credibility.
     - Or a genuinely different shape — don't force-fit if neither matches.
-20. NSFW/content boundary: explicit yes/no on `nsfw_allowed`, and where the
-    line is even within "sexy" (this must be an explicit, unambiguous
-    answer from the user — never infer or default this one).
+20. **Content boundary — ask this one before anything else in section E,
+    and never infer or default it.** This pipeline teaches prompt-engineering
+    technique; it does not dictate what the person building this character
+    chooses to create. So ask directly, in this order:
+    - First, read `characters/CONTENT_HARD_LIMITS.md` yourself if you
+      haven't this session, and relay its 4 rules to the user in your own
+      words before asking anything else: no minors ever (character must be
+      a genuine, stated adult — not youth-coded regardless of what else is
+      allowed), no real-person likeness, no non-consensual/violent sexual
+      content, and any NSFW content must stay gated to a platform that
+      actually permits it (never a reach platform like TikTok/IG/FB/
+      YouTube). Make clear these 4 don't change no matter what they answer
+      next.
+    - Then ask plainly: `nsfw_allowed` — yes or no for this character?
+    - If yes: what's the default level when NSFW is generated (suggestive/
+      implied only, vs. nude, vs. explicit)? And under what condition does
+      the most explicit tier actually get generated — e.g. only when
+      explicitly requested per content item, never as this character's own
+      default? (Same pattern as `characters/momo/constraints.md`'s
+      `nsfw_default_level`/`nsfw_explicit_override` fields — read that file
+      for the exact shape before writing this character's own.)
+    - If no: confirm `sfw_default: true` and move on — same as Anong's file.
 
 ## Step 2 — Confirm before writing
 
@@ -134,6 +156,14 @@ section-for-section. Concretely:
   "Format Fit — TODO" section) — never silently invent a hard constraint
   like `nsfw_allowed` without an explicit user answer for that one field
   specifically.
+- `constraints.md`'s Content Boundaries section must open with a reference
+  line to `characters/CONTENT_HARD_LIMITS.md` (copy the exact reference
+  line from `characters/anong/constraints.md` or `characters/momo/
+  constraints.md`), then the `nsfw_allowed`/`nsfw_default_level`/
+  `nsfw_explicit_override` yaml block from Step 1 question 20's answers.
+  Never write this section without that reference line — it's what makes
+  the 4 hard limits visible to anyone reading this specific character's file
+  later, not just to whoever ran this interview.
 - `business_goal.md`: write out the funnel stages explicitly (goal →
   stage 1/2/3 → content/platform/CTA per stage), not just a label, matching
   the level of detail in `characters/momo/business_goal.md`'s "Funnel
