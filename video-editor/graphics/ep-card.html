@@ -1,0 +1,94 @@
+<!doctype html>
+<html
+  lang="th"
+  data-resolution="portrait"
+  data-composition-variables='[
+    {"id":"series","type":"string","label":"Series title","default":"น้ำลดแล้ว…เธอจะไปไหม?"},
+    {"id":"epLabel","type":"string","label":"Episode label","default":"EP.01"},
+    {"id":"epTitle","type":"string","label":"Episode title","default":"ติดเกาะกับคนที่เกลียด"},
+    {"id":"accent","type":"color","label":"Accent","default":"#FFC933"}
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "LeelaUI";
+        src: url("fonts/LeelaUIb.ttf");
+        font-weight: 700;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #08121f; }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "LeelaUI", Tahoma, sans-serif;
+        font-weight: 700;
+        color: #f3f6fa;
+        background: radial-gradient(ellipse at 50% 38%, #12304a 0%, #0a1a2c 55%, #060d17 100%);
+      }
+      .rain { position: absolute; top: -260px; width: 3px; height: 220px; border-radius: 2px;
+              background: linear-gradient(to bottom, rgba(143,196,226,0), rgba(143,196,226,0.55)); }
+      #stack { position: absolute; inset: 0; display: flex; flex-direction: column;
+               align-items: center; justify-content: center; gap: 36px; }
+      .mask { overflow: hidden; padding: 6px 14px; }
+      #series { font-size: 44px; letter-spacing: 0.02em; color: rgba(243,246,250,0.78); text-align: center; }
+      #ep { display: flex; font-size: 270px; line-height: 1.02; color: var(--accent); }
+      #ep span { display: inline-block; }
+      #bar { height: 8px; width: 460px; border-radius: 4px; background: var(--accent); transform-origin: 50% 50%; }
+      #title { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 18px; max-width: 900px;
+               font-size: 76px; line-height: 1.45; text-align: center; }
+      #title span { display: inline-block; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="ep-card" data-start="0" data-duration="1.6" data-width="1080" data-height="1920" data-fps="24">
+      <div id="rain"></div>
+      <div id="stack" class="clip" data-start="0" data-duration="1.6" data-track-index="0">
+        <div class="mask"><div id="series" data-var-text="series">น้ำลดแล้ว…เธอจะไปไหม?</div></div>
+        <div class="mask"><div id="ep"></div></div>
+        <div id="bar"></div>
+        <div id="title"></div>
+      </div>
+    </div>
+    <script>
+      const vars = window.__hyperframes.getVariables();
+      const rain = document.getElementById("rain");
+      // fixed positions (no randomness): deterministic pseudo-spread
+      for (let i = 0; i < 22; i++) {
+        const d = document.createElement("div");
+        d.className = "rain";
+        d.style.left = ((i * 173) % 1080) + "px";
+        rain.appendChild(d);
+      }
+      const ep = document.getElementById("ep");
+      Array.from(String(vars.epLabel)).forEach((ch) => {
+        const s = document.createElement("span");
+        s.textContent = ch;
+        ep.appendChild(s);
+      });
+      const title = document.getElementById("title");
+      String(vars.epTitle).split(/\s+/).forEach((w) => {
+        const s = document.createElement("span");
+        s.textContent = w;
+        title.appendChild(s);
+      });
+
+      const tl = gsap.timeline({ paused: true });
+      document.querySelectorAll(".rain").forEach((el, i) => {
+        tl.fromTo(el, { y: 0, opacity: 0.0 }, { y: 2300, opacity: 1, duration: 0.9, ease: "none" }, (i % 8) * 0.07);
+        tl.fromTo(el, { y: 0 }, { y: 0, duration: 0.01 }, 0);
+      });
+      tl.fromTo("#series", { y: 70, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 0.15);
+      tl.fromTo("#ep span", { y: 240, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.4)", stagger: 0.07 }, 0.25);
+      tl.fromTo("#bar", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "power3.out" }, 0.55);
+      tl.fromTo("#title span", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out", stagger: 0.09 }, 0.7);
+      window.__timelines["ep-card"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

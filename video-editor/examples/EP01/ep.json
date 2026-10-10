@@ -1,0 +1,53 @@
+{
+  "ep": 1,
+  "title": "ติดเกาะกับคนที่เกลียด",
+  "next_ep_text": "ตอนต่อไป EP.02 เร็วๆ นี้",
+  "highlights": [
+    {
+      "clip": "C03",
+      "start": 4.2,
+      "end": 6.16,
+      "why": "Meena's dry comeback — funny with zero context"
+    },
+    {
+      "clip": "C10b",
+      "start": 5.16,
+      "end": 6.8,
+      "why": "หน้าแดง / ร้อน! — the romantic spark, no spoiler of the ending"
+    }
+  ],
+  "banners": [
+    {
+      "clip": "C11",
+      "at": 3.0,
+      "dur": 3.2,
+      "text": "วันนี้ให้ทุกคนทำงานจากบ้านนะคะ\nเนื่องจากฝนและน้ำท่วมขัง"
+    }
+  ],
+  "scenes": [
+    [
+      "C01",
+      "C02",
+      "C03",
+      "C04",
+      "C05"
+    ],
+    [
+      "C06",
+      "C07",
+      "C08",
+      "C09",
+      "C10"
+    ],
+    [
+      "C11",
+      "C12"
+    ]
+  ],
+  "alt_takes": {
+    "C10": [
+      "C10a",
+      "C10b"
+    ]
+  }
+}

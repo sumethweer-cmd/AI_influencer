@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+graphics/renders/
+graphics/vars/
+graphics/assets/cover*.png
+graphics/fonts/
