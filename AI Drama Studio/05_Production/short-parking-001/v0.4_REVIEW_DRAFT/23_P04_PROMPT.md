@@ -1,0 +1,29 @@
+# CONTENT — short-parking-001 · EP01 · P04 (S01 ท้าย (ขอกุญแจ → "ก็ขยับสิคะ!" → ส่งรูปเข้ากลุ่ม)) · 15s
+# Date: 2026-10-11
+# Length: 15
+# Character: Fon (Picture 1), Aoy (Picture 2) | Mode: Ref2VA (full-reference) — ตาม ai_influencer/model_specs/minimax-h3.md
+# Setting per request: ไม่มีรูป setting → บล็อก "Setting (no picture)" ต้องเหมือน P01 ทุกคำ
+# Assumption: Picture 1 = ฝน, Picture 2 = อ้อย, Picture 3 = สามี (ไม่ใช้ใน segment นี้ จึงไม่อ้างถึง) · speaker tag: Fon (S1), Aoy (S2)
+# Source: EP01_SCRIPT_v0.4_REVIEW.md S01 · "เอากุญแจมา หนูขยับให้ก็ได้" → "รถพี่ พี่ขยับเอง" → "ก็ขยับสิคะ!" → "นี่ขึ้นเสียงใส่พี่เหรอ?" → ฝนส่งภาพเข้ากลุ่ม (จบที่ฝนกดส่ง; อ้อยลุกตอนแจ้งเตือน อยู่ต้น S02) · สถานะบท REVIEW ยังไม่มี approval
+# Timing: Shot1 0–4.8 (พูด 2.4 + 0.4 + พูด 1.6 + 0.4) · Shot2 4.8–6.6 (พูด 1.2 + เงียบ 0.6) · Shot3 6.6–10.6 (ค้าง 0.8 + วาง 0.8 + พูด 2.4) · Shot4 10.6–15.0 (เม้มปาก 0.8 + กดส่ง 2.6 + ค้าง 1.0) · Thai ~2.5 คำ/วินาที · รวม 15.0s
+
+subject_definitions:
+<Picture 1> Fon - a Thai woman around 30 with warm tan skin, an oval-angular face, straight expressive eyebrows, dark brown eyes and a small mole under her left eye; a sharp asymmetrical jet-black bob with the long sloping side on her right, the short side exposing her left ear, and a diagonal fringe; muted teal short-sleeve collared blouse, charcoal trousers, small silver stud earrings, and a mustard-yellow canvas tote on her shoulder - the woman whose gate is blocked, who photographs the car, rings the neighbor's doorbell and asks her to move it.
+<Picture 2> Aoy - a Thai woman in her mid-40s with a rounded broad face, strong arched brows and dark brown eyes; glossy dark chestnut hair with a short blunt micro-fringe and a tall round bun pinned with a dark burgundy hair stick; small gold hoop earrings, a terracotta-rust short-sleeve collared home blouse with broad cream piping on the collar and cuffs, dark brown loose trousers and brown sandals - the neighbor who blocks the gate, comes out with a coffee mug and car keys, and brushes Fon off.
+Setting (no picture, described in text, identical in every segment): a Thai housing-estate lane in the early morning, with Fon's sliding gate and a dark grey hatchback parked behind it at frame left, and Aoy's green metal bar gate and carport at frame right holding a small round table, two chairs and potted plants; Aoy's pearl-white sedan is parked across the lane directly in front of Fon's gate, completely blocking it.
+
+summary:
+[reference generation] Continuing directly from the previous segment, where Fon <Picture 1> has just told Aoy she was summoned about being late and Aoy looked away with her mug: Fon reaches through the gate bars for the keys, Aoy sweeps them into her fist and refuses, Fon snaps, Aoy freezes offended, and Fon lowers her hand and sends a photo of the blocking car to the neighborhood group chat.
+
+retention_analysis:
+<Picture 1> (appears in [Shot 1], [Shot 2], [Shot 3] at the edge of frame, [Shot 4]): fully_preserved - identity, facial features, asymmetrical bob, mole and outfit retained exactly across all shots.
+<Picture 2> (appears in [Shot 1], [Shot 3], [Shot 4] at the edge of frame): fully_preserved - identity, facial features, bun with hair stick, micro-fringe and outfit retained exactly across all shots.
+
+detailed_description:
+Natural early-morning daylight, soft low sun from frame right, natural handheld phone-camera quality with slight natural imperfection, not overly polished or glossy; Fon always stays on the left side of the frame and Aoy on the right side, in every shot. At the start of this segment Fon <Picture 1> stands at the gate at the left with her phone in her lowered hand, her eyes on Aoy, and Aoy <Picture 2> sits at the small round table at the right holding her mug with the car keys lying beside it, looking away. [Shot 1] A medium over-the-shoulder shot from behind Fon <Picture 1> at frame left, at eye level, camera held steady: Fon extends one open hand through the gap between the green bars toward the table and Fon (S1) says at an urgent but respectful pace, <d>[Thai] เอากุญแจมา หนูขยับให้ก็ได้</d> then, after about 0.4 seconds, Aoy <Picture 2> at frame right, seated, instantly sweeps the car keys off the table into her own fist and pulls them to her chest, and Aoy (S2) says at a flat pace, <d>[Thai] รถพี่ พี่ขยับเอง</d> The keys move only from the table into Aoy's hand. [Shot 2] At 00:04.800, the camera cuts to a medium close-up of Fon <Picture 1> through the bars, her arm still extended: she loses her patience for one sharp second and Fon (S1) says in a raised, cracking voice, not a prolonged scream, <d>[Thai] ก็ขยับสิคะ!</d> followed by a startled silence of about 0.6 seconds. [Shot 3] At 00:06.600, the camera cuts to a medium close-up of Aoy <Picture 2>: the mug has stopped in mid-air and she holds it there for about 0.8 seconds, then slowly lowers it to the table over about 0.8 seconds and lifts her chin, her eyes now fixed on the gate, and Aoy (S2) says at a cool, wounded pace, <d>[Thai] นี่ขึ้นเสียงใส่พี่เหรอ?</d> Her offense is about tone, played realistically with no cartoon sneer. [Shot 4] At 00:10.600, the camera cuts to a medium shot from behind Fon's right shoulder at eye level: Fon <Picture 1> presses her lips together for about 0.8 seconds, slowly lowers the hand she had extended, lifts her phone with the other hand, taps the screen and presses send with her thumb, then holds about 1.0 second with her face showing controlled hurt and resolve. No one speaks in this shot. The phone screen is not readable and does not change.
+
+overall_soundscape:
+Quiet morning residential lane: distant birds, a faraway motorbike, the jingle of keys being scooped up into a fist, a ceramic mug touching the table, a brief echo of Fon's raised voice down the lane, a soft message-sent whoosh from the phone, her breath.
+
+non_diegetic_music:
+N/A

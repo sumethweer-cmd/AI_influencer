@@ -1,0 +1,30 @@
+{
+  "_note": "ตัวอย่าง config (MiniMax H3 Ref2VA ของ short-parking-001) — แก้เลข node ตามกราฟของ workflow ใหม่ที่ดึงด้วย extract_graph.mjs; path สัมพันธ์กับไฟล์ config",
+  "template": "workflow_api_template.json",
+  "promptDir": "../v0.4_REVIEW_DRAFT",
+  "jobNameRegex": "_(P\\d+)",
+  "promptStart": "subject_definitions:",
+  "lengthHeader": "# Length:",
+  "defaultSeconds": 15,
+  "outDir": "../outputs",
+  "outputNode": "34",
+  "timeoutMinutes": 180,
+  "promptNode": { "node": "365", "input": "prompt" },
+  "secondsNode": { "node": "22:23", "input": "value" },
+  "filenamePrefix": { "node": "34", "input": "filename_prefix", "template": "short-parking-001_{name}" },
+  "seedNodes": [
+    { "node": "16", "input": "seed" },
+    { "node": "103", "input": "seed" }
+  ],
+  "set": [
+    { "node": "22:9", "input": "megapixels", "value": 1 }
+  ],
+  "media": {
+    "mediaStateNode": { "node": "416", "input": "media_state" },
+    "dir": "../../../04_Series/short-parking-001/References/Characters",
+    "uploadSubfolder": "minimax_h3",
+    "width": 1536,
+    "height": 1024,
+    "files": ["fon-reference-v1.png", "aoy-reference-v1.png", "aoy-husband-reference-v1.png"]
+  }
+}

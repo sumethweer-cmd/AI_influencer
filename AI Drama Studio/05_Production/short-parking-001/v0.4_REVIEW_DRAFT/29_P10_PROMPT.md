@@ -1,0 +1,31 @@
+# CONTENT — short-parking-001 · EP01 · P10 (S02 ("ต้องเอาขนาดนั้นเลย?" → "…พี่แก้ให้หนูด้วย" → สามีขึ้นรถ)) · 15s
+# Date: 2026-10-11
+# Length: 15
+# Character: Fon (Picture 1), Aoy (Picture 2), สามีอ้อย (Picture 3) | Mode: Ref2VA (full-reference) — ตาม ai_influencer/model_specs/minimax-h3.md
+# Setting per request: ไม่มีรูป setting → บล็อก Setting (no picture) ต้องเหมือน P01 ทุกคำ
+# Assumption: Picture 1 = ฝน, 2 = อ้อย, 3 = สามีอ้อย · speaker tag: Fon (S1), Aoy (S2), สามี (S3) · สามีขับรถอ้อยไปทำงานแล้วกลับมาจอดในบ้านตอนเย็น (PROPOSED)
+# Source: EP01_SCRIPT_v0.4_REVIEW.md S02 · "ต้องเอาขนาดนั้นเลย?" → "หนูแค่จะออกไปทำงาน พี่ทำเหมือนหนูมาหาเรื่อง…" → "…พี่แก้ให้หนูด้วย" ฝนไม่หลบตา → สามีเดินไปขึ้นรถ · สถานะบท REVIEW ยังไม่มี approval
+# Timing: Shot1 0–3.0 (ถอนหายใจ 0.8 + พูด 1.6 + 0.6) · Shot2 3.0–7.6 (พูด 3.6 + เงียบ 1.0) · Shot3 7.6–12.4 (0.4 + พูด 1.6 + อ้อยเงยหน้า 1.2 + จ้อง 1.6) · Shot4 12.4–15.0 (เงียบ) · Thai ~2.5 คำ/วินาที · รวม 15.0s
+
+subject_definitions:
+<Picture 1> Fon - a Thai woman around 30 with warm tan skin, an oval-angular face, straight expressive eyebrows, dark brown eyes and a small mole under her left eye; a sharp asymmetrical jet-black bob with the long sloping side on her right, the short side exposing her left ear, and a diagonal fringe; muted teal short-sleeve collared blouse, charcoal trousers, small silver stud earrings, and a mustard-yellow canvas tote on her shoulder - the woman whose gate is blocked, who photographs the car, rings the neighbor's doorbell and asks her to move it.
+<Picture 2> Aoy - a Thai woman in her mid-40s with a rounded broad face, strong arched brows and dark brown eyes; glossy dark chestnut hair with a short blunt micro-fringe and a tall round bun pinned with a dark burgundy hair stick; small gold hoop earrings, a terracotta-rust short-sleeve collared home blouse with broad cream piping on the collar and cuffs, dark brown loose trousers and brown sandals - the neighbor who blocks the gate, comes out with a coffee mug and car keys, and brushes Fon off.
+<Picture 3> Aoy's husband - a Thai man around 50 with medium tan skin, a long rectangular face, heavy straight eyebrows, dark brown eyes and a clean-shaven face; a compact squared flat-top haircut with tightly clipped sides, dark charcoal with a broad silver-white forelock at the front on his right side (frame-left when he faces the camera); thick tortoiseshell rectangular glasses; a slate-blue short-sleeve work shirt with a chest pocket, navy trousers, a dark brown belt, and a black fabric work bag on his shoulder - Aoy's husband, who takes the keys to move the sedan out of the way, and at the end of this segment walks to the car and gets into the driver's seat.
+Setting (no picture, described in text, identical in every segment): a Thai housing-estate lane in the early morning, with Fon's sliding gate and a dark grey hatchback parked behind it at frame left, and Aoy's green metal bar gate and carport at frame right holding a small round table, two chairs and potted plants; Aoy's pearl-white sedan is parked across the lane directly in front of Fon's gate, completely blocking it.
+
+summary:
+[reference generation] Continuing directly from the previous segment, where Fon <Picture 1> has just asked whether the people who already watched the clip will know the truth: Aoy <Picture 2> grumbles at her phone, Fon, quieter but standing firm, says she only wanted to go to work and asks Aoy to fix it, Aoy looks up and Fon does not look away, and Aoy's husband <Picture 3> walks to the sedan and gets in.
+
+retention_analysis:
+<Picture 1> (appears in [Shot 2], [Shot 3], [Shot 4] at the edge of frame): fully_preserved - identity, facial features, asymmetrical bob, mole and outfit retained exactly across all shots.
+<Picture 2> (appears in [Shot 1], [Shot 3]): fully_preserved - identity, facial features, bun with hair stick, micro-fringe and outfit retained exactly across all shots.
+<Picture 3> (appears in [Shot 4]): fully_preserved - identity, facial features, flat-top with silver forelock, glasses and outfit retained exactly across all shots.
+
+detailed_description:
+Natural early-morning daylight, soft low sun from frame right, natural handheld phone-camera quality with slight natural imperfection, not overly polished or glossy; Fon always stays on the left side of the frame and Aoy on the right side, in every shot. At the start of this segment Fon <Picture 1> stands at the gate at the left holding her gaze steady, and Aoy <Picture 2> stands at the green bar gate at the right holding her phone, her husband <Picture 3> beside her with the car keys. [Shot 1] A close-up of Aoy <Picture 2> at eye level, handheld: she lets out a long irritated sigh over about 0.8 seconds, looks down and taps at her phone, and Aoy (S2) says at a grumbling pace without looking up, <d>[Thai] ต้องเอาขนาดนั้นเลย?</d> holding about 0.6 seconds. [Shot 2] At 00:03.000, the camera cuts to a medium close-up of Fon <Picture 1> at eye level, locked-off with a very slow push-in: her voice has dropped softer and is no longer raised, but she stays planted with her eyes level, and Fon (S1) says at a low, tired, honest pace, trailing off at the end, <d>[Thai] หนูแค่จะออกไปทำงาน พี่ทำเหมือนหนูมาหาเรื่อง…</d> then holds a silence of about 1.0 second. [Shot 3] At 00:07.600, the camera cuts to a medium two-shot in profile at eye level, static, Fon <Picture 1> at frame left and Aoy <Picture 2> at frame right: after about 0.4 seconds, Fon (S1) says at a quiet but resolute pace, <d>[Thai] …พี่แก้ให้หนูด้วย</d> and Aoy, who has been looking down at her phone, slowly raises her eyes to meet Fon's over about 1.2 seconds. Fon does not look away; the two hold each other's gaze in silence for about 1.6 seconds. [Shot 4] At 00:12.400, the camera cuts to a static wide shot at eye level: Aoy's husband <Picture 3> walks toward the pearl-white sedan blocking Fon's gate, opens the driver's door and gets in, while Fon <Picture 1> stands at the left watching and Aoy <Picture 2> stays at her gate at the right. No one speaks.
+
+overall_soundscape:
+Quiet morning residential lane: distant birds, Aoy's sigh and grumbling voice, thumb taps on glass, Fon's low honest voice trailing into silence, a long still gaze, a car door opening and closing at the end.
+
+non_diegetic_music:
+N/A

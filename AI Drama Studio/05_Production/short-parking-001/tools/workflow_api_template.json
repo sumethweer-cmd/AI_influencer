@@ -1,0 +1,971 @@
+{
+  "5": {
+    "inputs": {
+      "prompt": [
+        "365",
+        0
+      ],
+      "width": [
+        "22:9",
+        0
+      ],
+      "height": [
+        "22:9",
+        1
+      ],
+      "length": [
+        "22:24",
+        1
+      ],
+      "ref_image_size": "max",
+      "clip": [
+        "171:3",
+        0
+      ],
+      "vae": [
+        "171:2",
+        0
+      ],
+      "audio_vae": [
+        "171:1",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "417",
+        0
+      ],
+      "ref_images.ref_image_1": [
+        "417",
+        1
+      ],
+      "ref_images.ref_image_2": [
+        "417",
+        2
+      ],
+      "ref_images.ref_image_3": [
+        "417",
+        3
+      ],
+      "ref_images.ref_image_4": [
+        "417",
+        4
+      ],
+      "ref_images.ref_image_5": [
+        "417",
+        5
+      ],
+      "ref_images.ref_image_6": [
+        "417",
+        6
+      ],
+      "ref_images.ref_image_7": [
+        "417",
+        7
+      ],
+      "ref_images.ref_image_8": [
+        "417",
+        8
+      ],
+      "ref_videos.ref_video_0": [
+        "511",
+        0
+      ],
+      "ref_videos.ref_video_1": [
+        "417",
+        10
+      ],
+      "ref_videos.ref_video_2": [
+        "417",
+        11
+      ],
+      "ref_video_audios.ref_video_audio_0": [
+        "510",
+        0
+      ],
+      "ref_video_audios.ref_video_audio_1": [
+        "417",
+        13
+      ],
+      "ref_video_audios.ref_video_audio_2": [
+        "417",
+        14
+      ],
+      "ref_audios.ref_audio_0": [
+        "417",
+        15
+      ],
+      "ref_audios.ref_audio_1": [
+        "417",
+        16
+      ],
+      "ref_audios.ref_audio_2": [
+        "417",
+        17
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "MiniMax H3 Reference to Video"
+    }
+  },
+  "16": {
+    "inputs": {
+      "seed": 182908044976114
+    },
+    "class_type": "easy seed",
+    "_meta": {
+      "title": "Start New Gen! (Click Button)"
+    }
+  },
+  "18": {
+    "inputs": {
+      "frame_rate": 24,
+      "loop_count": 0,
+      "filename_prefix": "low_mm_20261011_152201",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": false,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": false,
+      "images": [
+        "176",
+        0
+      ],
+      "audio": [
+        "177",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Combine 🎥🅥🅗🅢"
+    }
+  },
+  "21": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "lora_1": {
+        "on": true,
+        "lora": "H3/minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors",
+        "strength": 1
+      },
+      "lora_2": {
+        "on": false,
+        "lora": "H3/h3-realism-people-t2v-i2v-r2v.safetensors",
+        "strength": 0.6
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "402",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "LoRAs (Applies to both Stage 1 and Stage 2)"
+    }
+  },
+  "34": {
+    "inputs": {
+      "frame_rate": [
+        "170",
+        0
+      ],
+      "loop_count": 0,
+      "filename_prefix": "Anong-ที่นั่งผู้โดยสาร",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 16,
+      "save_metadata": false,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": [
+        "354",
+        0
+      ],
+      "images": [
+        "341",
+        0
+      ],
+      "audio": [
+        "338",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Final Video"
+    }
+  },
+  "103": {
+    "inputs": {
+      "seed": 904038112124700
+    },
+    "class_type": "easy seed",
+    "_meta": {
+      "title": "Start/Reroll Upscale Pass"
+    }
+  },
+  "107": {
+    "inputs": {
+      "anything13": [
+        "22:7",
+        0
+      ],
+      "anything14": [
+        "22:6",
+        0
+      ],
+      "anything16": [
+        "171:2",
+        0
+      ],
+      "anything18": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "Anything Everywhere",
+    "_meta": {
+      "title": "Anything Everywhere"
+    }
+  },
+  "146": {
+    "inputs": {
+      "value": 1
+    },
+    "class_type": "INTConstant",
+    "_meta": {
+      "title": "#1 SELECTED"
+    }
+  },
+  "147": {
+    "inputs": {
+      "any_01": [
+        "146",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Latent Selection"
+    }
+  },
+  "169": {
+    "inputs": {
+      "value": 24
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "Default FPS"
+    }
+  },
+  "170": {
+    "inputs": {
+      "any_02": [
+        "169",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Target FPS"
+    }
+  },
+  "176": {
+    "inputs": {
+      "samples": [
+        "125:12",
+        0
+      ],
+      "vae": [
+        "171:2",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "177": {
+    "inputs": {
+      "samples": [
+        "125:12",
+        0
+      ],
+      "vae": [
+        "171:1",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE Decode Audio"
+    }
+  },
+  "196": {
+    "inputs": {
+      "attention": "comfy kitchen attention",
+      "model": [
+        "171:4",
+        0
+      ]
+    },
+    "class_type": "ModelAttentionBackend",
+    "_meta": {
+      "title": "Model Attention Backend"
+    }
+  },
+  "258": {
+    "inputs": {
+      "samples": [
+        "125:12",
+        1
+      ],
+      "vae": [
+        "171:1",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "Final Audio Decode"
+    }
+  },
+  "259": {
+    "inputs": {
+      "samples": [
+        "125:12",
+        1
+      ],
+      "vae": [
+        "171:2",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "Final Decode"
+    }
+  },
+  "261": {
+    "inputs": {
+      "any_01": [
+        "258",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Audio Source Selection"
+    }
+  },
+  "270": {
+    "inputs": {
+      "any_02": [
+        "259",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Gen Source Selection"
+    }
+  },
+  "338": {
+    "inputs": {
+      "any_02": [
+        "261",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Final Audio Selection"
+    }
+  },
+  "341": {
+    "inputs": {
+      "any_02": [
+        "270",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Final Video Selection"
+    }
+  },
+  "353": {
+    "inputs": {
+      "value": false
+    },
+    "class_type": "PrimitiveBoolean",
+    "_meta": {
+      "title": "Don't Save Until Finalization"
+    }
+  },
+  "354": {
+    "inputs": {
+      "any_01": [
+        "356",
+        0
+      ],
+      "any_03": [
+        "353",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Save Output"
+    }
+  },
+  "356": {
+    "inputs": {
+      "value": true
+    },
+    "class_type": "PrimitiveBoolean",
+    "_meta": {
+      "title": "Boolean"
+    }
+  },
+  "365": {
+    "inputs": {
+      "prompt": "subject_definitions: <Picture 1> Fon - a Thai woman around 30 with warm tan skin, an oval-angular face, straight expressive eyebrows, dark brown eyes and a small mole under her left eye; a sharp asymmetrical jet-black bob with the long sloping side on her right, the short side exposing her left ear, and a diagonal fringe; muted teal short-sleeve collared blouse, charcoal trousers, small silver stud earrings, and a mustard-yellow canvas tote on her shoulder - the woman whose gate is blocked, who photographs the car, rings the neighbor's doorbell and asks her to move it. <Picture 2> Aoy - a Thai woman in her mid-40s with a rounded broad face, strong arched brows and dark brown eyes; glossy dark chestnut hair with a short blunt micro-fringe and a tall round bun pinned with a dark burgundy hair stick; small gold hoop earrings, a terracotta-rust short-sleeve collared home blouse with broad cream piping on the collar and cuffs, dark brown loose trousers and brown sandals - the neighbor who blocks the gate, comes out with a coffee mug and car keys, and brushes Fon off. Setting (no picture, described in text, identical in every segment): a Thai housing-estate lane in the early morning, with Fon's sliding gate and a dark grey hatchback parked behind it at frame left, and Aoy's green metal bar gate and carport at frame right holding a small round table, two chairs and potted plants; Aoy's pearl-white sedan is parked across the lane directly in front of Fon's gate, completely blocking it.\r\n\r\nsummary: [reference generation] A realistic multi-shot scene built from the references: <Picture 1> Fon photographs the white sedan blocking her gate and walks to the neighbor's gate; she rings the bell, and <Picture 2> Aoy comes out with a mug and keys and answers dismissively; Fon politely asks her to move the car, and Aoy brushes her off and sits down to her coffee.\r\n\r\nretention_analysis: <Picture 1> (appears in [Shot 1], [Shot 2], [Shot 3]): fully_preserved - identity, facial features, asymmetrical bob, mole and outfit retained exactly across all shots. <Picture 2> (appears in [Shot 2], [Shot 3] at the edge of frame, [Shot 4]): fully_preserved - identity, facial features, bun with hair stick, micro-fringe and outfit retained exactly across all shots.\r\n\r\ndetailed_description: Natural early-morning daylight, soft low sun from frame right, natural handheld phone-camera quality with slight natural imperfection, not overly polished or glossy; Fon always stays on the left side of the frame and Aoy on the right side, in every shot. [Shot 1] A static wide shot at eye level from across the lane: Fon <Picture 1> stands at her own gate holding her phone, raises it and photographs the white sedan blocking her gate, then lowers it with a tired exhale through her nose, her shoulders dropping, and starts walking along the pavement toward the neighbor's gate at frame right. [Shot 2] At 00:04.000, the camera cuts to a medium shot at eye level, held steady with only subtle handheld sway: Fon <Picture 1> stands outside the green bar gate and presses the doorbell on the gate pillar twice, the second press quicker and more impatient, then holds a beat of about 0.6 seconds. In the background the house door opens and Aoy <Picture 2> steps out with a coffee mug in one hand and a set of car keys looped on a finger of the other, unhurried and annoyed. Aoy (S2) says at a flat, irritated pace, <d>[Thai] กดอะไรนักหนา ได้ยินแล้ว</d> [Shot 3] At 00:08.600, the camera cuts on the beat to a medium close-up of Fon <Picture 1> through the gate bars, the bars softly out of focus in the foreground, her left shoulder toward the camera, with Aoy's shoulder just visible at the right edge of the frame: Fon glances down at the time on her phone for about 0.6 seconds, looks up, and Fon (S1) says at a polite, hurried pace with a slightly tight voice, <d>[Thai] พี่ ขยับรถให้หน่อย หนูสายแล้ว</d> [Shot 4] At 00:11.600, the camera cuts to a medium shot of Aoy <Picture 2> from outside the gate on the right of the frame, the bars softly out of focus in the foreground: Aoy does not look at the gate, her eyes on her mug, and Aoy (S2) says at a casual, dismissive pace, <d>[Thai] แป๊บเดียว กาแฟยังไม่ได้กินเลย</d> then she sits down on a chair at the small round table and sets the car keys down beside the mug, holding a still beat of about 0.8 seconds with her eyes on the mug, not looking at Fon.\r\n\r\noverall_soundscape: Quiet morning residential lane: distant birds, a faraway motorbike passing, Fon's footsteps on concrete, the soft shutter click of her phone camera, two doorbell chimes, a door latch opening, Aoy's sandals on the concrete, a ceramic mug touching the table, a chair scraping lightly, the soft click of keys on the tabletop.\r\n\r\nnon_diegetic_music: N/A",
+      "references": [
+        "418",
+        0
+      ]
+    },
+    "class_type": "H3PromptIDE",
+    "_meta": {
+      "title": "H3 Prompt IDE"
+    }
+  },
+  "402": {
+    "inputs": {
+      "selection": "sla",
+      "selection.keep_percent": 20,
+      "start_percent": 0.2,
+      "end_percent": 1,
+      "dense_blocks": "",
+      "min_tokens": 12288,
+      "extra_tokens": 256,
+      "sink_conditioning": "exact_kv_and_rows",
+      "verbose": false,
+      "model": [
+        "196",
+        0
+      ]
+    },
+    "class_type": "BlockSparseAttention",
+    "_meta": {
+      "title": "Block/Sparse Attention Speedup for Single Pass"
+    }
+  },
+  "403": {
+    "inputs": {
+      "selection": "sla",
+      "selection.keep_percent": 20,
+      "start_percent": 0.2,
+      "end_percent": 1,
+      "dense_blocks": "",
+      "min_tokens": 12288,
+      "extra_tokens": 256,
+      "sink_conditioning": "exact_kv_and_rows",
+      "verbose": false,
+      "model": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "BlockSparseAttention",
+    "_meta": {
+      "title": "Model Sparse Attention"
+    }
+  },
+  "416": {
+    "inputs": {
+      "media_state": "[{\"kind\":\"picture\",\"file\":\"minimax_h3/fon-reference-v1.png [input]\",\"name\":\"fon-reference-v1.png\",\"duration\":null,\"width\":1536,\"height\":1024,\"has_audio\":false,\"audio_mode\":\"off\",\"uid\":\"mmv3k0hh21\"},{\"kind\":\"picture\",\"file\":\"minimax_h3/aoy-reference-v1.png [input]\",\"name\":\"aoy-reference-v1.png\",\"duration\":null,\"width\":1536,\"height\":1024,\"has_audio\":false,\"audio_mode\":\"off\",\"uid\":\"mmv3k0k402\"}]",
+      "Open loader…": null,
+      "+ Native-output splitter": null
+    },
+    "class_type": "MiniMaxH3MediaLoader",
+    "_meta": {
+      "title": "Fantastic H3 Media Loader"
+    }
+  },
+  "417": {
+    "inputs": {
+      "references": [
+        "416",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceSplitter",
+    "_meta": {
+      "title": "Fantastic H3 Reference Splitter"
+    }
+  },
+  "418": {
+    "inputs": {
+      "pictures.<Picture 1>": [
+        "417",
+        0
+      ],
+      "pictures.<Picture 2>": [
+        "417",
+        1
+      ],
+      "pictures.<Picture 3>": [
+        "417",
+        2
+      ],
+      "pictures.<Picture 4>": [
+        "417",
+        3
+      ],
+      "pictures.<Picture 5>": [
+        "417",
+        4
+      ],
+      "pictures.<Picture 6>": [
+        "417",
+        5
+      ],
+      "pictures.<Picture 7>": [
+        "417",
+        6
+      ],
+      "pictures.<Picture 8>": [
+        "417",
+        7
+      ],
+      "pictures.<Picture 9>": [
+        "417",
+        8
+      ],
+      "videos.<Video 1>": [
+        "417",
+        9
+      ],
+      "videos.<Video 2>": [
+        "417",
+        10
+      ],
+      "videos.<Video 3>": [
+        "417",
+        11
+      ],
+      "audios.<Audio 1>": [
+        "417",
+        15
+      ],
+      "audios.<Audio 2>": [
+        "417",
+        16
+      ],
+      "audios.<Audio 3>": [
+        "417",
+        17
+      ]
+    },
+    "class_type": "H3PromptReferenceInputs",
+    "_meta": {
+      "title": "H3 Reference Inputs"
+    }
+  },
+  "471": {
+    "inputs": {
+      "any_02": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Conditioning Fallback"
+    }
+  },
+  "485": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "Which Preview to Select for Upscale Pass?"
+    }
+  },
+  "486": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "Enable Sampler Preview #1?"
+    }
+  },
+  "487": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "Enable Sampler Preview #1?"
+    }
+  },
+  "488": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "Enable Sampler Preview #1?"
+    }
+  },
+  "489": {
+    "inputs": {
+      "label_json": "{\"text\":\"After the First Pass Sample Previews all finish, select which of\\nthe finished previews looks best below (Make sure only 1 is selected). Then continue right ->\",\"fontSize\":18,\"fontFamily\":\"Arial\",\"fontColor\":\"#ffffff\",\"textAlign\":\"left\",\"backgroundColor\":\"#333333\",\"padding\":10,\"borderRadius\":6,\"opacity\":1,\"fontWeight\":\"normal\",\"lineHeight\":1}"
+    },
+    "class_type": "PixaromaLabel",
+    "_meta": {
+      "title": "Label Pixaroma"
+    }
+  },
+  "490": {
+    "inputs": {
+      "label_json": "{\"text\":\"Start new gens by making sure 'Enable Upscale Pass' is\\nturned off then click Manual Random Seed button below\",\"fontSize\":18,\"fontFamily\":\"Arial\",\"fontColor\":\"#ffffff\",\"textAlign\":\"left\",\"backgroundColor\":\"#333333\",\"padding\":10,\"borderRadius\":6,\"opacity\":1,\"fontWeight\":\"normal\",\"lineHeight\":1}"
+    },
+    "class_type": "PixaromaLabel",
+    "_meta": {
+      "title": "Label Pixaroma"
+    }
+  },
+  "491": {
+    "inputs": {
+      "label_json": "{\"text\":\"When you've selected which Sample Preview to upscale, enable the\\nbelow toggle then continue right ->\",\"fontSize\":18,\"fontFamily\":\"Arial\",\"fontColor\":\"#ffffff\",\"textAlign\":\"left\",\"backgroundColor\":\"#333333\",\"padding\":10,\"borderRadius\":6,\"opacity\":1,\"fontWeight\":\"normal\",\"lineHeight\":1}"
+    },
+    "class_type": "PixaromaLabel",
+    "_meta": {
+      "title": "Label Pixaroma"
+    }
+  },
+  "492": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "Enable Upscale Pass"
+    }
+  },
+  "493": {
+    "inputs": {
+      "label_json": "{\"text\":\"Sol-Attn - Better for No LORA Upscale\\nSLA - Better for Lightx2v LoRAs\\nVSA - Better for fasth3 Model\",\"fontSize\":14,\"fontFamily\":\"Arial\",\"fontColor\":\"#ffffff\",\"textAlign\":\"left\",\"backgroundColor\":\"#333333\",\"padding\":10,\"borderRadius\":6,\"opacity\":1,\"fontWeight\":\"normal\",\"lineHeight\":1}"
+    },
+    "class_type": "PixaromaLabel",
+    "_meta": {
+      "title": "Label Pixaroma"
+    }
+  },
+  "494": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "Add Silence to Compensate for No OG Video Audio"
+    }
+  },
+  "495": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "Options Control Panel"
+    }
+  },
+  "496": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "Seamless Vid Continuation -OR- Normal Vid Refs?"
+    }
+  },
+  "499": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "Force <Audio 1> into Latent (Custom Audio) -- Great for lipsyncing/music videos"
+    }
+  },
+  "500": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "<Picture 1> is FIRST FRAME"
+    }
+  },
+  "501": {
+    "inputs": {},
+    "class_type": "PixaromaGroupSwitch",
+    "_meta": {
+      "title": "Force <Picture 2> to be LAST FRAME"
+    }
+  },
+  "502": {
+    "inputs": {
+      "label_json": "{\"text\":\"1. Turn Seamless Video Continuation & Single Pass ON in the Options.\\n2. Load your video in the Video 1 slot and click the yellow Scissors icon.\\n  - the left side (beginning) is where your video will start after being stitched together.\\n  - the right side (end) is where your gen will continue from.\\n   (IDEALLY your video is 24 FPS and already the correct size/aspect ratio\\n   as mismatched video can result in imperfect continuations! Use Crop tool to resize.)\\n3. Select Overlap Frames (5, 22, 39, or 56). This is the # of frames Minimax\\n     has access to as reference for how to continue your video.\\n4. If your video has no audio, turn on the OG Vid Has No Audio option to the right.\\n5. Since this is Single Pass, change your video genning settings:\\n   - Steps: 6-10+\\n   - Increase megapixels (since there will be no upscaling, higher is better).\\n   - Turn off Previews #2 and #3\\n   - Turn off Final Upscale Pass\\n6. Prompt! Remember that the first X Overlap frames of your gen are SPOKEN FOR!\\n   In order to get seamless continuation, start with\\n   \\\"a single continuous shot from beginning to end\\\" and then describe what's happening\\n   in a way that the model will understand how it can continue the shot.\\n\\nSeamless Video Continuation is for changing existing videos, and for creating\\nsingle-take shots longer than 15s. It is not a replacement for video editing, and if you \\ncan get away with cuts then just use normal genning practices with references to your \\nprevious shots/scenes.\\\\n\\\\nThe more overlap frames, the slower the gen (go figure).\",\"fontSize\":18,\"fontFamily\":\"Arial\",\"fontColor\":\"#000000\",\"textAlign\":\"left\",\"backgroundColor\":\"#ffffff\",\"padding\":10,\"borderRadius\":6,\"opacity\":1,\"fontWeight\":\"normal\",\"lineHeight\":1}"
+    },
+    "class_type": "PixaromaLabel",
+    "_meta": {
+      "title": "Label Pixaroma"
+    }
+  },
+  "503": {
+    "inputs": {
+      "label_json": "{\"text\":\"If you get: 'NoneType' object has no attribute 'shape' error - Turn Single Pass ON! You forgot.\",\"fontSize\":18,\"fontFamily\":\"Arial\",\"fontColor\":\"#ffffff\",\"textAlign\":\"left\",\"backgroundColor\":\"#f66744\",\"padding\":10,\"borderRadius\":6,\"opacity\":1,\"fontWeight\":\"normal\",\"lineHeight\":1}"
+    },
+    "class_type": "PixaromaLabel",
+    "_meta": {
+      "title": "Label Pixaroma"
+    }
+  },
+  "504": {
+    "inputs": {
+      "label_json": "{\"text\":\"Turns this into a normal 1-pass WF. Turn off Previews #2, #3,\\nand Upscale Pass. Best at 1.0-2.0 MP, 6-10 steps w/ Turbo.\\nNote: Single Pass is required for Video Continuation.\",\"fontSize\":10,\"fontFamily\":\"Arial\",\"fontColor\":\"#ffffff\",\"textAlign\":\"left\",\"backgroundColor\":\"#333333\",\"padding\":7,\"borderRadius\":6,\"opacity\":1,\"fontWeight\":\"normal\",\"lineHeight\":1}"
+    },
+    "class_type": "PixaromaLabel",
+    "_meta": {
+      "title": "Label Pixaroma"
+    }
+  },
+  "505": {
+    "inputs": {
+      "label_json": "{\"text\":\"Ctrl+B to turn off Block/Sparse Attn for Single Pass\\nSol-Attn - Better when not using Turbo LoRA\\nSLA - Better for Lightx2v LoRAs\\nVSA - Better for fasth3 Model\",\"fontSize\":10,\"fontFamily\":\"Arial\",\"fontColor\":\"#ffffff\",\"textAlign\":\"left\",\"backgroundColor\":\"#333333\",\"padding\":7,\"borderRadius\":6,\"opacity\":1,\"fontWeight\":\"normal\",\"lineHeight\":1}"
+    },
+    "class_type": "PixaromaLabel",
+    "_meta": {
+      "title": "Label Pixaroma"
+    }
+  },
+  "508": {
+    "inputs": {
+      "label_json": "{\"text\":\"Start your upscale by clicking the below button. If you don't like the result, you can reroll\\nby clicking the button as many times as you like to get variations of the first pass! (Unless\\nyou change something like prompt, resolution, refs, ANYTHING that happened before this step)\",\"fontSize\":18,\"fontFamily\":\"Arial\",\"fontColor\":\"#ffffff\",\"textAlign\":\"left\",\"backgroundColor\":\"#333333\",\"padding\":10,\"borderRadius\":6,\"opacity\":1,\"fontWeight\":\"normal\",\"lineHeight\":1}"
+    },
+    "class_type": "PixaromaLabel",
+    "_meta": {
+      "title": "Label Pixaroma"
+    }
+  },
+  "509": {
+    "inputs": {},
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Choose OG Audio Source"
+    }
+  },
+  "510": {
+    "inputs": {
+      "any_01": [
+        "417",
+        12
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Any Switch (rgthree)"
+    }
+  },
+  "511": {
+    "inputs": {
+      "any_01": [
+        "417",
+        9
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Any Switch (rgthree)"
+    }
+  },
+  "513": {
+    "inputs": {
+      "image": "ComfyUI_00071_.png [output]"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "171:3": {
+    "inputs": {
+      "clip_name": "H3/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "171:2": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "171:1": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "171:4": {
+    "inputs": {
+      "unet_name": "H3/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "22:7": {
+    "inputs": {
+      "scheduler": "beta",
+      "steps": [
+        "22:8",
+        0
+      ],
+      "denoise": 1,
+      "model": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "22:8": {
+    "inputs": {
+      "value": 6
+    },
+    "class_type": "INTConstant",
+    "_meta": {
+      "title": "TOTAL STEPS"
+    }
+  },
+  "22:6": {
+    "inputs": {
+      "sampler_name": "er_sde"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "22:9": {
+    "inputs": {
+      "aspect_ratio": "9:16 (Portrait Widescreen)",
+      "megapixels": 1.5,
+      "multiple": 32
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "Resolution Selector (Size)"
+    }
+  },
+  "22:23": {
+    "inputs": {
+      "value": 15
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "Video Length (seconds)"
+    }
+  },
+  "22:24": {
+    "inputs": {
+      "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
+      "values.a": [
+        "22:23",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "Math Expression"
+    }
+  },
+  "125:17": {
+    "inputs": {
+      "noise_seed": [
+        "125:126",
+        1
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "125:126": {
+    "inputs": {
+      "expression": "a",
+      "variables.a": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "SimpleCalculatorKJ",
+    "_meta": {
+      "title": "SimpleCalculatorKJ"
+    }
+  },
+  "125:12": {
+    "inputs": {
+      "noise": [
+        "125:17",
+        0
+      ],
+      "guider": [
+        "125:14",
+        0
+      ],
+      "sampler": [
+        "22:6",
+        0
+      ],
+      "sigmas": [
+        "22:7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "Sampler #1"
+    }
+  },
+  "125:14": {
+    "inputs": {
+      "model": [
+        "21",
+        0
+      ],
+      "conditioning": [
+        "471",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Basic Guider"
+    }
+  }
+}
