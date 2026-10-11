@@ -5,6 +5,8 @@ description: สั่งงาน ComfyUI ที่รันบน RunPod (ห�
 
 # ComfyUI + RunPod batch runner
 
+> **เส้นทางในเครื่องอื่น/ใน repo AI_influencer:** `ai_influencer/model_specs/minimax-h3.md` = `model_specs/minimax-h3.md` (รากของ repo); `AI Drama Studio/` อยู่ที่รากของ repo; เริ่มจาก `AI Drama Studio/START_HERE.md` และ `05_Production/<story_id>/PRODUCTION_STATUS.md`
+
 เครื่องมือสามตัวใน `scripts/` (Node 18+, ไม่มี dependency): ตรวจแล้วว่า `comfy_batch.mjs` ใช้ส่งงานจริงได้ (ทดสอบกับ pod จริง 15 คลิปเมื่อ 2026-10-11 ผ่านรุ่น `comfy_run.mjs` ที่เป็นต้นแบบ); `runpod_pod.mjs` ตรวจ endpoint กับเอกสาร RunPod แล้วแต่ **ยังไม่เคยรันกับ pod จริง**
 
 | สคริปต์ | หน้าที่ |

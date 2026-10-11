@@ -5,6 +5,8 @@ description: แปลงบทละครแนวตั้งใน AI Drama 
 
 # Drama → MiniMax H3 (Ref2VA) production
 
+> **เส้นทางในเครื่องอื่น/ใน repo AI_influencer:** `ai_influencer/model_specs/minimax-h3.md` = `model_specs/minimax-h3.md` (รากของ repo); `AI Drama Studio/` อยู่ที่รากของ repo; เริ่มจาก `AI Drama Studio/START_HERE.md` และ `05_Production/<story_id>/PRODUCTION_STATUS.md`
+
 เอกสารประกอบ (อ่านก่อนเขียน prompt ครั้งแรกของ session):
 - `AI Drama Studio/01_Instructions/STUDIO_RULES.md`, `PRODUCTION_HANDOFF.md`, `H3_PRODUCTION_PLAYBOOK.md`
 - `ai_influencer/model_specs/minimax-h3.md` — สเปก H3 ตัวจริงของโปรเจกต์ (โครง 6 ส่วน, ข้อผิดพลาดที่ยืนยันแล้ว)
