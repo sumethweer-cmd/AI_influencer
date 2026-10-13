@@ -1,0 +1,18 @@
+{
+  "_note": "เรื่อง 01_Gray_Hair: SEG1 (14s=336 เฟรม) + SEG2 (13s=312 เฟรม) ต่อกันแบบ context — ใส่ workflowId ก่อนส่งจริง",
+  "baseUrl": "https://www.runninghub.ai",
+  "workflowId": "",
+  "projectName": "anong_01_gray_hair",
+  "nodes": { "editor": "29", "project": "15" },
+  "images": [
+    "../../../Albums/2026-10-08_SexyCute/02_Dinner/01.png",
+    "../Backgrounds/01_Indoor_Quiet_Vlog.png"
+  ],
+  "segments": [
+    { "prompt": "H3_SEG1_prompt.txt", "frames": 336 },
+    { "prompt": "H3_SEG2_prompt.txt", "frames": 312 }
+  ],
+  "outDir": "rh_outputs",
+  "pollSeconds": 15,
+  "timeoutMinutes": 60
+}

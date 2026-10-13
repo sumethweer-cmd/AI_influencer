@@ -1,0 +1,239 @@
+{
+  "1": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "2": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "6": {
+    "inputs": {
+      "lora_name": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
+      "strength_model": 1,
+      "model": [
+        "27",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "10": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "11": {
+    "inputs": {
+      "unet_name": "Minimax-h3_Singularity_ref2va_v1.3_int8.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "15": {
+    "inputs": {
+      "project_name": "longtake_demo",
+      "project_save": "override",
+      "segment_start_number": 1,
+      "segment_count": -1,
+      "seed": 949608848732974,
+      "sampling_plan": "custom",
+      "sampling_mode": "single",
+      "1st_pass_only": false,
+      "disable_2nd_noise": false,
+      "upscale_by": 1.5,
+      "upscale_model": "minimax_h3_latent_upscaler_3d_fp16.safetensors",
+      "tracks_info": [
+        "29",
+        0
+      ],
+      "model_loader": [
+        "16",
+        0
+      ],
+      "sampler": [
+        "20",
+        0
+      ],
+      "sampler_2nd": [
+        "24",
+        0
+      ],
+      "sigmas": [
+        "22",
+        0
+      ],
+      "sigmas_2nd": [
+        "33",
+        0
+      ]
+    },
+    "class_type": "easy multitrackProject",
+    "_meta": {
+      "title": "MultiTrack Project"
+    }
+  },
+  "16": {
+    "inputs": {
+      "model": [
+        "21",
+        0
+      ],
+      "clip": [
+        "10",
+        0
+      ],
+      "vae": [
+        "2",
+        0
+      ],
+      "audio_vae": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "easy modelLoaderPack",
+    "_meta": {
+      "title": "Model Loader Pack"
+    }
+  },
+  "17": {
+    "inputs": {
+      "project_data": "{\"project_name\":\"longtake_demo\",\"width\":0,\"height\":0,\"frame_rate\":24,\"clips\":[],\"auto_combine\":true}",
+      "project_name": [
+        "15",
+        0
+      ]
+    },
+    "class_type": "easy multitrackProjectVideoCombine",
+    "_meta": {
+      "title": "MultiTrack Project Video Combine"
+    }
+  },
+  "20": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "21": {
+    "inputs": {
+      "max_resolution": 1024,
+      "jpeg_quality": 80,
+      "suppress_default_preview": true,
+      "preview_frames": 48,
+      "preview_fps": 24,
+      "tiny_vae": "taeh3.safetensors",
+      "model": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "ModelPreviewOverrideKJ",
+    "_meta": {
+      "title": "Model Preview Override KJ"
+    }
+  },
+  "22": {
+    "inputs": {
+      "scheduler": "beta",
+      "steps": 8,
+      "denoise": 1,
+      "model": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "★ Steps — set them here (beta scheduler)"
+    }
+  },
+  "24": {
+    "inputs": {
+      "sampler_name": "sa_solver"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "25": {
+    "inputs": {
+      "input_mode": "video",
+      "output_mode": "save",
+      "output_mode.save_metadata": "ComfyUI",
+      "filename_prefix": [
+        "17",
+        1
+      ],
+      "input_mode.video": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "easy saveVideo",
+    "_meta": {
+      "title": "Easy Media Save Video"
+    }
+  },
+  "27": {
+    "inputs": {
+      "model": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3MemoryEfficientSageAttentionPatch",
+    "_meta": {
+      "title": "MiniMax H3 Memory Efficient Sage Attention Patch"
+    }
+  },
+  "29": {
+    "inputs": {
+      "resolution": "width x height (megapixels)",
+      "resolution.aspect_ratio": "9:16 (Portrait Widescreen)",
+      "resolution.megapixels": 1,
+      "format": "MiniMax",
+      "track_data": "{\"muted\":false,\"volume_db\":0,\"task_markers\":[],\"task_overview\":false,\"tracks\":[{\"id\":\"c64f6cef-34eb-4602-820a-defc4ced0f45\",\"name\":\"Task 0\",\"type\":\"task\",\"task_mode\":\"default\",\"color\":\"var(--multitrack-task-bg)\",\"muted\":false,\"solo\":false,\"volume_db\":0,\"locked\":false,\"segments\":[{\"id\":\"2b149dc8-8909-4aca-ba45-6056a98f5476\",\"start_frame\":0,\"end_frame\":312,\"color\":\"var(--multitrack-task-bg)\",\"content\":{\"media_type\":\"none\",\"task_mode\":\"ref\",\"continuity_mode\":\"shot\",\"ref_image_size\":\"max\",\"images\":[{\"id\":\"eff8a0b0-8785-4f0b-be8a-c671661dbd45\",\"source_type\":\"input\",\"file_path\":\"5a8699b9f8c59b8c7ca8925ecaa21ec779f2611076876dae6425cf2529742ae3.png\",\"file_name\":\"5a8699b9f8c59b8c7ca8925ecaa21ec779f2611076876dae6425cf2529742ae3.png\"},{\"id\":\"1556b2d3-ee6c-4a81-86ee-b13ac85c588e\",\"source_type\":\"input\",\"file_path\":\"0849879c6ffd462005d684c51f854574456b7f12ef35874ab20e1f090d8852c0.png\",\"file_name\":\"0849879c6ffd462005d684c51f854574456b7f12ef35874ab20e1f090d8852c0.png\"}],\"muted\":false,\"volume_db\":0,\"user_prompt\":\"subject_definitions:\\n<Picture 1> Anong - a 23-year-old slender Thai-Chinese Gen Y woman with an oval face and a soft pointed chin, slender almond eyes with a natural smiling crescent shape, a small nose with a soft rounded tip, full lips with a natural, slightly parted pout, long natural dark brown to black hair in a straight-to-soft-wave texture with thin wispy bangs lightly covering her forehead, fair skin with a healthy pink undertone, wearing the thin round wire-frame glasses, necklace and soft sage-green fitted crewneck T-shirt shown in <Picture 1>. Her skin is dry matte skin with visible pores, fine peach fuzz on the cheeks, faint freckles across the nose and cheeks and slight natural unevenness around the nose and chin; her forehead, nose, cheeks and chin are matte and dry. Makeup is minimal and matte with a soft natural lip tint. She is the woman sitting upright in the middle of the sofa seat and talking directly to the camera across multiple cuts, holding a small round hand mirror in her right hand (on the left side of the frame) while her left hand stays empty and free to gesture.\\n<Picture 2> is a quiet Thai city apartment sitting corner - a warm ivory wall, a low oatmeal fabric sofa across the bottom of the frame with a soft sage cushion at the far right, a slim wood side table with a ceramic mug at the far left, a leafy plant and a modest wooden shelf - visible as the background throughout the scene, with Anong seated on the central sofa seat in front of the wall.\\n\\nsummary:\\n[reference generation] Anong sits on her sofa and studies her hairline in a small hand mirror, then lowers it, turns to the lens and asks in a playful, mock-alarmed way whether finding a single gray hair means she has to buy vitamins right away, and confides that she has been there herself, checking her hair in the mirror and scrolling for supplements until the basket was full, ending with a short embarrassed laugh. <Picture 1> defines Anong's identity, skin and outfit; <Picture 2> defines the background.\\n\\nretention_analysis:\\n<Picture 1> (appears in [Shot 1]-[Shot 5]): fully_preserved - identity, facial features, hairstyle, glasses, skin texture and outfit retained across all shots.\\n<Picture 2> (appears in [Shot 1]-[Shot 5]): fully_preserved - the room retained as the background throughout.\\n\\ndetailed_description:\\nOrdinary smartphone footage of a seated talking-to-camera vlog, vertical 9:16, recorded by a front camera propped at seated eye level and facing her straight on; the camera stays perfectly still for the whole clip and only Anong moves. Every cut changes only the shot size, between a medium close-up from head to chest and a close-up of head and shoulders, with the same angle and the same background. Large soft daylight from the sheer-curtain window at the left edge of the frame, widened by a soft fill from the camera side so both sides of her face are evenly lit from the front, neutral natural white balance, fine natural camera grain and gentle background softness. Anong sits relaxed and upright with her eyes level with the lens.\\n[Shot 1] A medium close-up. Anong <Picture 1> holds the small round hand mirror beside her face at cheek height on the left side of the frame, its back toward the lens, her head turned slightly toward it and her eyes lowered on the mirror for about 1.2 seconds. Her left fingertips lightly part the hair at her hairline while her brows draw together a little and her lips press together for about 0.6 seconds, then her eyes flick up. This shot is silent apart from room tone.\\n[Shot 2] At 00:02.400, the camera cuts to a close-up. Anong lowers the mirror with her right hand to rest in her lap over about 0.4 seconds and turns her face straight to the lens, eyebrows lifting in mock alarm. She says at a playful, slightly dramatic pace, <d>[Thai] เจอผมหงอกเส้นเดียว…</d> holding a beat of about 0.4 seconds with her eyebrows still raised, then continues at a teasing pace, <d>[Thai] ต้องรีบซื้อวิตามินเลยเหรอ?</d>\\n[Shot 3] At 00:06.200, the camera cuts to a medium close-up. Anong leans in a little toward the lens, relaxed and confiding, her left hand lifting with an open palm. She says at a friendly, inviting pace, <d>[Thai] พี่ๆ เคยเป็นไหมคะ</d>\\n[Shot 4] At 00:08.000, the camera cuts to a close-up. Anong's left index and middle fingertips touch her hair at the temple while her eyes drift up and to the side as if remembering, then return to the lens. She says at an easy, storytelling pace, <d>[Thai] ส่องกระจกเจอเส้นขาว</d> holding about 0.4 seconds.\\n[Shot 5] At 00:10.200, the camera cuts to a medium close-up. Anong's left thumb swipes upward in the air at chest height like scrolling a phone while her right hand keeps the mirror resting in her lap. She says at a quicker, self-teasing pace, <d>[Thai] คืนนั้นไถหาของบำรุงเต็มตะกร้าเลย</d> Then she breaks into a short, embarrassed laugh, nose scrunching and shoulders bouncing softly, and gives a small shake of her head, holding about 1.0 second until the clip ends.\\n\\noverall_soundscape:\\nQuiet apartment room tone with a faint, distant city hum, soft fabric rustle as she moves, the light tap of the small mirror against her lap, and Anong's short laugh at the end of Shot 5.\\n\\nnon_diegetic_music:\\nN/A\\n\"}},{\"id\":\"8691d934-50da-4792-95dc-967bfc80bb33\",\"start_frame\":312,\"end_frame\":624,\"color\":\"var(--multitrack-task-bg)\",\"content\":{\"media_type\":\"none\",\"task_mode\":\"ref\",\"continuity_mode\":\"context\",\"ref_image_size\":\"max\",\"images\":[{\"id\":\"eff8a0b0-8785-4f0b-be8a-c671661dbd45\",\"source_type\":\"input\",\"file_path\":\"5a8699b9f8c59b8c7ca8925ecaa21ec779f2611076876dae6425cf2529742ae3.png\",\"file_name\":\"5a8699b9f8c59b8c7ca8925ecaa21ec779f2611076876dae6425cf2529742ae3.png\"},{\"id\":\"1556b2d3-ee6c-4a81-86ee-b13ac85c588e\",\"source_type\":\"input\",\"file_path\":\"0849879c6ffd462005d684c51f854574456b7f12ef35874ab20e1f090d8852c0.png\",\"file_name\":\"0849879c6ffd462005d684c51f854574456b7f12ef35874ab20e1f090d8852c0.png\"}],\"muted\":false,\"volume_db\":0,\"user_prompt\":\"subject_definitions:\\n<Picture 1> Anong - a 23-year-old slender Thai-Chinese Gen Y woman with an oval face and a soft pointed chin, slender almond eyes with a natural smiling crescent shape, a small nose with a soft rounded tip, full lips with a natural, slightly parted pout, long natural dark brown to black hair in a straight-to-soft-wave texture with thin wispy bangs lightly covering her forehead, fair skin with a healthy pink undertone, wearing the thin round wire-frame glasses, necklace and soft sage-green fitted crewneck T-shirt shown in <Picture 1>. Her skin is dry matte skin with visible pores, fine peach fuzz on the cheeks, faint freckles across the nose and cheeks and slight natural unevenness around the nose and chin; her forehead, nose, cheeks and chin are matte and dry. Makeup is minimal and matte with a soft natural lip tint. She is the woman sitting upright in the middle of the sofa seat and talking directly to the camera across multiple cuts, holding a small round hand mirror in her right hand (on the left side of the frame) resting in her lap while her left hand stays empty and free to gesture.\\n<Picture 2> is a quiet Thai city apartment sitting corner - a warm ivory wall, a low oatmeal fabric sofa across the bottom of the frame with a soft sage cushion at the far right, a slim wood side table with a ceramic mug at the far left, a leafy plant and a modest wooden shelf - visible as the background throughout the scene, with Anong seated on the central sofa seat in front of the wall.\\n\\nsummary:\\n[reference generation] The same continuous scene, continuing seamlessly: Anong finishes the last of a small laugh, then reassures the viewer to calm down, explaining that gray hair can have many causes, that genetics play a part, and that a vitamin shortage is only one possible reason among others, before moving on to the idea that covering gray hair is a separate choice. <Picture 1> defines Anong's identity, skin and outfit; <Picture 2> defines the background.\\n\\nretention_analysis:\\n<Picture 1> (appears in [Shot 1]-[Shot 5]): fully_preserved - identity, facial features, hairstyle, glasses, skin texture and outfit retained across all shots.\\n<Picture 2> (appears in [Shot 1]-[Shot 5]): fully_preserved - the room retained as the background throughout.\\n\\ndetailed_description:\\nOrdinary smartphone footage of a seated talking-to-camera vlog, vertical 9:16, recorded by a front camera propped at seated eye level and facing her straight on; the camera stays perfectly still for the whole clip and only Anong moves. Every cut changes only the shot size, between a medium close-up from head to chest and a close-up of head and shoulders, with the same angle, the same light and the same background. Large soft daylight from the sheer-curtain window at the left edge of the frame, widened by a soft fill from the camera side so both sides of her face are evenly lit from the front, neutral natural white balance, fine natural camera grain.\\n[Shot 1] A medium close-up. The video opens already in progress, at the same pace, with the camera exactly where it already is and Anong seated in exactly the same position, the small hand mirror resting in her right hand in her lap. For the first 1.7 seconds she simply finishes the last of a small laugh, her smile softening into a warm, relaxed expression and her left hand drifting down from chest height, then she says at a calm, reassuring pace, her left palm lowering slowly in a gentle calm-down gesture, <d>[Thai] ใจเย็นก่อนค่ะพี่</d>\\n[Shot 2] At 00:03.520, the camera cuts to a close-up. Anong looks straight into the lens and says at an even, explanatory pace, her left hand lifting to chest height with the fingers loosely spread and rocking slightly as if listing things, <d>[Thai] ผมหงอกมีได้หลายสาเหตุ</d>\\n[Shot 3] At 00:05.720, the camera cuts to a medium close-up. Anong tilts her head a little and lifts both shoulders in a small, easy shrug as she says at a light, matter-of-fact pace, <d>[Thai] พันธุกรรมก็มีส่วน</d> then lets her shoulders settle for about 0.4 seconds.\\n[Shot 4] At 00:07.720, the camera cuts to a close-up. Anong shakes her head slowly from side to side with a soft smile, eyes steady on the lens, and says at a gentle, reassuring pace, <d>[Thai] ไม่ได้แปลว่าขาดวิตามินเสมอไปนะ</d> holding about 0.4 seconds with the soft smile.\\n[Shot 5] At 00:10.720, the camera cuts to a medium close-up. Anong's left fingertips lift a strand of her long hair beside her cheek and let it slip back down as she says at an easy, friendly pace, <d>[Thai] ส่วนถ้าอยากปิดสีผมก็ได้ค่ะ</d> Then her left hand lowers to rest near her lap while her expression stays warm and attentive, the small hand mirror still resting in her right hand, holding about 0.5 seconds until the clip ends.\\n\\noverall_soundscape:\\nQuiet apartment room tone with a faint, distant city hum, soft fabric rustle as she moves, the light tap of the small mirror against her lap, and the last soft breath of Anong's laugh at the very start.\\n\\nnon_diegetic_music:\\nN/A\\n\\n\"}}]},{\"id\":\"d15f065c-25c4-4922-8570-01dde0d3caf0\",\"name\":\"Video 0\",\"type\":\"video\",\"color\":\"var(--primary)\",\"muted\":false,\"solo\":false,\"volume_db\":0,\"locked\":false,\"segments\":[]}],\"total_length\":624,\"frame_rate\":24}"
+    },
+    "class_type": "easy multiTrackEditor",
+    "_meta": {
+      "title": "MultiTrack Editor"
+    }
+  },
+  "33": {
+    "inputs": {
+      "sigmas": "0.50, 0.30, 0.14, 0.06, 0.0"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "Pass 2 sigmas (only used if sampling_mode = dual — ignore)"
+    }
+  }
+}

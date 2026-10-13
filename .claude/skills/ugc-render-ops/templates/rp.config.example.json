@@ -1,0 +1,32 @@
+{
+  "_note": "01_Gray_Hair บน RunPod (ComfyUI pod) — SEG1+SEG2",
+  "projectName": "anong_01_gray_hair",
+  "nodes": {
+    "editor": "29",
+    "project": "15"
+  },
+  "images": [
+    "../../../Albums/2026-10-08_SexyCute/02_Dinner/01.png",
+    "../Backgrounds/01_Indoor_Quiet_Vlog.png"
+  ],
+  "segments": [
+    {
+      "prompt": "H3_SEG1_prompt.txt",
+      "frames": 336
+    },
+    {
+      "prompt": "H3_SEG2_prompt.txt",
+      "frames": 312
+    }
+  ],
+  "outDir": "rp_outputs",
+  "storyKey": "2026-10-12/01_Gray_Hair",
+  "segFrom": 1,
+  "segCount": 2,
+  "runpod": {
+    "template": "../../../tools/workflow_api_runpod_ugc.json",
+    "gpu": "5090",
+    "hourlyUsd": 1.15,
+    "outDir": "rp_outputs"
+  }
+}

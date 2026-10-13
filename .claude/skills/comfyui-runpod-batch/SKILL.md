@@ -14,6 +14,12 @@ description: สั่งงาน ComfyUI ที่รันบน RunPod (ห�
 | `extract_graph.mjs` | ดึงกราฟ API-format จาก `/history` ของ ComfyUI (อ่านอย่างเดียว) — ใช้เมื่อปุ่ม Export (API) ไม่ทำงาน |
 | `comfy_batch.mjs` | อ่าน config + โฟลเดอร์ prompt → อัปโหลดรูป → ส่งทุกงานเข้าคิว → รอ → ดาวน์โหลด → manifest |
 | `runpod_pod.mjs` | status / stop / terminate pod ผ่าน RunPod REST API (ต้องมี `RUNPOD_API_KEY` ใน env) |
+| `runpod_render.mjs` | (UGC / Motion Context V2) สั่งงานเป็น 1 job ต่อ 1 เรื่องบน pod: อัปโหลดรูป → ใส่ track_data → `/prompt` → status/collect + ledger — ยืนยันแล้ว 2026-10-14 |
+| `runninghub_run.mjs` | เหมือนกันแต่ส่งไป RunningHub API (`--go --nowait`, `--status`, `--collect`, `--fetch`, `--sync-ledger`) |
+| `supabase_prompts.mjs` | `--todo` / `--pull` / `--push` prompt ระหว่าง Supabase กับไฟล์ + สร้าง config |
+| `ledger_sync.mjs` | (ไลบรารี) upsert ledger ขึ้นตาราง `render_tasks` |
+
+> งาน UGC ของ Anong ใช้ขั้นตอนใน skill `ugc-render-ops` (มี SOP, การตั้งค่า pod/SageAttention, ตาราง Supabase) และ `anong-ugc-h3-prompting` (การเขียนบท/shot/prompt)
 
 ## ผู้ใช้ต้องทำอะไร / ต้องให้ผมอะไร (checklist)
 **ก่อนเริ่มทุกรอบ**
@@ -71,3 +77,12 @@ description: สั่งงาน ComfyUI ที่รันบน RunPod (ห�
 - รันสองสคริปต์พร้อมกันได้ manifest ไม่ทับกัน (รวมกับไฟล์บนดิสก์ก่อนเขียน)
 - สคริปต์ไม่เก็บ/พิมพ์ API key; อย่าใส่ URL ที่มีโทเคนลงไฟล์
 - เนื้อหา prompt/format ของ MiniMax H3 และกฎคุณภาพอยู่ใน skill `drama-h3-production` และ `ai_influencer/model_specs/minimax-h3.md`
+
+## RunningHub (ทางเลือกที่ถูกกว่าสำหรับ Anong UGC) — `scripts/runninghub_run.mjs`
+ยืนยันแล้ว (2026-10-13): upload → create(nodeInfoList: โหนด 29 `track_data`, โหนด 15 `project_name`/`seed`) → status → outputs(`fileUrl`, `taskCostTime`, `consumeCoins`) ใช้ได้จริง; คิดเงินเฉพาะเวลารัน (เวลารอคิวไม่คิด); ไม่มี pod ให้ปิด
+- key/workflowId อยู่ใน `UGC/.env` (RUNNINGHUB_API_KEY, RUNNINGHUB_WORKFLOW_ID) — **ห้ามเปิดอ่าน/พิมพ์ค่า** สคริปต์อ่านเอง; .env ห้ามเข้า git
+- ส่งหลายเรื่องเข้าคิวทีเดียว (RH รันทีละงาน; API concurrency ของ Personal = 1):
+  `node runninghub_run.mjs --config a.json,b.json,c.json --go --nowait`  (ไม่ใส่ --go = dry-run)
+- เช็กสถานะแบบสั้น (ไม่กินโทเคน): `node runninghub_run.mjs --status` · เก็บผล: `--collect` (ลง rh_outputs/ + บันทึก run วินาที/coins ใน ledger `rh_tasks.json`)
+- ส่งงาน (`--go`) ต้องได้รับการยืนยันจากผู้ใช้ทุกครั้ง (ใช้ coins)
+- config ต่อเรื่อง: `rh.<story>.config.json` (รูป Picture 1/2, segments: prompt + frames, projectName ไม่ซ้ำ) ตัวอย่างอยู่ใน `UGC/Weekly/…/01_Gray_Hair/`
