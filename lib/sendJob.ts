@@ -34,7 +34,7 @@ export type SendPreview = {
     nodeProject: string
     workflowId: string
     pictures: number
-    segments: { segment: number; continuity: string; task_mode: string; ref_image_size: string; frames: number; timestampsShifted: boolean; promptChars: number }[]
+    segments: { segment: number; continuity: string; task_mode: string; ref_image_size: string; frames: number; timestampsShifted: boolean; promptChars: number; slots: number[] }[]
 }
 export type SendResult = { taskId: string; projectName: string; segments: number; kind: 'full' | 'repair'; preview?: SendPreview }
 
@@ -111,7 +111,8 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
             return { segNo: s.segment_number || 1, prompt, frames: allFrames[(s.segment_number || 1) - 1] || DEFAULT_SEG_FRAMES }
         }),
         continuity,
-        opts.unshift !== false
+        opts.unshift !== false,
+        saved.authored
     )
     const segInputs = plan.inputs
     const unshift = plan.adjusted.length > 0
@@ -130,6 +131,15 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
         if (p.picture_slot !== i + 1) throw new SendError(`รูปต้องเรียง Picture 1, 2, 3 ต่อกัน (ขาด Picture ${i + 1})`, 400)
     })
 
+    // Which pictures each segment uses (saved per content; default = all). Order = <Picture N> order in that segment.
+    const slotCount = pics.length
+    const segSlots = chosen.map((s) => {
+        const raw = saved.segImages[String(s.segment_number || 1)]
+        const list = Array.isArray(raw) ? [...new Set(raw)].filter((n) => n >= 1 && n <= slotCount) : []
+        return list.length ? list : pics.map((_, i) => i + 1)
+    })
+    const usedSlots = [...new Set(segSlots.flat())].sort((a, b) => a - b)
+
     // Project name: unique per content, suffixed for repairs.
     const short = contentId.replace(/-/g, '').slice(0, 6)
     let projectName = `${slug(main.title || '')}_${short}`
@@ -144,7 +154,10 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
     }
 
     if (opts.dryRun) {
-        const td = JSON.parse(buildTrackData(segInputs, pics.map((_, i) => `<Picture ${i + 1}>`)))
+        segInputs.forEach((s, i) => {
+            s.images = segSlots[i].map((n) => `<slot ${n}>`)
+        })
+        const td = JSON.parse(buildTrackData(segInputs, []))
         return {
             taskId: '(dry-run: nothing sent)',
             projectName,
@@ -155,7 +168,7 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
                 nodeEditor,
                 nodeProject,
                 workflowId: String(workflowId),
-                pictures: pics.length,
+                pictures: usedSlots.length,
                 segments: td.tracks[0].segments.map((sg: { content: { continuity_mode: string; task_mode: string; ref_image_size: string; user_prompt: string }; start_frame: number; end_frame: number }, i: number) => ({
                     segment: chosen[i].segment_number || i + 1,
                     continuity: sg.content.continuity_mode,
@@ -164,6 +177,7 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
                     frames: sg.end_frame - sg.start_frame,
                     timestampsShifted: plan.adjusted.includes(chosen[i].segment_number || i + 1),
                     promptChars: sg.content.user_prompt.length,
+                    slots: segSlots[i],
                 })),
             },
         }
@@ -173,10 +187,13 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
     let created: { taskId: string; status: string }
     const seed = Math.floor(Math.random() * 2 ** 48)
     try {
-        const names: string[] = []
-        for (let i = 0; i < pics.length; i++) names.push(await rhUploadImage(pics[i].url, `p${i + 1}_${short}.png`))
+        const nameBySlot: Record<number, string> = {}
+        for (const n of usedSlots) nameBySlot[n] = await rhUploadImage(pics[n - 1].url, `p${n}_${short}.png`)
+        segInputs.forEach((s, i) => {
+            s.images = segSlots[i].map((n) => nameBySlot[n])
+        })
         const nodeInfoList: NodeInfo[] = [
-            { nodeId: nodeEditor, fieldName: 'track_data', fieldValue: buildTrackData(segInputs, names) },
+            { nodeId: nodeEditor, fieldName: 'track_data', fieldValue: buildTrackData(segInputs, []) },
             { nodeId: nodeProject, fieldName: 'project_name', fieldValue: projectName },
             { nodeId: nodeProject, fieldName: 'seed', fieldValue: seed },
         ]

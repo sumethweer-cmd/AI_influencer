@@ -35,6 +35,22 @@ export async function PATCH(req: Request) {
             delete cont['1'] // segment 1 is always a shot
             note.continuity = cont
         }
+        if (b.authored && typeof b.authored === 'object') {
+            const au: Record<string, string> = { ...((note.authored as Record<string, string>) || {}) }
+            for (const [k, v] of Object.entries(b.authored as Record<string, unknown>)) {
+                if (/^\d+$/.test(k) && (v === 'shot' || v === 'context')) au[k] = v
+            }
+            note.authored = au
+        }
+        if (b.segImages && typeof b.segImages === 'object') {
+            const si: Record<string, number[]> = { ...((note.segImages as Record<string, number[]>) || {}) }
+            for (const [k, v] of Object.entries(b.segImages as Record<string, unknown>)) {
+                if (!/^\d+$/.test(k) || !Array.isArray(v)) continue
+                const list = [...new Set(v.map(Number))].filter((n) => Number.isInteger(n) && n >= 1 && n <= 3)
+                if (list.length) si[k] = list
+            }
+            note.segImages = si
+        }
         if (b.resolution !== undefined) {
             const r = typeof b.resolution === 'string' ? b.resolution.trim().slice(0, 40) : ''
             if (r) note.resolution = r

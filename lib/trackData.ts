@@ -38,7 +38,7 @@ export function shiftTimestamps(prompt: string, deltaSec: number): string {
 }
 
 export type Continuity = 'shot' | 'context'
-export type SegInput = { prompt: string; frames: number; continuity?: Continuity }
+export type SegInput = { prompt: string; frames: number; continuity?: Continuity; images?: string[] }
 
 /**
  * Resolution names seen in the workflow files (node 26 "resolution"). The node's dropdown has more options
@@ -51,15 +51,28 @@ export const DEFAULT_RESOLUTION = '720 x 1280 (9:16)'
 export const WORKFLOW_RESOLUTION = 'workflow'
 
 /** Per-content render settings, stored in the main row's note JSON. */
-export type RenderSettings = { continuity: Record<string, Continuity>; resolution: string | null }
+export type RenderSettings = {
+    continuity: Record<string, Continuity>
+    /** how each segment's text was WRITTEN (default: segment 1 = shot, others = context with timestamps +0.917 s) */
+    authored: Record<string, Continuity>
+    /** which Picture slots each segment uses (default: all). The order here is the <Picture N> order inside that segment. */
+    segImages: Record<string, number[]>
+    resolution: string | null
+}
 export function parseRenderSettings(note: string | null | undefined): RenderSettings {
     try {
         const j = JSON.parse(note || '{}')
         const continuity: Record<string, Continuity> = {}
         for (const [k, v] of Object.entries(j.continuity || {})) if (v === 'shot' || v === 'context') continuity[k] = v
-        return { continuity, resolution: typeof j.resolution === 'string' && j.resolution ? j.resolution : null }
+        const authored: Record<string, Continuity> = {}
+        for (const [k, v] of Object.entries(j.authored || {})) if (v === 'shot' || v === 'context') authored[k] = v
+        const segImages: Record<string, number[]> = {}
+        for (const [k, v] of Object.entries(j.segImages || {})) {
+            if (Array.isArray(v)) segImages[k] = v.map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 3)
+        }
+        return { continuity, authored, segImages, resolution: typeof j.resolution === 'string' && j.resolution ? j.resolution : null }
     } catch {
-        return { continuity: {}, resolution: null }
+        return { continuity: {}, authored: {}, segImages: {}, resolution: null }
     }
 }
 
@@ -74,13 +87,15 @@ export function parseRenderSettings(note: string | null | undefined): RenderSett
 export function planSegments(
     segs: { segNo: number; prompt: string; frames: number }[],
     continuity: Record<string, Continuity> | undefined,
-    adjust = true
+    adjust = true,
+    authored: Record<string, Continuity> = {}
 ): { inputs: SegInput[]; adjusted: number[] } {
     const adjusted: number[] = []
     const inputs = segs.map((s, i) => {
         const wanted: Continuity = i === 0 ? 'shot' : continuity?.[String(s.segNo)] ?? 'context'
         let prompt = s.prompt
-        if (adjust && s.segNo > 1 && wanted === 'shot') {
+        const wrote: Continuity = authored[String(s.segNo)] ?? (s.segNo > 1 ? 'context' : 'shot')
+        if (adjust && wrote === 'context' && wanted === 'shot') {
             prompt = shiftTimestamps(cleanPrompt(prompt), -CONTEXT_SHIFT_SEC)
             adjusted.push(s.segNo)
         }
@@ -104,7 +119,7 @@ export function buildTrackData(segs: SegInput[], imageNames: string[]): string {
                 task_mode: 'ref',
                 continuity_mode: s.continuity ?? (i === 0 ? 'shot' : 'context'),
                 ref_image_size: 'max',
-                images: imageNames.map((n) => ({ id: uid(), source_type: 'input', file_path: n, file_name: n })),
+                images: (s.images ?? imageNames).map((n) => ({ id: uid(), source_type: 'input', file_path: n, file_name: n })),
                 muted: false,
                 volume_db: 0,
                 user_prompt: cleanPrompt(s.prompt),

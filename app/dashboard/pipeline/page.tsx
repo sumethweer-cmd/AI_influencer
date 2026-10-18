@@ -155,6 +155,31 @@ function ResolutionPicker({ value, onChange }: { value: string; onChange: (v: st
     )
 }
 
+function PicturesEditor({ segs, slots, value, onChange }: { segs: Segment[]; slots: number[]; value: Record<string, number[]>; onChange: (v: Record<string, number[]>) => void }) {
+    const listOf = (n: number) => (value[String(n)]?.length ? value[String(n)].filter((x) => slots.includes(x)) : slots)
+    const toggle = (n: number, slot: number) => {
+        const cur = listOf(n)
+        const next = cur.includes(slot) ? cur.filter((x) => x !== slot) : [...cur, slot].sort((a, b) => a - b)
+        if (!next.length) return // keep at least one picture
+        onChange({ [String(n)]: next })
+    }
+    return (
+        <div className="conted">
+            <span className="sub">รูปที่ใช้ในแต่ละ segment (ลำดับในรายการ = &lt;Picture N&gt; ใน segment นั้น):</span>
+            {segs.map((x) => (
+                <label key={x.id}>
+                    SEG {x.segment_number}
+                    {slots.map((slot) => (
+                        <button key={slot} className={listOf(x.segment_number).includes(slot) ? 'chip' : ''} aria-pressed={listOf(x.segment_number).includes(slot)} onClick={() => toggle(x.segment_number, slot)}>
+                            P{slot}
+                        </button>
+                    ))}
+                </label>
+            ))}
+        </div>
+    )
+}
+
 function ContinuityEditor({ segs, value, onChange }: { segs: Segment[]; value: Record<string, Continuity>; onChange: (v: Record<string, Continuity>) => void }) {
     const modeOf = (n: number): Continuity => (n === 1 ? 'shot' : value[String(n)] || 'context')
     const all = (m: Continuity) => onChange(Object.fromEntries(segs.filter((x) => x.segment_number > 1).map((x) => [String(x.segment_number), m])))
@@ -388,7 +413,7 @@ export default function ContentPage() {
             await load()
         })
 
-    const saveSettings = (contentId: string, patch: { continuity?: Record<string, Continuity>; resolution?: string | null }) =>
+    const saveSettings = (contentId: string, patch: { continuity?: Record<string, Continuity>; resolution?: string | null; segImages?: Record<string, number[]> }) =>
         run(async () => {
             await call('/api/pipeline/content-settings', 'PATCH', { contentId, ...patch })
             await load()
@@ -662,6 +687,14 @@ export default function ContentPage() {
                                                 <ResolutionPicker value={st.resolution || DEFAULT_RESOLUTION} onChange={(v) => saveSettings(open.id, { resolution: v })} />
                                             </div>
                                             <ContinuityEditor segs={open.segments} value={st.continuity} onChange={(v) => saveSettings(open.id, { continuity: v })} />
+                                            {Object.keys(open.pics).length > 1 && (
+                                                <PicturesEditor
+                                                    segs={open.segments}
+                                                    slots={Object.keys(open.pics).map(Number).sort((a, b) => a - b)}
+                                                    value={st.segImages}
+                                                    onChange={(v) => saveSettings(open.id, { segImages: v })}
+                                                />
+                                            )}
                                             <p className="sub">task_mode = ref และ ref_image_size = max เสมอ · segment 1 เป็น shot เสมอ · ถ้าเปลี่ยน segment ที่เขียนแบบ "ต่อเนื่อง" ให้เป็น shot ระบบลบ 0.917 วินาทีออกจาก timestamp ให้ แต่ประโยคเปิดของ prompt อาจยังพูดว่า "ต่อเนื่อง" ควรแก้เอง</p>
                                         </div>
                                     )

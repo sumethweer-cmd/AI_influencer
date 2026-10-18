@@ -37,3 +37,9 @@ Stored in the main row's `note` JSON (`resolution`, `continuity: {"2":"shot"|"co
 - A context-written segment (timestamps +0.917 s) switched to `shot` gets 0.917 s subtracted from its timestamps; its opening sentence ("the shot continues…") is NOT rewritten.
 - `resolution` is sent as node 26 field `resolution`. Default (nothing saved) = `720 x 1280 (9:16)`; saved value `workflow` = send nothing and keep the workflow's own value. The node's dropdown also has 16:9 options and "Custom" whose exact names are not known to the app: type them in the custom field. A wrong name is rejected by RunningHub when the task is created.
 - `POST /api/pipeline/send` with `dryRun: true` builds everything and returns a preview (modes, shifted timestamps, resolution) without uploading or creating a task (no coins).
+
+## Segments written as independent shots + per-segment pictures
+Note JSON keys (all optional, set via `PATCH /api/pipeline/content-settings`):
+- `authored`: `{"2":"shot"}` = this segment's text was written as a stand-alone shot (no +0.917 s timestamp shift, no "continues" opening). Default: segment 1 = shot, others = context.
+- `continuity`: how it is RENDERED (`shot`/`context`). If a context-written segment is rendered as shot its timestamps are shifted back; a shot-written segment rendered as context is sent as is.
+- `segImages`: `{"3":[1,3]}` = Picture slots used by that segment, in order (= `<Picture N>` numbering inside the segment). Lets a stand-alone shot change the background (e.g. desk [1,2] vs living room [1,3]). Only the slots that are used are uploaded to RunningHub.
