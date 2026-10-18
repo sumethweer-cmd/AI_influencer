@@ -62,7 +62,7 @@ body:
     tone: "Korean glass skin"
     texture: "flawless, dewy"
 distinguishing_marks:
-  - "small tattoo of a heart and a rainbow on her left upper arm"
+  - "small tattoo of a heart and a rainbow on her right upper arm"
 constraints:
   - "no other tattoos anywhere on her body"
 ```
