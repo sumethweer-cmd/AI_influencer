@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — หน้าคอนเทนต์ (ข้อมูลตัวอย่าง)</title>
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#ffffff; --ink:#26231f; --muted:#7a7469; --line:#e4dfd5;
+    --brand:#2f5d50; --brand-ink:#ffffff; --brand-soft:#e3eee9;
+    --wait:#8a6a00; --wait-bg:#fbf1cf;
+    --run:#1f5f99; --run-bg:#dfeefa;
+    --ok:#2c6b3f; --ok-bg:#dff1e4;
+    --bad:#a3322a; --bad-bg:#f9e0dd;
+    --idle:#6b665c; --idle-bg:#ece8de;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Leelawadee UI","Sarabun","Noto Sans Thai",Tahoma,sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 80px}
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+  h1{font-size:26px;margin:0}
+  .note{background:#fff7e0;border:1px solid #ecd9a0;border-radius:10px;padding:10px 14px;font-size:14px;margin:0 0 18px}
+  button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 16px;min-height:44px}
+  button:hover{border-color:#bdb6a6}
+  button.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:600}
+  button.primary:hover{background:#264c41}
+  button:focus-visible,input:focus-visible,.row:focus-visible{outline:3px solid #7ab3a2;outline-offset:2px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap}
+
+  .summary{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:16px;font-size:18px}
+  .summary b{font-weight:700}
+  .summary .warn{color:var(--bad);font-weight:600}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+  .chip{border-radius:999px;padding:7px 16px;min-height:40px;background:var(--card)}
+  .chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chip small{color:inherit;opacity:.7;margin-left:4px}
+  .search{flex:1;min-width:200px;border:1px solid var(--line);border-radius:10px;padding:9px 14px;font:inherit;min-height:44px;background:var(--card)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+
+  .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+  .layout.open{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)}
+  @media (max-width:900px){.layout.open{grid-template-columns:1fr}}
+
+  .list{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .head,.row{display:grid;grid-template-columns:28px minmax(150px,1.4fr) minmax(210px,1.8fr) minmax(150px,1fr);gap:12px;align-items:center;padding:12px 16px}
+  .head{font-size:13px;color:var(--muted);background:#faf8f3;border-bottom:1px solid var(--line)}
+  .row{border-bottom:1px solid var(--line);cursor:pointer}
+  .row:last-child{border-bottom:0}
+  .row:hover{background:#faf8f3}
+  .row.sel{background:var(--brand-soft)}
+  .title{font-weight:700}
+  .sub{font-size:13px;color:var(--muted)}
+  .steps{display:flex;align-items:center;gap:0}
+  .step{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;position:relative;font-size:11px;color:var(--muted)}
+  .step i{width:14px;height:14px;border-radius:50%;border:2px solid #c9c2b2;background:#fff;display:block;z-index:1}
+  .step.done i{background:var(--ok);border-color:var(--ok)}
+  .step.now i{background:var(--run);border-color:var(--run);box-shadow:0 0 0 4px var(--run-bg)}
+  .step.bad i{background:var(--bad);border-color:var(--bad)}
+  .step.todo i{border-color:var(--wait);background:var(--wait-bg)}
+  .step:not(:last-child)::after{content:"";position:absolute;top:6px;left:50%;width:100%;height:2px;background:#d8d2c3}
+  .step.done:not(:last-child)::after{background:var(--ok)}
+  .tag{display:inline-block;border-radius:6px;padding:2px 9px;font-size:13px;font-weight:600}
+  .t-idle{background:var(--idle-bg);color:var(--idle)} .t-wait{background:var(--wait-bg);color:var(--wait)}
+  .t-run{background:var(--run-bg);color:var(--run)} .t-ok{background:var(--ok-bg);color:var(--ok)} .t-bad{background:var(--bad-bg);color:var(--bad)}
+  .next{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+  .next button{padding:6px 14px;min-height:40px;font-size:14px}
+
+  .drawer{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;display:none;align-self:start;position:sticky;top:16px}
+  .layout.open .drawer{display:block}
+  .drawer h2{margin:0;font-size:20px}
+  .close{float:right;min-height:36px;padding:4px 12px}
+  .tabs{display:flex;gap:4px;margin:14px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tab{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:8px 12px;min-height:44px}
+  .tab[aria-selected="true"]{border-bottom-color:var(--brand);font-weight:700}
+  .panel{display:none} .panel.on{display:block}
+  .banner{border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:15px}
+  .banner.warn{background:var(--wait-bg);color:#5c4700}
+  .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .slot{border:2px dashed #c9c2b2;border-radius:12px;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:8px;background:#faf8f3}
+  .slot.filled{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+  .thumb{width:64px;height:80px;border-radius:8px;background:#cfd8d3;display:flex;align-items:center;justify-content:center;font-weight:700;color:#3d5a50}
+  .seg{border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+  .seg summary{cursor:pointer;padding:10px 14px;min-height:44px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .seg pre{margin:0;padding:12px 14px;border-top:1px solid var(--line);white-space:pre-wrap;font:13px/1.5 Consolas,monospace;background:#faf8f3;max-height:180px;overflow:auto}
+  .seg textarea{width:100%;min-height:210px;border:0;border-top:1px solid var(--line);padding:12px 14px;font:13px/1.6 Consolas,"Leelawadee UI",monospace;background:#faf8f3;color:var(--ink);resize:vertical;display:block}
+  .seg textarea[readonly]{background:#faf8f3}
+  .seg textarea:not([readonly]){background:#fffdf5;outline:2px solid #e3c766;outline-offset:-2px}
+  .segbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+  .segbar .sp{flex:1}
+  .edited{color:var(--wait);font-weight:600;font-size:13px}
+  table.t{width:100%;border-collapse:collapse;font-size:14px}
+  table.t th{text-align:left;color:var(--muted);font-weight:500;padding:6px 8px 6px 0}
+  table.t td{padding:8px 8px 8px 0;border-top:1px solid var(--line);vertical-align:top}
+
+  .modal{position:fixed;inset:0;background:rgba(38,35,31,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .modal.on{display:flex}
+  .sheet{background:var(--card);border-radius:16px;max-width:760px;width:100%;max-height:88vh;overflow:auto;padding:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:12px}
+  .pick{border:2px solid var(--line);border-radius:12px;padding:8px;text-align:center;font-size:12px;background:#fff;min-height:44px}
+  .pick:hover{border-color:var(--brand)}
+  .pick .thumb{width:100%;height:110px;margin-bottom:6px}
+  .pick.up{border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--brand);font-weight:700;min-height:150px}
+  @media (prefers-reduced-motion:no-preference){.row,button{transition:background .15s,border-color .15s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>คอนเทนต์ของฉัน</h1>
+    <div class="actions">
+      <button id="btnCheck">เช็กสถานะ RunningHub (2)</button>
+      <button class="primary" id="btnSend" disabled>สั่งเจนที่เลือก (0)</button>
+    </div>
+  </header>
+  <p class="note">นี่คือ mockup ข้อมูลตัวอย่าง ไม่ได้ต่อฐานข้อมูล กดแถว กดแท็บ กดช่องรูปดูได้ ลองดูว่าใช้งานแล้วเข้าใจไหม แล้วบอกผมว่าจะแก้ตรงไหน</p>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="toolbar">
+    <div class="chips" id="chips" role="group" aria-label="กรองตามสถานะ"></div>
+    <input class="search" id="q" type="search" placeholder="ค้นหาชื่อเรื่องหรือตัวละคร" aria-label="ค้นหา">
+  </div>
+
+  <div class="layout" id="layout">
+    <section class="list" aria-label="รายการคอนเทนต์">
+      <div class="head"><span></span><span>เรื่อง</span><span>ความคืบหน้า</span><span>สถานะ / ต้องทำอะไรต่อ</span></div>
+      <div id="rows"></div>
+    </section>
+
+    <aside class="drawer" id="drawer" aria-live="polite">
+      <button class="close" id="closeDrawer">ปิด</button>
+      <h2 id="dTitle"></h2>
+      <div class="sub" id="dSub"></div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-p="p1">ภาพรวม</button>
+        <button class="tab" role="tab" aria-selected="false" data-p="p2">รูปอ้างอิง</button>
+        <button class="tab" role="tab" aria-selected="false" data-p="p3">Segments</button>
+        <button class="tab" role="tab" aria-selected="false" data-p="p4">การเรนเดอร์</button>
+      </div>
+      <div class="panel on" id="p1"></div>
+      <div class="panel" id="p2"></div>
+      <div class="panel" id="p3"></div>
+      <div class="panel" id="p4"></div>
+    </aside>
+  </div>
+</div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="เลือกรูปอ้างอิง">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+      <h2 style="margin:0;font-size:20px" id="mTitle">เลือกรูปสำหรับ Picture 1</h2>
+      <button id="mClose">ปิด</button>
+    </div>
+    <div class="chips" style="margin:12px 0 0" id="mChips"></div>
+    <div class="grid" id="mGrid"></div>
+    <p class="sub" style="margin-top:12px">รูปที่อัปโหลดใหม่จะถูกเก็บเป็นรูปในคลัง ใช้ซ้ำกับเรื่องอื่นได้</p>
+  </div>
+</div>
+
+<div class="modal" id="regen" role="dialog" aria-modal="true" aria-label="เจนเฉพาะ segment">
+  <div class="sheet" style="max-width:560px">
+    <h2 style="margin:0 0 6px;font-size:20px" id="rTitle">เจนเฉพาะ SEG 3</h2>
+    <p class="sub" style="margin:0 0 14px">เลือกวิธี:</p>
+    <label style="display:block;border:2px solid var(--brand);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer">
+      <input type="radio" name="mode" checked> <b>ทำใหม่ต่อจากเดิม (reroll)</b>
+      <div class="sub">ใช้ prompt ที่แก้แล้ว แต่ยังต่อเนื่องกับ segment ก่อนหน้า เหมาะตอน segment นี้เพี้ยน ต้องการข้อมูลที่เครื่องเรนเดอร์เก็บไว้จากรอบก่อน (latents) <span class="tag t-wait">ยังไม่ยืนยันว่า RunningHub เก็บให้</span></div>
+    </label>
+    <label style="display:block;border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;cursor:pointer">
+      <input type="radio" name="mode"> <b>เริ่มใหม่เป็นคลิปแยก</b>
+      <div class="sub">เรนเดอร์ segment นี้เป็นคลิปเดี่ยว ทำได้แน่นอน แต่จะไม่ต่อเนื่องกับ segment ข้างๆ ต้องเอาไปต่อในโปรแกรมตัดต่อเอง</div>
+    </label>
+    <p class="sub">ประมาณการ: คลิป 8 วินาที ใช้เวลาราว 5 นาที และราว 50 เหรียญ (คำนวณจาก 33 วินาทีต่อ 1 วินาทีคลิป เป็นค่าประมาณ)</p>
+    <div class="actions" style="justify-content:flex-end"><button id="rCancel">ยกเลิก</button><button class="primary" id="rGo">ยืนยันและสั่งเจน</button></div>
+  </div>
+</div>
+
+<script>
+// ข้อมูลตัวอย่าง (ไม่ใช่ข้อมูลจริง)
+// stage: 0 บท · 1 รูป · 2 ส่ง · 3 รัน · 4 เสร็จ · 5 โหลด
+const STAGES=['บท','รูป','ส่ง','รัน','เสร็จ','โหลด'];
+const DATA=[
+ {id:1,title:'กลับดึก',char:'Meena',segs:5,prompt:'พร้อม',pics:[1,1,0],render:'RUNNING',stage:3,note:'ส่งเมื่อ 18 ต.ค. 16:30 · รันมา 14 นาที (คาดราว 22 นาที)'},
+ {id:2,title:'ผมหงอก',char:'Anong',segs:3,prompt:'พร้อม',pics:[1,1,0],render:'QUEUED',stage:2,note:'อยู่ในคิว RH · ส่งเมื่อ 18 ต.ค. 16:31'},
+ {id:3,title:'กันแดด',char:'Anong',segs:3,prompt:'พร้อม',pics:[0,0,0],render:'NONE',stage:0,note:'ยังไม่ได้เลือกรูป'},
+ {id:4,title:'ดื่มน้ำ',char:'Anong',segs:3,prompt:'พร้อม',pics:[1,1,0],render:'NONE',stage:1,note:'รูปครบแล้ว พร้อมส่ง'},
+ {id:5,title:'เหงื่อและกลิ่นตัว',char:'Anong',segs:3,prompt:'พร้อม',pics:[1,1,0],render:'SUCCESS',stage:4,left:3,note:'เสร็จเมื่อ 15 ต.ค. · ยังไม่ได้โหลด'},
+ {id:6,title:'สายตาและแว่นกรองแสง',char:'Anong',segs:3,prompt:'พร้อม',pics:[1,1,0],render:'FAILED',stage:2,bad:true,note:'RH แจ้งยกเลิก เมื่อ 17 ต.ค.'},
+ {id:7,title:'โกนหนวด',char:'Anong',segs:3,prompt:'พร้อม',pics:[1,1,0],render:'SUCCESS',stage:5,note:'โหลดเก็บแล้ว'},
+];
+const LIB=[...Array.from({length:12},(_,i)=>({n:'Anong '+String(i+1).padStart(2,'0'),c:'Anong'})),{n:'Meena (original)',c:'Meena'},{n:'Meena v2',c:'Meena'},{n:'ผี v2',c:'ผี'}];
+
+const state={filter:'all',q:'',sel:null,checked:new Set()};
+const need=d=>d.render==='NONE'||d.render==='FAILED'||(d.render==='SUCCESS'&&d.stage<5);
+const groups={
+ all:{label:'ทั้งหมด',f:()=>true},
+ todo:{label:'ต้องทำต่อ',f:need},
+ run:{label:'กำลังรัน/รอคิว',f:d=>d.render==='RUNNING'||d.render==='QUEUED'},
+ done:{label:'เสร็จแล้ว',f:d=>d.render==='SUCCESS'},
+ bad:{label:'มีปัญหา',f:d=>d.render==='FAILED'}
+};
+const tag=d=>({NONE:['ยังไม่ส่ง','t-idle'],QUEUED:['อยู่ในคิว','t-wait'],RUNNING:['กำลังรัน','t-run'],SUCCESS:[d.stage>=5?'เสร็จ · โหลดแล้ว':'เสร็จ · รอโหลด',d.stage>=5?'t-ok':'t-wait'],FAILED:['ถูกยกเลิก','t-bad']})[d.render];
+const nextBtn=d=>({NONE:d.stage<1?'เลือกรูป':'สั่งเจน',QUEUED:'',RUNNING:'',SUCCESS:d.stage>=5?'เปิดคลิป':'โหลดคลิป',FAILED:'ส่งใหม่'})[d.render];
+
+function stepper(d){
+  return '<div class="steps">'+STAGES.map((s,i)=>{
+    let c=''; if(d.bad&&i===2)c='bad'; else if(i<d.stage||(d.stage>=5&&i<=5))c='done'; else if(i===d.stage)c=(d.render==='RUNNING'||d.render==='QUEUED')?'now':'todo';
+    return `<div class="step ${c}"><i></i><span>${s}</span></div>`}).join('')+'</div>';
+}
+function render(){
+  const list=DATA.filter(groups[state.filter].f).filter(d=>(d.title+d.char).toLowerCase().includes(state.q.toLowerCase()));
+  document.getElementById('rows').innerHTML=list.map(d=>{const [t,c]=tag(d),nb=nextBtn(d);
+    return `<div class="row ${state.sel===d.id?'sel':''}" tabindex="0" data-id="${d.id}">
+      <input type="checkbox" aria-label="เลือก ${d.title}" data-ck="${d.id}" ${state.checked.has(d.id)?'checked':''} ${(d.render==='NONE'&&d.stage>=1)||d.render==='FAILED'?'':'disabled'}>
+      <div><div class="title">${d.title}</div><div class="sub">${d.char} · ${d.segs} segment</div></div>
+      ${stepper(d)}
+      <div class="next"><span class="tag ${c}">${t}</span>${nb?`<button data-act="${d.id}" class="${nb==='สั่งเจน'||nb==='โหลดคลิป'||nb==='ส่งใหม่'?'primary':''}">${nb}</button>`:'<span class="sub">รอ RH ทำงาน ไม่ต้องทำอะไร</span>'}</div>
+    </div>`}).join('')||'<div style="padding:30px;text-align:center;color:var(--muted)">ไม่มีรายการ</div>';
+  document.getElementById('chips').innerHTML=Object.entries(groups).map(([k,g])=>`<button class="chip" aria-pressed="${state.filter===k}" data-f="${k}">${g.label}<small>${DATA.filter(g.f).length}</small></button>`).join('');
+  const run=DATA.filter(groups.run.f).length,td=DATA.filter(d=>d.render==='NONE').length,dl=DATA.filter(d=>d.render==='SUCCESS'&&d.stage<5);
+  document.getElementById('summary').innerHTML=`ตอนนี้ <b>กำลังรัน ${run}</b> · <b>รอส่ง ${td}</b> · <b>เสร็จแล้วยังไม่ได้โหลด ${dl.length}</b>`+(dl.length?` <span class="warn">— "${dl[0].title}" หมดอายุในอีก ${dl[0].left} วัน</span>`:'');
+  const n=state.checked.size;const b=document.getElementById('btnSend');b.disabled=!n;b.textContent=`สั่งเจนที่เลือก (${n})`;
+  document.getElementById('layout').classList.toggle('open',state.sel!==null);
+}
+function openD(id){
+  state.sel=id;const d=DATA.find(x=>x.id===id);const [t,c]=tag(d);
+  document.getElementById('dTitle').textContent=d.title;
+  document.getElementById('dSub').innerHTML=`${d.char} · ${d.segs} segment · <span class="tag ${c}">${t}</span>`;
+  document.getElementById('p1').innerHTML=(d.render==='SUCCESS'&&d.stage<5?`<div class="banner warn">คลิปเสร็จแล้วแต่ยังไม่ได้โหลด ลิงก์จะหมดอายุในอีก <b>${d.left} วัน</b> (นับจากวันส่งงาน)</div>`:'')+
+    `<p style="margin:0 0 10px">${d.note}</p>`+stepper(d)+
+    `<p class="sub" style="margin-top:14px">สิ่งที่ต้องทำต่อ: <b>${nextBtn(d)||'ไม่ต้องทำอะไร รอ RH'}</b></p>`;
+  document.getElementById('p2').innerHTML=`<div class="slots">`+['Picture 1','Picture 2','Picture 3'].map((s,i)=>{const f=d.pics[i];return `<div class="slot ${f?'filled':''}">${f?`<div class="thumb">${i===0?d.char[0]:'ฉาก'}</div>`:''}<b>${s}</b><span class="sub">${i===0?'ตัวละคร':i===1?'ผี / ตัวละครที่สอง':'ฉากหลัง (ไม่บังคับ)'}</span><button data-pick="${i+1}">${f?'เปลี่ยนรูป':'เลือกรูป'}</button></div>`}).join('')+`</div>`;
+  const SAMPLE=i=>['subject_definitions:','<Picture 1> (คำอธิบายตัวละคร ตัวอย่าง)','','summary:','[reference generation] (ตัวอย่าง prompt segment '+(i+1)+')','','detailed_description:','[Shot 1] ...','','overall_soundscape:','...','','non_diegetic_music:','N/A'].join(String.fromCharCode(10));
+  document.getElementById('p3').innerHTML='<p class="sub" style="margin:0 0 10px">กดชื่อ segment เพื่อเปิด · แก้ไขได้ทีละ segment · เจนใหม่เฉพาะ segment นั้นได้</p>'+Array.from({length:d.segs},(_,i)=>`<details class="seg" data-seg="${i+1}"><summary><b>SEG ${i+1}</b><span class="tag t-ok">${d.prompt}</span><span class="sub wc">8 วินาที · 192 เฟรม · 0 คำ</span><span class="edited" hidden>แก้ไขแล้ว ยังไม่ได้บันทึก</span></summary><textarea readonly spellcheck="false" aria-label="prompt SEG ${i+1}">${SAMPLE(i)}</textarea><div class="segbar"><button data-edit>แก้ไข prompt</button><button class="primary" data-save hidden>บันทึก</button><button data-cancel hidden>ยกเลิก</button><button data-copy>คัดลอก</button><span class="sp"></span><button data-regen>เจนเฉพาะ segment นี้…</button></div></details>`).join('');
+  document.querySelectorAll('#p3 .seg').forEach(el=>{const ta=el.querySelector('textarea');el.querySelector('.wc').textContent='8 วินาที · 192 เฟรม · '+ta.value.split(/s+/).filter(Boolean).length+' คำ'});
+  document.getElementById('p4').innerHTML=d.render==='NONE'?'<p class="sub">ยังไม่เคยส่งงาน</p>':
+    `<table class="t"><tr><th>สถานะ</th><th>เลข task</th><th>ส่งเมื่อ</th><th>เวลารัน</th><th>ผลลัพธ์</th></tr><tr><td><span class="tag ${c}">${t}</span></td><td>2110…8892</td><td>18 ต.ค. 16:30</td><td>${d.render==='SUCCESS'?'22 นาที':'-'}</td><td>${d.render==='SUCCESS'?`<a href="#">เปิดคลิป</a><div class="sub">${d.stage>=5?'โหลดเก็บแล้ว':'เหลือ '+d.left+' วัน'}</div>`:'-'}</td></tr></table>`;
+  render();
+}
+function pickModal(slot){
+  document.getElementById('mTitle').textContent='เลือกรูปสำหรับ Picture '+slot;
+  const cs=['ทั้งหมด','Anong','Meena','ผี'];let cur='ทั้งหมด';
+  const draw=()=>{document.getElementById('mChips').innerHTML=cs.map(c=>`<button class="chip" aria-pressed="${c===cur}" data-mc="${c}">${c}</button>`).join('');
+    document.getElementById('mGrid').innerHTML=`<label class="pick up"><span style="font-size:28px">＋</span>อัปโหลดรูปใหม่<input type="file" accept="image/*" hidden></label>`+LIB.filter(x=>cur==='ทั้งหมด'||x.c===cur).map(x=>`<button class="pick"><div class="thumb">${x.c[0]}</div>${x.n}</button>`).join('')};
+  draw();document.getElementById('mChips').onclick=e=>{const b=e.target.closest('[data-mc]');if(b){cur=b.dataset.mc;draw()}};
+  document.getElementById('modal').classList.add('on');
+}
+document.addEventListener('click',e=>{
+  const f=e.target.closest('[data-f]');if(f){state.filter=f.dataset.f;render();return}
+  const ck=e.target.closest('[data-ck]');if(ck){ck.checked?state.checked.add(+ck.dataset.ck):state.checked.delete(+ck.dataset.ck);render();e.stopPropagation();return}
+  const act=e.target.closest('[data-act]');if(act){openD(+act.dataset.act);return}
+  const row=e.target.closest('.row');if(row){openD(+row.dataset.id);return}
+  const tab=e.target.closest('.tab');if(tab){document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t===tab));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id===tab.dataset.p));return}
+  const seg=e.target.closest('.seg');
+  if(seg&&e.target.closest('button')){const ta=seg.querySelector('textarea');const q=a=>seg.querySelector('['+a+']');
+    if(e.target.closest('[data-edit]')){ta.dataset.orig=ta.value;ta.removeAttribute('readonly');ta.focus();q('data-edit').hidden=true;q('data-save').hidden=false;q('data-cancel').hidden=false;return}
+    if(e.target.closest('[data-cancel]')){ta.value=ta.dataset.orig;ta.setAttribute('readonly','');q('data-edit').hidden=false;q('data-save').hidden=true;q('data-cancel').hidden=true;seg.querySelector('.edited').hidden=true;return}
+    if(e.target.closest('[data-save]')){ta.setAttribute('readonly','');q('data-edit').hidden=false;q('data-save').hidden=true;q('data-cancel').hidden=true;seg.querySelector('.edited').hidden=true;seg.querySelector('.wc').textContent='8 วินาที · 192 เฟรม · '+ta.value.split(/s+/).filter(Boolean).length+' คำ · บันทึกแล้ว';return}
+    if(e.target.closest('[data-copy]')){navigator.clipboard&&navigator.clipboard.writeText(ta.value);e.target.textContent='คัดลอกแล้ว';setTimeout(()=>e.target.textContent='คัดลอก',1200);return}
+    if(e.target.closest('[data-regen]')){document.getElementById('rTitle').textContent='เจนเฉพาะ SEG '+seg.dataset.seg;document.getElementById('regen').classList.add('on');return}
+  }
+  if(e.target.id==='rCancel'||e.target.id==='rGo'||e.target.id==='regen'){document.getElementById('regen').classList.remove('on');return}
+  const pk=e.target.closest('[data-pick]');if(pk){pickModal(pk.dataset.pick);return}
+  if(e.target.id==='closeDrawer'){state.sel=null;render();return}
+  if(e.target.id==='mClose'||e.target.id==='modal'){document.getElementById('modal').classList.remove('on')}
+});
+document.addEventListener('input',e=>{if(e.target.matches('.seg textarea')){const seg=e.target.closest('.seg');seg.querySelector('.edited').hidden=false}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.getElementById('modal').classList.remove('on');document.getElementById('regen').classList.remove('on')}if(e.key==='Enter'&&e.target.classList.contains('row'))openD(+e.target.dataset.id)});
+document.getElementById('q').addEventListener('input',e=>{state.q=e.target.value;render()});
+render();
+</script>
+</body>
+</html>

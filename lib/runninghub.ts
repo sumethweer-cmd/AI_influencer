@@ -56,6 +56,33 @@ export function pickOutputs(json: unknown): RhOutputs {
     return { fileUrl: video ? String(video.fileUrl) : null, runSeconds, coins }
 }
 
+const scrub = (text: string) => text.split(process.env.RUNNINGHUB_API_KEY || '\u0000').join('***').slice(0, 300)
+
+/** Fetches an image from a public URL and uploads it to RunningHub; returns the name RH gives it (used in track_data). */
+export async function rhUploadImage(url: string, filename: string): Promise<string> {
+    const key = apiKey()
+    const img = await fetch(url, { cache: 'no-store' })
+    if (!img.ok) throw new Error(`โหลดรูปไม่ได้ (HTTP ${img.status}): ${filename}`)
+    const buf = await img.arrayBuffer()
+    const fd = new FormData()
+    fd.append('apiKey', key)
+    fd.append('fileType', 'input')
+    fd.append('file', new Blob([buf], { type: img.headers.get('content-type') || 'image/png' }), filename)
+    const res = await fetch(BASE + '/task/openapi/upload', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: fd })
+    const json = await res.json().catch(() => ({}))
+    if (json.code !== 0 || !json.data?.fileName) throw new Error(`อัปโหลดรูปเข้า RunningHub ไม่สำเร็จ: ${scrub(JSON.stringify(json))}`)
+    return String(json.data.fileName)
+}
+
+export type NodeInfo = { nodeId: string; fieldName: string; fieldValue: string | number }
+
+/** Creates a task from a saved RunningHub workflow. This is the call that costs coins once it runs. */
+export async function rhCreate(workflowId: string, nodeInfoList: NodeInfo[]): Promise<{ taskId: string; status: string }> {
+    const json = await rhPost('/task/openapi/create', { workflowId, nodeInfoList })
+    if (json.code !== 0 || !json.data?.taskId) throw new Error(`สร้างงานใน RunningHub ไม่สำเร็จ: ${scrub(JSON.stringify(json))}`)
+    return { taskId: String(json.data.taskId), status: String(json.data.taskStatus || 'QUEUED') }
+}
+
 export async function rhOutputs(taskId: string): Promise<RhOutputs> {
     return pickOutputs(await rhPost('/task/openapi/outputs', { taskId }))
 }

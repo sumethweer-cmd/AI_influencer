@@ -35,6 +35,19 @@ export async function GET() {
             .limit(1000)
         if (tasksErr) throw tasksErr
 
+        const { data: slotRows, error: slotErr } = await supabaseAdmin
+            .from('pipeline_assets')
+            .select('content_item_id,picture_slot,label,url')
+            .not('content_item_id', 'is', null)
+            .not('picture_slot', 'is', null)
+        if (slotErr) throw slotErr
+        const picsByItem = new Map<string, Record<number, { label: string; url: string }>>()
+        for (const a of slotRows || []) {
+            const m = picsByItem.get(a.content_item_id) || {}
+            m[a.picture_slot] = { label: a.label, url: a.url }
+            picsByItem.set(a.content_item_id, m)
+        }
+
         const children = new Map<string, any[]>()
         for (const it of items || []) {
             if (it.parent_content_item_id) {
@@ -75,6 +88,7 @@ export async function GET() {
                     note: main.note,
                     scheduled_date: main.scheduled_date,
                     created_at: main.created_at,
+                    pics: picsByItem.get(main.id) || {},
                     segments: segs,
                     render_tasks: tasksByItem.get(main.id) || [],
                 }
