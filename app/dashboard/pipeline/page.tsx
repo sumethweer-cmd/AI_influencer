@@ -117,6 +117,9 @@ export default function PipelineOverviewPage() {
     const [filter, setFilter] = useState<string>('ALL')
     const [character, setCharacter] = useState<string>('ALL')
     const [query, setQuery] = useState('')
+    const [token, setToken] = useState('')
+    const [refreshing, setRefreshing] = useState(false)
+    const [progress, setProgress] = useState<string | null>(null)
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -137,6 +140,52 @@ export default function PipelineOverviewPage() {
     useEffect(() => {
         load()
     }, [load])
+
+    useEffect(() => {
+        try {
+            setToken(sessionStorage.getItem('pipeline_admin_token') || '')
+        } catch {}
+    }, [])
+
+    // Unfinished RunningHub jobs (anything linked to a content, plus unlinked ones).
+    const activeJobIds = useMemo(() => {
+        const all: RenderTask[] = [...contents.flatMap((c) => c.render_tasks), ...orphans]
+        return all.filter((t) => t.provider === 'runninghub' && (t.status === 'QUEUED' || t.status === 'RUNNING')).map((t) => t.job_id)
+    }, [contents, orphans])
+
+    // Asks the server to check RunningHub for these jobs, 5 at a time.
+    const refreshRh = async () => {
+        if (!activeJobIds.length || refreshing) return
+        setRefreshing(true)
+        setError(null)
+        try {
+            sessionStorage.setItem('pipeline_admin_token', token)
+        } catch {}
+        let done = 0
+        let failed = 0
+        try {
+            for (let i = 0; i < activeJobIds.length; i += 5) {
+                const batch = activeJobIds.slice(i, i + 5)
+                setProgress(`เช็กแล้ว ${done}/${activeJobIds.length}`)
+                const res = await fetch('/api/pipeline/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+                    body: JSON.stringify({ jobIds: batch }),
+                })
+                const json = await res.json()
+                if (!json.success) throw new Error(json.error || 'เช็กสถานะไม่สำเร็จ')
+                failed += (json.results || []).filter((r: { error?: string }) => r.error).length
+                done += batch.length
+            }
+            setProgress(`เช็กครบ ${done} งาน${failed ? ` (มี ${failed} งานเช็กไม่ได้)` : ''}`)
+            await load()
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e))
+            setProgress(null)
+        } finally {
+            setRefreshing(false)
+        }
+    }
 
     const counts = useMemo(() => {
         const c: Record<string, number> = { NOT_SENT: 0, QUEUED: 0, RUNNING: 0, SUCCESS: 0, FAILED: 0, CANCELLED: 0 }
@@ -184,14 +233,33 @@ export default function PipelineOverviewPage() {
                         1 แถว = 1 content (กดเพื่อดู segment และงานเรนเดอร์) · อ่านข้อมูลอย่างเดียว
                     </p>
                 </div>
-                <button
-                    onClick={load}
-                    disabled={loading}
-                    className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-bold disabled:opacity-50"
-                >
-                    {loading ? 'กำลังโหลด…' : '↻ โหลดใหม่จากฐานข้อมูล'}
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                        type="password"
+                        value={token}
+                        onChange={(e) => setToken(e.target.value)}
+                        placeholder="รหัสผ่าน (ถ้าตั้งไว้)"
+                        className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm w-40"
+                    />
+                    <button
+                        onClick={refreshRh}
+                        disabled={refreshing || !activeJobIds.length}
+                        title="ถามสถานะงานที่ยังไม่จบจาก RunningHub (ไม่เสียเหรียญ)"
+                        className="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-sm font-bold disabled:opacity-40"
+                    >
+                        {refreshing ? 'กำลังเช็ก…' : `⟳ เช็กสถานะ RH (${activeJobIds.length})`}
+                    </button>
+                    <button
+                        onClick={load}
+                        disabled={loading}
+                        className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-bold disabled:opacity-50"
+                    >
+                        {loading ? 'กำลังโหลด…' : '↻ โหลดใหม่จากฐานข้อมูล'}
+                    </button>
+                </div>
             </div>
+
+            {progress && <div className="text-sm text-cyan-300">{progress}</div>}
 
             {error && (
                 <div className="rounded-lg border border-rose-800 bg-rose-950/50 text-rose-300 px-4 py-3 text-sm">
