@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { activeJobIds, refreshTasks } from '@/lib/refreshTasks'
-import { sendContent, SendError } from '@/lib/sendJob'
+import { sendContent, SendError, type SendOpts } from '@/lib/sendJob'
 
 // Auto dispatcher: every tick (pg_cron, every 30 min, only while enabled) it
 //   1) refreshes the status of unfinished RunningHub tasks (free),
@@ -89,7 +89,7 @@ export async function runTick(manual: boolean): Promise<TickResult> {
     // 2) send waiting contents
     const { data: waiting, error: wErr } = await db()
         .from('pipeline_send_queue')
-        .select('id,content_item_id,workflow_row_id,attempts')
+        .select('id,content_item_id,workflow_row_id,attempts,opts')
         .eq('status', 'waiting')
         .order('enqueued_at', { ascending: true })
         .limit(50)
@@ -115,8 +115,8 @@ export async function runTick(manual: boolean): Promise<TickResult> {
             notes.push(`daily limit ${settings.daily_limit}`)
             break
         }
-        // never send the same content twice
-        const { count: already } = await db()
+        // never send the same content twice (repairs / re-renders carry opts and are deliberate)
+        const { count: already } = item.opts ? { count: 0 } : await db()
             .from('render_tasks')
             .select('id', { count: 'exact', head: true })
             .eq('content_item_id', item.content_item_id)
@@ -127,7 +127,8 @@ export async function runTick(manual: boolean): Promise<TickResult> {
             continue
         }
         try {
-            const r = await sendContent({ contentId: item.content_item_id, workflowRowId: item.workflow_row_id || undefined })
+            const o = (item.opts || {}) as Partial<SendOpts>
+            const r = await sendContent({ ...o, contentId: item.content_item_id, workflowRowId: item.workflow_row_id || undefined })
             await db()
                 .from('pipeline_send_queue')
                 .update({ status: 'sent', task_job_id: r.taskId, sent_at: new Date().toISOString(), attempts: item.attempts + 1, last_error: null })
@@ -165,18 +166,19 @@ export async function runTick(manual: boolean): Promise<TickResult> {
     return { activeBefore: before.length, sent, queueMaxed, waitingLeft: waitingLeft || 0, activeNow, switchedOff, note }
 }
 
-export async function enqueue(contentIds: string[], workflowRowId?: string) {
+export async function enqueue(contentIds: string[], workflowRowId?: string, opts?: Record<string, unknown> | null) {
     const result = { queued: [] as string[], skipped: [] as { id: string; reason: string }[] }
     for (const id of contentIds) {
-        const { data: dupe } = await db().from('pipeline_send_queue').select('id').eq('content_item_id', id).eq('status', 'waiting').limit(1)
-        if (dupe?.length) { result.skipped.push({ id, reason: 'อยู่ในคิวแล้ว' }); continue }
+        const { data: dupe } = await db().from('pipeline_send_queue').select('id,opts').eq('content_item_id', id).eq('status', 'waiting').limit(5)
+        const sameKind = (dupe || []).some((q: { opts?: { segFrom?: number } | null }) => (opts ? q.opts?.segFrom === (opts as { segFrom?: number }).segFrom : !q.opts))
+        if (sameKind) { result.skipped.push({ id, reason: 'อยู่ในคิวแล้ว' }); continue }
         const { count: pic1 } = await db()
             .from('pipeline_assets')
             .select('id', { count: 'exact', head: true })
             .eq('content_item_id', id)
             .eq('picture_slot', 1)
         if (!pic1) { result.skipped.push({ id, reason: 'ยังไม่ได้เลือกรูป Picture 1' }); continue }
-        const { error } = await db().from('pipeline_send_queue').insert({ content_item_id: id, workflow_row_id: workflowRowId || null })
+        const { error } = await db().from('pipeline_send_queue').insert({ content_item_id: id, workflow_row_id: workflowRowId || null, opts: opts || null })
         if (error) { result.skipped.push({ id, reason: error.message }); continue }
         result.queued.push(id)
     }

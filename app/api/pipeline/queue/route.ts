@@ -18,7 +18,7 @@ export async function GET() {
         const settings = await getSettings()
         const { data: waiting } = await supabaseAdmin
             .from('pipeline_send_queue')
-            .select('id,content_item_id,status,attempts,last_error,enqueued_at,sent_at,task_job_id')
+            .select('id,content_item_id,status,attempts,last_error,enqueued_at,sent_at,task_job_id,opts')
             .in('status', ['waiting', 'failed'])
             .order('enqueued_at', { ascending: true })
         const { data: recentLog } = await supabaseAdmin.from('pipeline_dispatch_log').select('at,active_before,sent,queue_maxed,note').order('id', { ascending: false }).limit(10)
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
         const b = await req.json().catch(() => ({}))
         const ids: string[] = Array.isArray(b.contentIds) ? b.contentIds.map(String) : []
         if (!ids.length) return NextResponse.json({ success: false, error: 'contentIds is required' }, { status: 400 })
-        const result = await enqueue(ids, b.workflowRowId ? String(b.workflowRowId) : undefined)
+        const result = await enqueue(ids, b.workflowRowId ? String(b.workflowRowId) : undefined, b.opts && typeof b.opts === 'object' ? b.opts : null)
         let dispatcher: 'started' | 'not_started' | 'already_on' = 'not_started'
         let warning: string | undefined
         if (result.queued.length) {

@@ -432,6 +432,32 @@ export default function ContentPage() {
             if (!d.repair) {
                 await call('/api/pipeline/content-settings', 'PATCH', { contentId: d.content.id, continuity: d.continuity, resolution: d.resolution.trim() })
             }
+            // repairs and re-renders wait in the send queue (RunningHub is often full); only a first send goes out right away
+            if (d.repair || stateOf(d.content) !== 'NONE') {
+                const out = await call('/api/pipeline/queue', 'POST', {
+                    contentIds: [d.content.id],
+                    workflowRowId: wfPick || undefined,
+                    siteUrl: window.location.origin,
+                    opts: {
+                        segFrom: d.segFrom,
+                        segCount: d.segCount,
+                        prompt: d.repair ? d.prompt : undefined,
+                        unshift: d.unshift,
+                        resolution: d.resolution.trim(),
+                        continuity: d.repair ? undefined : d.continuity,
+                        force: true,
+                    },
+                })
+                setDialog(null)
+                const skip = (out.skipped || [])[0]
+                setInfo(
+                    skip
+                        ? 'ไม่ได้เข้าคิว: ' + skip.reason
+                        : 'เข้าคิวส่งแล้ว' + (out.dispatcher === 'started' ? ' · เปิดตัวส่งอัตโนมัติ (ตรวจทุก 30 นาที)' : out.dispatcher === 'already_on' ? ' · ตัวส่งอัตโนมัติเปิดอยู่แล้ว' : '') + (out.warning ? ' · ' + out.warning : '')
+                )
+                await load()
+                return
+            }
             const out = await call('/api/pipeline/send', 'POST', {
                 confirm: true,
                 resolution: d.resolution.trim(),
@@ -930,7 +956,7 @@ export default function ContentPage() {
                         <div className="actions end">
                             <button onClick={() => setDialog(null)}>ยกเลิก</button>
                             <button className="primary" disabled={busy || !workflows.length || (dialog.repair && !dialog.prompt.trim())} onClick={send}>
-                                {busy ? 'กำลังส่ง…' : 'ยืนยันและสั่งเจน'}
+                                {busy ? 'กำลังส่ง…' : dialog.repair || stateOf(dialog.content) !== 'NONE' ? 'ยืนยันและเข้าคิว' : 'ยืนยันและสั่งเจน'}
                             </button>
                         </div>
                     </div>
