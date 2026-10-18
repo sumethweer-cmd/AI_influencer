@@ -7,7 +7,7 @@ import Link from 'next/link'
 export default function TopNav() {
     const pathname = usePathname()
     const isEtsy = pathname?.startsWith('/dashboard/etsy')
-    const isPipeline = pathname?.startsWith('/dashboard/content-pipeline')
+    const isPipeline = pathname?.startsWith('/dashboard/content-pipeline') || pathname?.startsWith('/dashboard/pipeline')
     const isLegacyInfluencer = !isEtsy && !isPipeline
 
     return (
@@ -58,6 +58,7 @@ export default function TopNav() {
                     ) : isPipeline ? (
                         // Content Pipeline Navigation
                         <>
+                            <Link href="/dashboard/pipeline" className="hover:text-cyan-400 transition-colors">Overview</Link>
                             <Link href="/dashboard/content-pipeline" className="hover:text-cyan-400 transition-colors">Queue</Link>
                         </>
                     ) : (
