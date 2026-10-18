@@ -650,6 +650,13 @@ export default function ContentPage() {
                                             <p className="sub" style={{ marginTop: 14 }}>
                                                 สิ่งที่ต้องทำต่อ: <b>{nextLabel(open) || 'ไม่ต้องทำอะไร รอ RH'}</b>
                                             </p>
+                                            {hasPic1(open) && ['SUCCESS', 'FAILED', 'CANCELLED'].includes(stateOf(open)) && (
+                                                <div className="actions" style={{ marginTop: 10 }}>
+                                                    <button className="primary" disabled={busy} onClick={() => openSend(open)} title="ส่งทุก segment ไป RunningHub อีกรอบ (เสียเหรียญใหม่) งานเดิมยังอยู่ในรายการ">
+                                                        เจนใหม่ทั้งหมด
+                                                    </button>
+                                                </div>
+                                            )}
                                             {open.note && <p className="sub" style={{ wordBreak: 'break-all' }}>บันทึก: {open.note}</p>}
                                             <p className="sub" style={{ wordBreak: 'break-all' }}>id: {open.id}</p>
                                         </>
