@@ -38,6 +38,12 @@ type Content = {
     render_tasks: RenderTask[]
 }
 type Workflow = { id: string; name: string; workflow_id: string; node_editor: string; node_project: string; is_default: boolean; note: string | null }
+type QueueItem = { id: string; content_item_id: string; status: string; attempts: number; last_error: string | null; enqueued_at: string }
+type DispatcherInfo = {
+    settings: { enabled: boolean; max_per_tick: number; daily_limit: number | null; site_url: string | null; last_tick_at: string | null; last_note: string | null }
+    waiting: QueueItem[]
+    recentLog: { at: string; active_before: number | null; sent: number | null; queue_maxed: boolean; note: string | null }[]
+}
 type LibAsset = { id: string; character: string | null; label: string; url: string }
 
 const STAGES = ['บท', 'รูป', 'ส่ง', 'รัน', 'เสร็จ', 'โหลด']
@@ -141,6 +147,7 @@ export default function ContentPage() {
     const [picker, setPicker] = useState<{ contentId: string; slot: number } | null>(null)
     const [pickChar, setPickChar] = useState('ทั้งหมด')
     const [dialog, setDialog] = useState<SendDialog>(null)
+    const [queue, setQueue] = useState<DispatcherInfo | null>(null)
     const [workflows, setWorkflows] = useState<Workflow[]>([])
     const [wfPick, setWfPick] = useState('')
     const [wfModal, setWfModal] = useState(false)
@@ -157,6 +164,10 @@ export default function ContentPage() {
         setLoading(true)
         setError(null)
         try {
+            fetch('/api/pipeline/queue', { cache: 'no-store' })
+                .then((r) => r.json())
+                .then((q) => q.success && setQueue({ settings: q.settings, waiting: q.waiting, recentLog: q.recentLog }))
+                .catch(() => {})
             const [o, l, w] = await Promise.all([
                 fetch('/api/pipeline/overview', { cache: 'no-store' }).then((r) => r.json()),
                 fetch('/api/pipeline/library', { cache: 'no-store' }).then((r) => r.json()),
@@ -214,6 +225,7 @@ export default function ContentPage() {
             contents.filter(GROUPS[filter].f).filter((c) => `${c.title || ''} ${c.character}`.toLowerCase().includes(query.toLowerCase())),
         [contents, filter, query]
     )
+    const waitingIds = useMemo(() => new Set((queue?.waiting || []).filter((w) => w.status === 'waiting').map((w) => w.content_item_id)), [queue])
     const running = counts.run
     const waiting = contents.filter((c) => stateOf(c) === 'NONE').length
     const toDownload = contents.filter((c) => stateOf(c) === 'SUCCESS' && !headline(c)?.downloaded)
@@ -295,6 +307,38 @@ export default function ContentPage() {
         run(async () => {
             if (!confirm('ลบ workflow "' + w.name + '" ออกจากรายการ? (ไม่กระทบงานที่ส่งไปแล้ว)')) return
             await call('/api/pipeline/workflows', 'DELETE', { id: w.id })
+            await load()
+        })
+
+    const enqueueChecked = () =>
+        run(async () => {
+            const out = await call('/api/pipeline/queue', 'POST', { contentIds: [...checked], workflowRowId: wfPick || undefined, siteUrl: window.location.origin })
+            setChecked(new Set())
+            const skipped = (out.skipped || []).map((x: { id: string; reason: string }) => (contents.find((c) => c.id === x.id)?.title || x.id.slice(0, 6)) + ': ' + x.reason)
+            setInfo(
+                'เข้าคิวส่งแล้ว ' + out.queued.length + ' เรื่อง' +
+                    (out.dispatcher === 'started' ? ' · เปิดตัวส่งอัตโนมัติ (ตรวจทุก 30 นาที)' : out.dispatcher === 'already_on' ? ' · ตัวส่งอัตโนมัติเปิดอยู่แล้ว' : '') +
+                    (out.warning ? ' · ' + out.warning : '') +
+                    (skipped.length ? ' · ข้าม: ' + skipped.join(', ') : '')
+            )
+            await load()
+        })
+    const toggleDispatcher = (enabled: boolean) =>
+        run(async () => {
+            await call('/api/pipeline/queue', 'PATCH', { enabled, siteUrl: window.location.origin })
+            setInfo(enabled ? 'เปิดตัวส่งอัตโนมัติแล้ว (ตรวจทุก 30 นาที)' : 'ปิดตัวส่งอัตโนมัติแล้ว ไม่มีอะไรรันอยู่อีก')
+            await load()
+        })
+    const runNow = () =>
+        run(async () => {
+            const out = await call('/api/pipeline/dispatch', 'POST', {})
+            setInfo('รันตอนนี้: ' + out.note)
+            await load()
+        })
+    const cancelQueued = (contentId: string) =>
+        run(async () => {
+            const q = queue?.waiting.find((w) => w.content_item_id === contentId && w.status === 'waiting')
+            if (q) await call('/api/pipeline/queue', 'DELETE', { id: q.id })
             await load()
         })
 
@@ -381,14 +425,26 @@ export default function ContentPage() {
                     <button onClick={refreshRh} disabled={busy || !activeJobIds.length} title="ถามสถานะงานที่ยังไม่จบจาก RunningHub (ไม่เสียเหรียญ)">
                         {busy && info?.startsWith('เช็ก') ? 'กำลังเช็ก…' : `เช็กสถานะ RunningHub (${activeJobIds.length})`}
                     </button>
-                    <button className="primary" onClick={sendChecked} disabled={busy || ![...checked].length}>
-                        สั่งเจนที่เลือก ({checked.size})
+                    <button className="primary" onClick={enqueueChecked} disabled={busy || ![...checked].length} title="ใส่เข้าคิว ระบบส่งให้ทีละเรื่องเมื่อ RunningHub มีที่ว่าง">
+                        เข้าคิวส่งที่เลือก ({checked.size})
                     </button>
                 </div>
             </header>
 
             {error && <div className="banner bad" role="alert">{error}</div>}
             {info && !error && <div className="banner ok" role="status">{info}</div>}
+
+            {queue && (queue.settings.enabled || queue.waiting.some((w) => w.status === 'waiting')) && (
+                <div className="banner warn" role="status">
+                    ตัวส่งอัตโนมัติ: <b>{queue.settings.enabled ? 'เปิดอยู่ (ตรวจทุก 30 นาที)' : 'ปิดอยู่'}</b> · รอส่ง {queue.waiting.filter((w) => w.status === 'waiting').length} เรื่อง
+                    {queue.waiting.some((w) => w.status === 'failed') && ' · ส่งไม่สำเร็จ ' + queue.waiting.filter((w) => w.status === 'failed').length + ' เรื่อง'}
+                    {queue.settings.last_tick_at && <span className="sub"> · รอบล่าสุด {fmtDate(queue.settings.last_tick_at)} ({queue.settings.last_note})</span>}
+                    <span className="actions" style={{ display: 'inline-flex', marginLeft: 12 }}>
+                        <button onClick={() => toggleDispatcher(!queue.settings.enabled)} disabled={busy}>{queue.settings.enabled ? 'ปิดตัวส่งอัตโนมัติ' : 'เปิดตัวส่งอัตโนมัติ'}</button>
+                        <button onClick={runNow} disabled={busy} title="เช็กสถานะและส่งเรื่องถัดไปทันที 1 รอบ">รันตอนนี้</button>
+                    </span>
+                </div>
+            )}
 
             <div className="summary">
                 ตอนนี้ <b>กำลังรัน {running}</b> · <b>รอส่ง {waiting}</b> · <b>เสร็จแล้วยังไม่ได้โหลด {toDownload.length}</b>
@@ -422,9 +478,10 @@ export default function ContentPage() {
                         <span>สถานะ / ต้องทำอะไรต่อ</span>
                     </div>
                     {rows.map((c) => {
-                        const [tl, tc] = tagOf(c)
-                        const nl = nextLabel(c)
-                        const hot = nl === 'สั่งเจน' || nl === 'โหลดคลิป' || nl === 'ส่งใหม่'
+                        const queued = waitingIds.has(c.id) && stateOf(c) === 'NONE'
+                        const [tl, tc] = queued ? ['รอคิวส่ง', 'wait'] : tagOf(c)
+                        const nl = queued ? 'เอาออกจากคิว' : nextLabel(c)
+                        const hot = !queued && (nl === 'สั่งเจน' || nl === 'โหลดคลิป' || nl === 'ส่งใหม่')
                         return (
                             <div
                                 key={c.id}
@@ -440,7 +497,7 @@ export default function ContentPage() {
                                     type="checkbox"
                                     aria-label={`เลือก ${c.title}`}
                                     checked={checked.has(c.id)}
-                                    disabled={!canSend(c)}
+                                    disabled={!canSend(c) || waitingIds.has(c.id)}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) =>
                                         setChecked((s) => {
@@ -463,7 +520,8 @@ export default function ContentPage() {
                                             className={hot ? 'primary' : ''}
                                             onClick={(e) => {
                                                 e.stopPropagation()
-                                                mainAction(c)
+                                                if (queued) cancelQueued(c.id)
+                                                else mainAction(c)
                                             }}
                                         >
                                             {nl}

@@ -22,3 +22,11 @@ One page for a content's whole life: prompt (per segment, editable) -> reference
 - `PATCH /api/pipeline/segment` (save prompt), `POST /api/pipeline/slot` (set picture), `POST|PUT /api/pipeline/library` (upload to library), `PATCH /api/pipeline/task` (mark downloaded)
 - `POST /api/pipeline/refresh` (asks RunningHub for status of up to 5 unfinished jobs; never spends coins)
 - `POST /api/pipeline/send` (**spends coins when RunningHub runs it**; needs `confirm: true`)
+
+## Auto dispatcher (send queue)
+Select contents on the page -> "เข้าคิวส่งที่เลือก". They go into `pipeline_send_queue` (status `waiting`) and the dispatcher switches on.
+- **Tick**: `pg_cron` job `pipeline-dispatch` (every 30 min) -> `pg_net` POST `/api/pipeline/dispatch` with header `x-cron-secret` (secret lives in Supabase Vault, checked via `pipeline_verify_cron_secret`; nothing to put in Vercel env).
+- **Each tick** (`lib/dispatcher.ts`): refresh unfinished RunningHub tasks (free) -> send waiting contents one by one until RunningHub answers `TASK_QUEUE_MAXED` (no fixed concurrency limit is assumed), the per-tick safety limit (`max_per_tick`, default 3) or the optional `daily_limit` is hit -> if nothing is waiting and nothing is running, switch off and **remove the cron job**.
+- **Safety**: a content already sent is never sent twice; an item failing 3 times is parked as `failed`; every tick is logged in `pipeline_dispatch_log` (incl. how many tasks were unfinished when the queue was full, to learn the real limit).
+- **Off switch**: "ปิดตัวส่งอัตโนมัติ" on the page (unschedules the cron job). "รันตอนนี้" runs one tick by hand.
+- The dispatcher can only be switched on from the deployed https site (pg_net must reach it), not localhost.
