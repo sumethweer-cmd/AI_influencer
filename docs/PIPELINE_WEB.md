@@ -30,3 +30,10 @@ Select contents on the page -> "เข้าคิวส่งที่เลื
 - **Safety**: a content already sent is never sent twice; an item failing 3 times is parked as `failed`; every tick is logged in `pipeline_dispatch_log` (incl. how many tasks were unfinished when the queue was full, to learn the real limit).
 - **Off switch**: "ปิดตัวส่งอัตโนมัติ" on the page (unschedules the cron job). "รันตอนนี้" runs one tick by hand.
 - The dispatcher can only be switched on from the deployed https site (pg_net must reach it), not localhost.
+
+## Render settings per content (resolution, continuity)
+Stored in the main row's `note` JSON (`resolution`, `continuity: {"2":"shot"|"context",...}`) via `PATCH /api/pipeline/content-settings`; the dispatcher and `/api/pipeline/send` read them, and `send` accepts overrides.
+- `task_mode = ref` and `ref_image_size = max` are always sent; segment 1 is always `shot`; other segments default to `context` and can be switched to `shot` per segment or all at once (Segments tab and the send dialog).
+- A context-written segment (timestamps +0.917 s) switched to `shot` gets 0.917 s subtracted from its timestamps; its opening sentence ("the shot continues…") is NOT rewritten.
+- `resolution` is sent as node 26 field `resolution` (names seen: `480 x 832 (9:16)`, `720 x 1280 (9:16)`; empty = keep the workflow's saved value). A wrong name is rejected by RunningHub when the task is created.
+- `POST /api/pipeline/send` with `dryRun: true` builds everything and returns a preview (modes, shifted timestamps, resolution) without uploading or creating a task (no coins).

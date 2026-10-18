@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { DEFAULT_SEG_FRAMES, estimate } from '@/lib/trackData'
+import { DEFAULT_SEG_FRAMES, estimate, parseRenderSettings, RESOLUTION_PRESETS, type Continuity } from '@/lib/trackData'
 
 // Result files on RunningHub expire ~14 days after the job (owner's observation). Counted from submit.
 const RETENTION_DAYS = 14
@@ -128,7 +128,53 @@ function Stepper({ c }: { c: Content }) {
     )
 }
 
-type SendDialog = { content: Content; segFrom: number; segCount: number; prompt: string; repair: boolean; unshift: boolean } | null
+type SendDialog = {
+    content: Content
+    segFrom: number
+    segCount: number
+    prompt: string
+    repair: boolean
+    unshift: boolean
+    resolution: string
+    continuity: Record<string, Continuity>
+} | null
+
+function ResolutionPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const preset = value === '' || RESOLUTION_PRESETS.includes(value)
+    return (
+        <span className="respick">
+            <select className="tok" style={{ width: 'auto' }} value={preset ? value : '__custom'} onChange={(e) => onChange(e.target.value === '__custom' ? ' ' : e.target.value)} aria-label="ความละเอียด">
+                <option value="">ตามค่าใน workflow (ไม่กำหนด)</option>
+                {RESOLUTION_PRESETS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                ))}
+                <option value="__custom">กำหนดเอง…</option>
+            </select>
+            {!preset && <input className="tok" style={{ width: 170 }} value={value.trim()} onChange={(e) => onChange(e.target.value)} placeholder="เช่น 720 x 1280 (9:16)" aria-label="ความละเอียดที่กำหนดเอง" />}
+        </span>
+    )
+}
+
+function ContinuityEditor({ segs, value, onChange }: { segs: Segment[]; value: Record<string, Continuity>; onChange: (v: Record<string, Continuity>) => void }) {
+    const modeOf = (n: number): Continuity => (n === 1 ? 'shot' : value[String(n)] || 'context')
+    const all = (m: Continuity) => onChange(Object.fromEntries(segs.filter((x) => x.segment_number > 1).map((x) => [String(x.segment_number), m])))
+    return (
+        <div className="conted">
+            <span className="sub">ต่อเนื่องกับ segment ก่อนหน้า:</span>
+            <button onClick={() => all('context')}>context ทั้งหมด</button>
+            <button onClick={() => all('shot')}>shot ใหม่ทุก segment</button>
+            {segs.map((x) => (
+                <label key={x.id}>
+                    SEG {x.segment_number}
+                    <select value={modeOf(x.segment_number)} disabled={x.segment_number === 1} onChange={(e) => onChange({ ...value, [String(x.segment_number)]: e.target.value as Continuity })} aria-label={'continuity SEG ' + x.segment_number}>
+                        <option value="shot">shot</option>
+                        <option value="context">context</option>
+                    </select>
+                </label>
+            ))}
+        </div>
+    )
+}
 
 export default function ContentPage() {
     const [contents, setContents] = useState<Content[]>([])
@@ -342,6 +388,12 @@ export default function ContentPage() {
             await load()
         })
 
+    const saveSettings = (contentId: string, patch: { continuity?: Record<string, Continuity>; resolution?: string | null }) =>
+        run(async () => {
+            await call('/api/pipeline/content-settings', 'PATCH', { contentId, ...patch })
+            await load()
+        })
+
     const markDownloaded = (t: RenderTask) =>
         run(async () => {
             await call('/api/pipeline/task', 'PATCH', { id: t.id, downloaded: true })
@@ -352,8 +404,13 @@ export default function ContentPage() {
         run(async () => {
             if (!dialog) return
             const d = dialog
+            if (!d.repair) {
+                await call('/api/pipeline/content-settings', 'PATCH', { contentId: d.content.id, continuity: d.continuity, resolution: d.resolution.trim() })
+            }
             const out = await call('/api/pipeline/send', 'POST', {
                 confirm: true,
+                resolution: d.resolution.trim(),
+                continuity: d.repair ? undefined : d.continuity,
                 contentId: d.content.id,
                 segFrom: d.segFrom,
                 segCount: d.segCount,
@@ -380,7 +437,10 @@ export default function ContentPage() {
             await load()
         })
 
-    const openSend = (c: Content) => setDialog({ content: c, segFrom: 1, segCount: c.segments.length, prompt: '', repair: false, unshift: false })
+    const openSend = (c: Content) => {
+        const st = parseRenderSettings(c.note)
+        setDialog({ content: c, segFrom: 1, segCount: c.segments.length, prompt: '', repair: false, unshift: false, resolution: st.resolution || '', continuity: st.continuity })
+    }
     const openRepair = (c: Content, seg: Segment) =>
         setDialog({
             content: c,
@@ -389,6 +449,8 @@ export default function ContentPage() {
             prompt: edit[seg.id] ?? seg.compiled_prompt ?? '',
             repair: true,
             unshift: seg.segment_number > 1,
+            resolution: parseRenderSettings(c.note).resolution || '',
+            continuity: {},
         })
 
     const mainAction = (c: Content) => {
@@ -591,6 +653,19 @@ export default function ContentPage() {
                         {tab === 'segs' && (
                             <div>
                                 <p className="sub">กดชื่อ segment เพื่อเปิด · แก้ได้ทีละ segment · เจนซ่อมเฉพาะ segment นั้นได้ (ได้คลิปเดี่ยวไปตัดต่อเอง)</p>
+                                {(() => {
+                                    const st = parseRenderSettings(open.note)
+                                    return (
+                                        <div className="settingsbox">
+                                            <div className="conted">
+                                                <span className="sub">ความละเอียด:</span>
+                                                <ResolutionPicker value={st.resolution || ''} onChange={(v) => saveSettings(open.id, { resolution: v })} />
+                                            </div>
+                                            <ContinuityEditor segs={open.segments} value={st.continuity} onChange={(v) => saveSettings(open.id, { continuity: v })} />
+                                            <p className="sub">task_mode = ref และ ref_image_size = max เสมอ · segment 1 เป็น shot เสมอ · ถ้าเปลี่ยน segment ที่เขียนแบบ "ต่อเนื่อง" ให้เป็น shot ระบบลบ 0.917 วินาทีออกจาก timestamp ให้ แต่ประโยคเปิดของ prompt อาจยังพูดว่า "ต่อเนื่อง" ควรแก้เอง</p>
+                                        </div>
+                                    )
+                                })()}
                                 {open.segments.map((s) => {
                                     const text = edit[s.id] ?? s.compiled_prompt ?? ''
                                     const dirty = edit[s.id] !== undefined
@@ -784,7 +859,20 @@ export default function ContentPage() {
                                 )}
                             </>
                         ) : (
-                            <p className="sub">ส่งทุก segment เป็นงานเดียว ใช้รูป Picture 1–{Object.keys(dialog.content.pics).length} ของเรื่องนี้</p>
+                            <>
+                                <p className="sub">ส่งทุก segment เป็นงานเดียว ใช้รูป Picture 1–{Object.keys(dialog.content.pics).length} ของเรื่องนี้</p>
+                                <div className="conted">
+                                    <span className="sub">ความละเอียด:</span>
+                                    <ResolutionPicker value={dialog.resolution} onChange={(v) => setDialog({ ...dialog, resolution: v })} />
+                                </div>
+                                <ContinuityEditor segs={dialog.content.segments} value={dialog.continuity} onChange={(v) => setDialog({ ...dialog, continuity: v })} />
+                            </>
+                        )}
+                        {dialog.repair && (
+                            <div className="conted">
+                                <span className="sub">ความละเอียด:</span>
+                                <ResolutionPicker value={dialog.resolution} onChange={(v) => setDialog({ ...dialog, resolution: v })} />
+                            </div>
                         )}
                         <label className="chk" style={{ alignItems: 'center' }}>
                             ใช้ workflow:
@@ -885,6 +973,12 @@ const CSS = `
 .pl .pick.up{border-style:dashed;color:var(--brand);font-weight:700;justify-content:center;min-height:150px}.pl .plus{font-size:28px}
 .pl .wf{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0}
 .pl .form label{display:block;font-size:14px;margin:8px 0;color:var(--muted)}.pl .form .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pl .conted{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.pl .conted label{font-size:13px;display:flex;gap:4px;align-items:center;color:var(--muted)}
+.pl .conted select{border:1px solid var(--line);border-radius:8px;padding:4px 8px;font:inherit;background:var(--card);color:var(--ink);min-height:36px}
+.pl .conted button{min-height:36px;padding:4px 12px;font-size:13px}
+.pl .settingsbox{border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:8px 0 12px;background:#faf8f3}
+.pl .respick{display:inline-flex;gap:8px;flex-wrap:wrap}
 .pl .chk{display:flex;gap:10px;align-items:flex-start;font-size:14px;margin:6px 0}
 @media (prefers-reduced-motion:no-preference){.pl .row,.pl button{transition:background .15s,border-color .15s}}
 `

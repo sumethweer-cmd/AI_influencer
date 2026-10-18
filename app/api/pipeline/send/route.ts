@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     if (denied) return denied
     try {
         const body = await req.json().catch(() => ({}))
-        if (body.confirm !== true) return NextResponse.json({ success: false, error: 'ต้องยืนยัน (confirm) ก่อนสั่งเจน เพราะเสียเหรียญ' }, { status: 400 })
+        if (body.confirm !== true && body.dryRun !== true) return NextResponse.json({ success: false, error: 'ต้องยืนยัน (confirm) ก่อนสั่งเจน เพราะเสียเหรียญ' }, { status: 400 })
         const out = await sendContent({
             contentId: String(body.contentId || ''),
             workflowRowId: body.workflowRowId ? String(body.workflowRowId) : undefined,
@@ -21,6 +21,9 @@ export async function POST(req: Request) {
             segCount: body.segCount,
             prompt: typeof body.prompt === 'string' ? body.prompt : undefined,
             unshift: body.unshift,
+            continuity: body.continuity && typeof body.continuity === 'object' ? body.continuity : undefined,
+            resolution: typeof body.resolution === 'string' ? body.resolution : undefined,
+            dryRun: body.dryRun === true,
         })
         return NextResponse.json({ success: true, ...out })
     } catch (e: unknown) {

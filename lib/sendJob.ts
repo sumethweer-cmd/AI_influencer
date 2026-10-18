@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { rhCreate, rhUploadImage, type NodeInfo } from '@/lib/runninghub'
-import { buildTrackData, DEFAULT_SEG_FRAMES, unshiftTimestamps, cleanPrompt } from '@/lib/trackData'
+import { buildTrackData, DEFAULT_SEG_FRAMES, parseRenderSettings, planSegments, type Continuity } from '@/lib/trackData'
 
 // Sends a content (all segments) or a subset of its segments (repair) to RunningHub as ONE task and
 // records it in render_tasks. Used by /api/pipeline/send (button) and /api/pipeline/dispatch (auto).
@@ -24,8 +24,19 @@ export type SendOpts = {
     segCount?: number
     prompt?: string // replaces the first chosen segment's prompt (repair dialog)
     unshift?: boolean
+    continuity?: Record<string, Continuity> // overrides the saved per-segment setting
+    resolution?: string | null // overrides the saved resolution; '' / null = leave the workflow's own value
+    dryRun?: boolean // build everything but do NOT upload/create at RunningHub (free preview)
 }
-export type SendResult = { taskId: string; projectName: string; segments: number; kind: 'full' | 'repair' }
+export type SendPreview = {
+    resolution: string | null
+    nodeEditor: string
+    nodeProject: string
+    workflowId: string
+    pictures: number
+    segments: { segment: number; continuity: string; task_mode: string; ref_image_size: string; frames: number; timestampsShifted: boolean; promptChars: number }[]
+}
+export type SendResult = { taskId: string; projectName: string; segments: number; kind: 'full' | 'repair'; preview?: SendPreview }
 
 type Row = {
     id: string
@@ -86,15 +97,22 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
     const isSubset = chosen.length < total
     const allFrames = framesFromNote(main.note, total)
 
-    // The first chosen segment is rendered as a "shot". If it was written as a context segment
-    // (segment_number > 1) its timestamps are shifted; undo that unless told not to.
-    const unshift = opts.unshift !== false && (chosen[0].segment_number || 1) > 1
-    const segInputs = chosen.map((s, i) => {
-        let prompt = i === 0 && typeof opts.prompt === 'string' && opts.prompt.trim() ? opts.prompt : s.compiled_prompt || ''
-        if (!prompt.trim()) throw new SendError(`SEG ${s.segment_number} ไม่มี prompt`, 400)
-        if (i === 0 && unshift) prompt = unshiftTimestamps(cleanPrompt(prompt))
-        return { prompt, frames: allFrames[(s.segment_number || 1) - 1] || DEFAULT_SEG_FRAMES }
-    })
+    // Continuity per segment (saved on the content, overridable here). The first chosen segment is
+    // always a "shot"; a context-written segment rendered as a shot gets its timestamps shifted back.
+    const saved = parseRenderSettings(main.note)
+    const continuity = { ...saved.continuity, ...(opts.continuity || {}) }
+    const resolution = opts.resolution !== undefined ? opts.resolution : saved.resolution
+    const plan = planSegments(
+        chosen.map((s, i) => {
+            const prompt = i === 0 && typeof opts.prompt === 'string' && opts.prompt.trim() ? opts.prompt : s.compiled_prompt || ''
+            if (!prompt.trim()) throw new SendError(`SEG ${s.segment_number} ไม่มี prompt`, 400)
+            return { segNo: s.segment_number || 1, prompt, frames: allFrames[(s.segment_number || 1) - 1] || DEFAULT_SEG_FRAMES }
+        }),
+        continuity,
+        opts.unshift !== false
+    )
+    const segInputs = plan.inputs
+    const unshift = plan.adjusted.length > 0
 
     // Pictures from the content's slots; must be 1..k with no gaps (they map to <Picture N>).
     const { data: slots, error: slotErr } = await supabaseAdmin
@@ -123,6 +141,32 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
         projectName += `_seg${segFrom}${chosen.length > 1 ? `-${segFrom + chosen.length - 1}` : ''}_fix${(count || 0) + 1}`
     }
 
+    if (opts.dryRun) {
+        const td = JSON.parse(buildTrackData(segInputs, pics.map((_, i) => `<Picture ${i + 1}>`)))
+        return {
+            taskId: '(dry-run: nothing sent)',
+            projectName,
+            segments: chosen.length,
+            kind: isSubset ? 'repair' : 'full',
+            preview: {
+                resolution: resolution || null,
+                nodeEditor,
+                nodeProject,
+                workflowId: String(workflowId),
+                pictures: pics.length,
+                segments: td.tracks[0].segments.map((sg: { content: { continuity_mode: string; task_mode: string; ref_image_size: string; user_prompt: string }; start_frame: number; end_frame: number }, i: number) => ({
+                    segment: chosen[i].segment_number || i + 1,
+                    continuity: sg.content.continuity_mode,
+                    task_mode: sg.content.task_mode,
+                    ref_image_size: sg.content.ref_image_size,
+                    frames: sg.end_frame - sg.start_frame,
+                    timestampsShifted: plan.adjusted.includes(chosen[i].segment_number || i + 1),
+                    promptChars: sg.content.user_prompt.length,
+                })),
+            },
+        }
+    }
+
     // 1) upload pictures to RunningHub  2) create the task  3) record it
     let created: { taskId: string; status: string }
     const seed = Math.floor(Math.random() * 2 ** 48)
@@ -134,6 +178,7 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
             { nodeId: nodeProject, fieldName: 'project_name', fieldValue: projectName },
             { nodeId: nodeProject, fieldName: 'seed', fieldValue: seed },
         ]
+        if (resolution) nodeInfoList.push({ nodeId: nodeEditor, fieldName: 'resolution', fieldValue: resolution })
         created = await rhCreate(String(workflowId), nodeInfoList)
     } catch (e) {
         throw new SendError(e instanceof Error ? e.message : String(e))
@@ -142,6 +187,8 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
     const note = JSON.stringify({
         kind: isSubset ? 'repair' : 'full',
         unshift,
+        resolution: resolution || null,
+        continuity: segInputs.map((s, i) => `${chosen[i].segment_number}:${s.continuity}`).join(','),
         prompt_snapshot: isSubset ? segInputs.map((s, i) => `--- SEG ${chosen[i].segment_number} ---\n${s.prompt}`).join('\n') : undefined,
     })
     const promptVersion = crypto.createHash('sha1').update(segInputs.map((s) => s.prompt).join('\u0000')).digest('hex').slice(0, 10)

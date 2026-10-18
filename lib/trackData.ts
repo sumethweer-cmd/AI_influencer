@@ -21,9 +21,14 @@ export function cleanPrompt(raw: string): string {
  * subtract the shift from every MM:SS.mmm timestamp (never below 0).
  */
 export function unshiftTimestamps(prompt: string, shiftSec = CONTEXT_SHIFT_SEC): string {
+    return shiftTimestamps(prompt, -shiftSec)
+}
+
+/** Adds deltaSec (can be negative) to every MM:SS.mmm timestamp in a prompt (never below 0). */
+export function shiftTimestamps(prompt: string, deltaSec: number): string {
     return prompt.replace(/\b(\d{2}):(\d{2})\.(\d{3})\b/g, (_m, mm, ss, ms) => {
         const total = Number(mm) * 60 + Number(ss) + Number(ms) / 1000
-        const t = Math.max(0, total - shiftSec)
+        const t = Math.max(0, total + deltaSec)
         const m2 = Math.floor(t / 60)
         const s2 = Math.floor(t % 60)
         const ms2 = Math.round((t - Math.floor(t)) * 1000)
@@ -32,7 +37,50 @@ export function unshiftTimestamps(prompt: string, shiftSec = CONTEXT_SHIFT_SEC):
     })
 }
 
-export type SegInput = { prompt: string; frames: number }
+export type Continuity = 'shot' | 'context'
+export type SegInput = { prompt: string; frames: number; continuity?: Continuity }
+
+/** Resolution names seen in the workflow files (node 26 "resolution"); other options may exist in the workflow. */
+export const RESOLUTION_PRESETS = ['480 x 832 (9:16)', '720 x 1280 (9:16)']
+
+/** Per-content render settings, stored in the main row's note JSON. */
+export type RenderSettings = { continuity: Record<string, Continuity>; resolution: string | null }
+export function parseRenderSettings(note: string | null | undefined): RenderSettings {
+    try {
+        const j = JSON.parse(note || '{}')
+        const continuity: Record<string, Continuity> = {}
+        for (const [k, v] of Object.entries(j.continuity || {})) if (v === 'shot' || v === 'context') continuity[k] = v
+        return { continuity, resolution: typeof j.resolution === 'string' && j.resolution ? j.resolution : null }
+    } catch {
+        return { continuity: {}, resolution: null }
+    }
+}
+
+/**
+ * Chooses the continuity of each chosen segment and fixes timestamps to match.
+ * - the first chosen segment is always a "shot"; the others use the saved setting (default "context")
+ * - a segment written as context (segment_number > 1, timestamps +0.917 s) that is rendered as a shot
+ *   gets its timestamps shifted back, unless adjust is false
+ * Segments switched to "shot" keep their text, which may still open with "the shot continues…":
+ * the caller should warn about that.
+ */
+export function planSegments(
+    segs: { segNo: number; prompt: string; frames: number }[],
+    continuity: Record<string, Continuity> | undefined,
+    adjust = true
+): { inputs: SegInput[]; adjusted: number[] } {
+    const adjusted: number[] = []
+    const inputs = segs.map((s, i) => {
+        const wanted: Continuity = i === 0 ? 'shot' : continuity?.[String(s.segNo)] ?? 'context'
+        let prompt = s.prompt
+        if (adjust && s.segNo > 1 && wanted === 'shot') {
+            prompt = shiftTimestamps(cleanPrompt(prompt), -CONTEXT_SHIFT_SEC)
+            adjusted.push(s.segNo)
+        }
+        return { prompt, frames: s.frames, continuity: wanted }
+    })
+    return { inputs, adjusted }
+}
 
 /** Easy-Media "easy multiTrackEditor" track_data JSON (schema verified 2026-10-13). */
 export function buildTrackData(segs: SegInput[], imageNames: string[]): string {
@@ -47,7 +95,7 @@ export function buildTrackData(segs: SegInput[], imageNames: string[]): string {
             content: {
                 media_type: 'none',
                 task_mode: 'ref',
-                continuity_mode: i === 0 ? 'shot' : 'context',
+                continuity_mode: s.continuity ?? (i === 0 ? 'shot' : 'context'),
                 ref_image_size: 'max',
                 images: imageNames.map((n) => ({ id: uid(), source_type: 'input', file_path: n, file_name: n })),
                 muted: false,
