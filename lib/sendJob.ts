@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { rhCreate, rhUploadImage, type NodeInfo } from '@/lib/runninghub'
-import { buildTrackData, DEFAULT_SEG_FRAMES, parseRenderSettings, planSegments, type Continuity } from '@/lib/trackData'
+import { buildTrackData, DEFAULT_RESOLUTION, DEFAULT_SEG_FRAMES, parseRenderSettings, planSegments, WORKFLOW_RESOLUTION, type Continuity } from '@/lib/trackData'
 
 // Sends a content (all segments) or a subset of its segments (repair) to RunningHub as ONE task and
 // records it in render_tasks. Used by /api/pipeline/send (button) and /api/pipeline/dispatch (auto).
@@ -25,7 +25,7 @@ export type SendOpts = {
     prompt?: string // replaces the first chosen segment's prompt (repair dialog)
     unshift?: boolean
     continuity?: Record<string, Continuity> // overrides the saved per-segment setting
-    resolution?: string | null // overrides the saved resolution; '' / null = leave the workflow's own value
+    resolution?: string | null // overrides the saved resolution; '' or 'workflow' = leave the workflow's own value
     dryRun?: boolean // build everything but do NOT upload/create at RunningHub (free preview)
 }
 export type SendPreview = {
@@ -101,7 +101,9 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
     // always a "shot"; a context-written segment rendered as a shot gets its timestamps shifted back.
     const saved = parseRenderSettings(main.note)
     const continuity = { ...saved.continuity, ...(opts.continuity || {}) }
-    const resolution = opts.resolution !== undefined ? opts.resolution : saved.resolution
+    // explicit override > saved on the content > default (720 x 1280). '' / 'workflow' = send nothing.
+    const resolutionRaw = opts.resolution !== undefined && opts.resolution !== null ? opts.resolution : saved.resolution ?? DEFAULT_RESOLUTION
+    const resolution = resolutionRaw && resolutionRaw !== WORKFLOW_RESOLUTION ? resolutionRaw.trim() : null
     const plan = planSegments(
         chosen.map((s, i) => {
             const prompt = i === 0 && typeof opts.prompt === 'string' && opts.prompt.trim() ? opts.prompt : s.compiled_prompt || ''

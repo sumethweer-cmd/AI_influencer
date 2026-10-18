@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { DEFAULT_SEG_FRAMES, estimate, parseRenderSettings, RESOLUTION_PRESETS, type Continuity } from '@/lib/trackData'
+import { DEFAULT_RESOLUTION, DEFAULT_SEG_FRAMES, estimate, parseRenderSettings, RESOLUTION_PRESETS, WORKFLOW_RESOLUTION, type Continuity } from '@/lib/trackData'
 
 // Result files on RunningHub expire ~14 days after the job (owner's observation). Counted from submit.
 const RETENTION_DAYS = 14
@@ -140,14 +140,14 @@ type SendDialog = {
 } | null
 
 function ResolutionPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-    const preset = value === '' || RESOLUTION_PRESETS.includes(value)
+    const preset = value === WORKFLOW_RESOLUTION || RESOLUTION_PRESETS.includes(value)
     return (
         <span className="respick">
             <select className="tok" style={{ width: 'auto' }} value={preset ? value : '__custom'} onChange={(e) => onChange(e.target.value === '__custom' ? ' ' : e.target.value)} aria-label="ความละเอียด">
-                <option value="">ตามค่าใน workflow (ไม่กำหนด)</option>
                 {RESOLUTION_PRESETS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
+                    <option key={r} value={r}>{r}{r === DEFAULT_RESOLUTION ? ' (ค่าเริ่มต้น)' : ''}</option>
                 ))}
+                <option value={WORKFLOW_RESOLUTION}>ตามค่าที่ตั้งไว้ใน workflow (ไม่กำหนด)</option>
                 <option value="__custom">กำหนดเอง…</option>
             </select>
             {!preset && <input className="tok" style={{ width: 170 }} value={value.trim()} onChange={(e) => onChange(e.target.value)} placeholder="เช่น 720 x 1280 (9:16)" aria-label="ความละเอียดที่กำหนดเอง" />}
@@ -439,7 +439,7 @@ export default function ContentPage() {
 
     const openSend = (c: Content) => {
         const st = parseRenderSettings(c.note)
-        setDialog({ content: c, segFrom: 1, segCount: c.segments.length, prompt: '', repair: false, unshift: false, resolution: st.resolution || '', continuity: st.continuity })
+        setDialog({ content: c, segFrom: 1, segCount: c.segments.length, prompt: '', repair: false, unshift: false, resolution: st.resolution || DEFAULT_RESOLUTION, continuity: st.continuity })
     }
     const openRepair = (c: Content, seg: Segment) =>
         setDialog({
@@ -449,7 +449,7 @@ export default function ContentPage() {
             prompt: edit[seg.id] ?? seg.compiled_prompt ?? '',
             repair: true,
             unshift: seg.segment_number > 1,
-            resolution: parseRenderSettings(c.note).resolution || '',
+            resolution: parseRenderSettings(c.note).resolution || DEFAULT_RESOLUTION,
             continuity: {},
         })
 
@@ -659,7 +659,7 @@ export default function ContentPage() {
                                         <div className="settingsbox">
                                             <div className="conted">
                                                 <span className="sub">ความละเอียด:</span>
-                                                <ResolutionPicker value={st.resolution || ''} onChange={(v) => saveSettings(open.id, { resolution: v })} />
+                                                <ResolutionPicker value={st.resolution || DEFAULT_RESOLUTION} onChange={(v) => saveSettings(open.id, { resolution: v })} />
                                             </div>
                                             <ContinuityEditor segs={open.segments} value={st.continuity} onChange={(v) => saveSettings(open.id, { continuity: v })} />
                                             <p className="sub">task_mode = ref และ ref_image_size = max เสมอ · segment 1 เป็น shot เสมอ · ถ้าเปลี่ยน segment ที่เขียนแบบ "ต่อเนื่อง" ให้เป็น shot ระบบลบ 0.917 วินาทีออกจาก timestamp ให้ แต่ประโยคเปิดของ prompt อาจยังพูดว่า "ต่อเนื่อง" ควรแก้เอง</p>

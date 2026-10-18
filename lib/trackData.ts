@@ -40,8 +40,15 @@ export function shiftTimestamps(prompt: string, deltaSec: number): string {
 export type Continuity = 'shot' | 'context'
 export type SegInput = { prompt: string; frames: number; continuity?: Continuity }
 
-/** Resolution names seen in the workflow files (node 26 "resolution"); other options may exist in the workflow. */
-export const RESOLUTION_PRESETS = ['480 x 832 (9:16)', '720 x 1280 (9:16)']
+/**
+ * Resolution names seen in the workflow files (node 26 "resolution"). The node's dropdown has more options
+ * (it also has 16:9 ones and "Custom") whose exact names are not known here: use the custom field for those.
+ */
+export const RESOLUTION_PRESETS = ['720 x 1280 (9:16)', '480 x 832 (9:16)']
+/** Used when a content has no saved resolution. */
+export const DEFAULT_RESOLUTION = '720 x 1280 (9:16)'
+/** Saved value meaning "do not send a resolution, keep the one saved in the workflow". */
+export const WORKFLOW_RESOLUTION = 'workflow'
 
 /** Per-content render settings, stored in the main row's note JSON. */
 export type RenderSettings = { continuity: Record<string, Continuity>; resolution: string | null }
