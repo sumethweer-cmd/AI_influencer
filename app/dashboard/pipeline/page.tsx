@@ -37,6 +37,7 @@ type Content = {
     segments: Segment[]
     render_tasks: RenderTask[]
 }
+type Workflow = { id: string; name: string; workflow_id: string; node_editor: string; node_project: string; is_default: boolean; note: string | null }
 type LibAsset = { id: string; character: string | null; label: string; url: string }
 
 const STAGES = ['บท', 'รูป', 'ส่ง', 'รัน', 'เสร็จ', 'โหลด']
@@ -140,6 +141,10 @@ export default function ContentPage() {
     const [picker, setPicker] = useState<{ contentId: string; slot: number } | null>(null)
     const [pickChar, setPickChar] = useState('ทั้งหมด')
     const [dialog, setDialog] = useState<SendDialog>(null)
+    const [workflows, setWorkflows] = useState<Workflow[]>([])
+    const [wfPick, setWfPick] = useState('')
+    const [wfModal, setWfModal] = useState(false)
+    const [wfForm, setWfForm] = useState({ name: '', workflowId: '', nodeEditor: '26', nodeProject: '17', isDefault: false })
     const [edit, setEdit] = useState<Record<string, string>>({}) // segment id -> unsaved text
     const fileRef = useRef<HTMLInputElement>(null)
 
@@ -152,14 +157,19 @@ export default function ContentPage() {
         setLoading(true)
         setError(null)
         try {
-            const [o, l] = await Promise.all([
+            const [o, l, w] = await Promise.all([
                 fetch('/api/pipeline/overview', { cache: 'no-store' }).then((r) => r.json()),
                 fetch('/api/pipeline/library', { cache: 'no-store' }).then((r) => r.json()),
+                fetch('/api/pipeline/workflows', { cache: 'no-store' }).then((r) => r.json()),
             ])
             if (!o.success) throw new Error(o.error || 'โหลดไม่สำเร็จ')
             setContents(o.contents)
             setOrphans(o.orphanTasks || [])
             if (l.success) setLibrary(l.assets)
+            if (w.success) {
+                setWorkflows(w.workflows)
+                setWfPick((cur) => (w.workflows.some((x: Workflow) => x.id === cur) ? cur : w.workflows.find((x: Workflow) => x.is_default)?.id || ''))
+            }
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e))
         } finally {
@@ -269,6 +279,25 @@ export default function ContentPage() {
             await load()
         })
 
+    const addWorkflow = () =>
+        run(async () => {
+            await call('/api/pipeline/workflows', 'POST', wfForm)
+            setWfForm({ name: '', workflowId: '', nodeEditor: '26', nodeProject: '17', isDefault: false })
+            setInfo('เพิ่ม workflow แล้ว')
+            await load()
+        })
+    const makeDefaultWf = (id: string) =>
+        run(async () => {
+            await call('/api/pipeline/workflows', 'PATCH', { id, makeDefault: true })
+            await load()
+        })
+    const deleteWf = (w: Workflow) =>
+        run(async () => {
+            if (!confirm('ลบ workflow "' + w.name + '" ออกจากรายการ? (ไม่กระทบงานที่ส่งไปแล้ว)')) return
+            await call('/api/pipeline/workflows', 'DELETE', { id: w.id })
+            await load()
+        })
+
     const markDownloaded = (t: RenderTask) =>
         run(async () => {
             await call('/api/pipeline/task', 'PATCH', { id: t.id, downloaded: true })
@@ -286,6 +315,7 @@ export default function ContentPage() {
                 segCount: d.segCount,
                 prompt: d.repair ? d.prompt : undefined,
                 unshift: d.unshift,
+                workflowRowId: wfPick || undefined,
             })
             setDialog(null)
             setInfo(`ส่งแล้ว: task ${out.taskId}`)
@@ -345,6 +375,9 @@ export default function ContentPage() {
                         placeholder="รหัสผ่าน (ถ้าตั้งไว้)"
                         aria-label="รหัสผ่าน"
                     />
+                    <button onClick={() => setWfModal(true)} title="เลือก/เพิ่ม workflow ของ RunningHub ที่ใช้สั่งเจน">
+                        {workflows.find((w) => w.is_default)?.name ? 'Workflow: ' + workflows.find((w) => w.is_default)!.name : 'ตั้ง Workflow'}
+                    </button>
                     <button onClick={refreshRh} disabled={busy || !activeJobIds.length} title="ถามสถานะงานที่ยังไม่จบจาก RunningHub (ไม่เสียเหรียญ)">
                         {busy && info?.startsWith('เช็ก') ? 'กำลังเช็ก…' : `เช็กสถานะ RunningHub (${activeJobIds.length})`}
                     </button>
@@ -635,6 +668,43 @@ export default function ContentPage() {
                 </div>
             )}
 
+            {/* Workflow manager */}
+            {wfModal && (
+                <div className="modal on" role="dialog" aria-modal="true" aria-label="จัดการ workflow" onClick={(e) => e.target === e.currentTarget && setWfModal(false)}>
+                    <div className="sheet narrow">
+                        <div className="between">
+                            <h2>Workflow ของ RunningHub</h2>
+                            <button onClick={() => setWfModal(false)}>ปิด</button>
+                        </div>
+                        <p className="sub">workflow ที่ใช้สั่งเจน เปลี่ยนได้ที่นี่ ไม่ต้องไปแก้ที่ Vercel ตัวที่เป็น &quot;ค่าเริ่มต้น&quot; ใช้เมื่อไม่ได้เลือกเอง</p>
+                        {workflows.length === 0 && <p className="banner warn">ยังไม่มี workflow — เพิ่มด้านล่าง</p>}
+                        {workflows.map((w) => (
+                            <div key={w.id} className="wf">
+                                <div>
+                                    <b>{w.name}</b> {w.is_default && <span className="tag t-ok">ค่าเริ่มต้น</span>}
+                                    <div className="sub mono">{w.workflow_id} · editor node {w.node_editor} · project node {w.node_project}</div>
+                                </div>
+                                <div className="actions">
+                                    {!w.is_default && <button onClick={() => makeDefaultWf(w.id)} disabled={busy}>ตั้งเป็นค่าเริ่มต้น</button>}
+                                    <button className="link" onClick={() => deleteWf(w)} disabled={busy}>ลบ</button>
+                                </div>
+                            </div>
+                        ))}
+                        <h3 style={{ margin: '16px 0 6px', fontSize: 16 }}>เพิ่ม workflow ใหม่</h3>
+                        <div className="form">
+                            <label>ชื่อเรียก<input className="tok" style={{ width: '100%' }} value={wfForm.name} onChange={(e) => setWfForm({ ...wfForm, name: e.target.value })} placeholder="เช่น Minimax H3 EZ" /></label>
+                            <label>workflow id หรือลิงก์จาก RunningHub<input className="tok" style={{ width: '100%' }} value={wfForm.workflowId} onChange={(e) => setWfForm({ ...wfForm, workflowId: e.target.value })} placeholder="https://www.runninghub.ai/workflow/…" /></label>
+                            <div className="two">
+                                <label>node id ของ MultiTrack Editor<input className="tok" style={{ width: '100%' }} value={wfForm.nodeEditor} onChange={(e) => setWfForm({ ...wfForm, nodeEditor: e.target.value })} /></label>
+                                <label>node id ของ Project<input className="tok" style={{ width: '100%' }} value={wfForm.nodeProject} onChange={(e) => setWfForm({ ...wfForm, nodeProject: e.target.value })} /></label>
+                            </div>
+                            <label className="chk"><input type="checkbox" checked={wfForm.isDefault} onChange={(e) => setWfForm({ ...wfForm, isDefault: e.target.checked })} /> ตั้งเป็นค่าเริ่มต้น</label>
+                            <div className="actions end"><button className="primary" disabled={busy || !wfForm.name.trim() || !wfForm.workflowId.trim()} onClick={addWorkflow}>เพิ่ม workflow</button></div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Send / repair confirmation */}
             {dialog && (
                 <div className="modal on" role="dialog" aria-modal="true" aria-label="ยืนยันสั่งเจน" onClick={(e) => e.target === e.currentTarget && setDialog(null)}>
@@ -658,12 +728,22 @@ export default function ContentPage() {
                         ) : (
                             <p className="sub">ส่งทุก segment เป็นงานเดียว ใช้รูป Picture 1–{Object.keys(dialog.content.pics).length} ของเรื่องนี้</p>
                         )}
+                        <label className="chk" style={{ alignItems: 'center' }}>
+                            ใช้ workflow:
+                            <select value={wfPick} onChange={(e) => setWfPick(e.target.value)} aria-label="เลือก workflow" className="tok" style={{ width: 'auto', flex: 1 }}>
+                                {!workflows.length && <option value="">— ยังไม่มี workflow —</option>}
+                                {workflows.map((w) => (
+                                    <option key={w.id} value={w.id}>{w.name}{w.is_default ? ' (ค่าเริ่มต้น)' : ''} · {w.workflow_id.slice(0, 6)}…</option>
+                                ))}
+                            </select>
+                        </label>
+                        {!workflows.length && <div className="banner warn">ยังไม่ได้ตั้ง workflow — ปิดหน้าต่างนี้แล้วกดปุ่ม &quot;ตั้ง Workflow&quot; ด้านบนก่อน</div>}
                         <p className="sub">
                             ประมาณการ: คลิป {est.videoSec} วินาที ใช้เวลาราว {est.minutes} นาที และราว {est.coins} เหรียญ (ค่าประมาณจากที่เคยวัด ไม่ใช่ราคาจริง) เหรียญคิดตามเวลารันจริงของ RunningHub
                         </p>
                         <div className="actions end">
                             <button onClick={() => setDialog(null)}>ยกเลิก</button>
-                            <button className="primary" disabled={busy || (dialog.repair && !dialog.prompt.trim())} onClick={send}>
+                            <button className="primary" disabled={busy || !workflows.length || (dialog.repair && !dialog.prompt.trim())} onClick={send}>
                                 {busy ? 'กำลังส่ง…' : 'ยืนยันและสั่งเจน'}
                             </button>
                         </div>
@@ -745,6 +825,8 @@ const CSS = `
 .pl .pick{padding:8px;font-size:12px;text-align:center;border:2px solid var(--line);border-radius:12px;display:flex;flex-direction:column;gap:6px;align-items:center;min-height:44px}
 .pl .pick img{width:100%;height:120px;object-fit:cover;border-radius:8px}.pl .pick:hover:not(:disabled){border-color:var(--brand)}
 .pl .pick.up{border-style:dashed;color:var(--brand);font-weight:700;justify-content:center;min-height:150px}.pl .plus{font-size:28px}
+.pl .wf{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0}
+.pl .form label{display:block;font-size:14px;margin:8px 0;color:var(--muted)}.pl .form .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .pl .chk{display:flex;gap:10px;align-items:flex-start;font-size:14px;margin:6px 0}
 @media (prefers-reduced-motion:no-preference){.pl .row,.pl button{transition:background .15s,border-color .15s}}
 `

@@ -39,10 +39,26 @@ export async function POST(req: Request) {
         const body = await req.json().catch(() => ({}))
         if (body.confirm !== true) return NextResponse.json({ success: false, error: 'ต้องยืนยัน (confirm) ก่อนสั่งเจน เพราะเสียเหรียญ' }, { status: 400 })
 
-        const workflowId = process.env.RUNNINGHUB_WORKFLOW_ID
-        if (!workflowId) return NextResponse.json({ success: false, error: 'RUNNINGHUB_WORKFLOW_ID is not set on the server' }, { status: 500 })
-        const nodeEditor = process.env.RH_NODE_EDITOR || '26'
-        const nodeProject = process.env.RH_NODE_PROJECT || '17'
+        // Which workflow: the one picked in the page (body.workflowRowId), else the default row of
+        // pipeline_render_workflows, else (legacy) the env variables.
+        let workflowId = process.env.RUNNINGHUB_WORKFLOW_ID || ''
+        let nodeEditor = process.env.RH_NODE_EDITOR || '26'
+        let nodeProject = process.env.RH_NODE_PROJECT || '17'
+        {
+            const q = supabaseAdmin
+                .from('pipeline_render_workflows')
+                .select('workflow_id,node_editor,node_project')
+                .eq('provider', 'runninghub')
+            const { data: wf } = body.workflowRowId ? await q.eq('id', String(body.workflowRowId)).maybeSingle() : await q.eq('is_default', true).maybeSingle()
+            if (wf) {
+                workflowId = String(wf.workflow_id)
+                nodeEditor = String(wf.node_editor)
+                nodeProject = String(wf.node_project)
+            } else if (body.workflowRowId) {
+                return NextResponse.json({ success: false, error: 'ไม่พบ workflow ที่เลือก' }, { status: 400 })
+            }
+        }
+        if (!workflowId) return NextResponse.json({ success: false, error: 'ยังไม่ได้ตั้ง workflow — กดปุ่ม "Workflow" บนหน้า แล้วเพิ่ม workflow id ก่อน' }, { status: 400 })
 
         const contentId = String(body.contentId || '')
         if (!contentId) return NextResponse.json({ success: false, error: 'contentId is required' }, { status: 400 })

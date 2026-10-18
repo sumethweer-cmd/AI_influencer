@@ -7,9 +7,9 @@ One page for a content's whole life: prompt (per segment, editable) -> reference
 |---|---|---|
 | `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL` | everything | server-side reads/writes |
 | `RUNNINGHUB_API_KEY` | refresh status, send | server only |
-| `RUNNINGHUB_WORKFLOW_ID` | send | the saved RunningHub workflow |
-| `RH_NODE_EDITOR` | send | node id of the MultiTrack Editor (default `26`) |
-| `RH_NODE_PROJECT` | send | node id of the Project node (default `17`) |
+| `RUNNINGHUB_WORKFLOW_ID` | send (legacy fallback) | only used when no workflow is configured on the page; prefer the "Workflow" button (table `pipeline_render_workflows`) |
+| `RH_NODE_EDITOR` | send (legacy fallback) | default `26`; per-workflow value is set on the page |
+| `RH_NODE_PROJECT` | send (legacy fallback) | default `17`; per-workflow value is set on the page |
 | `PIPELINE_ADMIN_TOKEN` | all write routes | if set, requests need header `x-admin-token`; the page has a password box |
 
 ## Data model
