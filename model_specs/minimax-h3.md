@@ -244,3 +244,8 @@ The owner reviewed rendered UGC clips: "structure is good; content boring and mi
 - Props and other subjects get their own entry (`<Picture 2> is a large clear glass bottle ...`) and are tied to the subject that uses them.
 - Several people: keep each person's actions and lines attributable. Name them in every shot ("Momo says, ..."), and for speech use the verified `(S1)` / `(S2)` speaker marks (see Dialogue / Speaker Rules); an off-screen speaker needs no picture.
 - Keep it consistent with `retention_analysis` and with what the shots show: the subject entry sets the standing role, the shots add the moment-to-moment actions.
+
+## No exaggerated skin / beauty wording (owner rule)
+Do not write perfected or glossy skin and beauty words in prompts: no "flawless", "dewy", "glowing / healthy glow", "glass skin", "radiant", "porcelain", "silky", "poreless", "airbrushed", "stunning / gorgeous / perfect". They push the model toward a plastic look. Where skin must be mentioned, keep it plain and realistic (natural matte texture, visible pores, a little natural unevenness) and keep makeup minimal ("soft natural lip tint"). Usually leave skin to the reference picture and name it only in `retention_analysis` as identity retained.
+- Character DNA files may contain words like "dewy" or "glow" (e.g. `characters/anong/character_dna.md`, `characters/momo/character_dna.md`): treat them as description of the character, not as wording to copy into the prompt.
+- "glow" is fine for light sources (monitor glow, lamp glow, lantern glow); the rule is about skin and beauty.
