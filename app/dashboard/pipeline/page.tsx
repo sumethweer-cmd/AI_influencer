@@ -24,6 +24,8 @@ type RenderTask = {
     seg_from: number | null
     seg_count: number | null
     lane: number | null
+    running_at: string | null
+    finished_at: string | null
     file_url: string | null
     downloaded: boolean
     local_path: string | null
@@ -36,6 +38,7 @@ type Content = {
     character: string
     note: string | null
     scheduled_date: string | null
+    created_at: string | null
     pics: Record<string, Pic>
     segments: Segment[]
     render_tasks: RenderTask[]
@@ -103,10 +106,22 @@ const nextLabel = (c: Content) => {
 type Group = { label: string; f: (c: Content) => boolean }
 const GROUPS: Record<string, Group> = {
     all: { label: 'ทั้งหมด', f: () => true },
+    fresh: { label: 'ยังไม่ได้เจน', f: (c) => stateOf(c) === 'NONE' },
     todo: { label: 'ต้องทำต่อ', f: needsAction },
     run: { label: 'กำลังรัน/รอคิว', f: (c) => ['RUNNING', 'QUEUED'].includes(stateOf(c)) },
     done: { label: 'เสร็จแล้ว', f: (c) => stateOf(c) === 'SUCCESS' },
     bad: { label: 'มีปัญหา', f: (c) => ['FAILED', 'CANCELLED'].includes(stateOf(c)) },
+}
+
+const SORTS: Record<string, { label: string; key: (c: Content) => number | string | null }> = {
+    default: { label: 'ลำดับเดิม', key: () => 0 },
+    created: { label: 'สร้างล่าสุด', key: (c) => c.created_at },
+    submitted: { label: 'ส่งล่าสุด', key: (c) => headline(c)?.submitted_at || null },
+    finished: { label: 'เสร็จล่าสุด', key: (c) => headline(c)?.finished_at || null },
+    title: { label: 'ชื่อเรื่อง', key: (c) => (c.title || '').toLowerCase() },
+    character: { label: 'ตัวละคร', key: (c) => c.character },
+    coins: { label: 'เหรียญที่ใช้', key: (c) => headline(c)?.coins ?? null },
+    runtime: { label: 'เวลาเจนจริง', key: (c) => headline(c)?.run_seconds ?? null },
 }
 
 function Stepper({ c }: { c: Content }) {
@@ -239,6 +254,10 @@ export default function ContentPage() {
     const [tab, setTab] = useState<'info' | 'pics' | 'segs' | 'render'>('info')
     const [filter, setFilter] = useState('all')
     const [query, setQuery] = useState('')
+    const [charFilter, setCharFilter] = useState('ทั้งหมด')
+    const [sortKey, setSortKey] = useState('default')
+    const [sortDesc, setSortDesc] = useState(true)
+    const [bulkRes, setBulkRes] = useState('')
     const [checked, setChecked] = useState<Set<string>>(new Set())
     const [token, setToken] = useState('')
     const [busy, setBusy] = useState(false)
@@ -321,11 +340,25 @@ export default function ContentPage() {
     const megapixelMode = activeWf?.megapixel_mode === true
     const defaultRes = megapixelMode ? DEFAULT_MEGAPIXEL_RESOLUTION : DEFAULT_RESOLUTION
     const counts = useMemo(() => Object.fromEntries(Object.entries(GROUPS).map(([k, g]) => [k, contents.filter(g.f).length])), [contents])
-    const rows = useMemo(
-        () =>
-            contents.filter(GROUPS[filter].f).filter((c) => `${c.title || ''} ${c.character}`.toLowerCase().includes(query.toLowerCase())),
-        [contents, filter, query]
-    )
+    const charList = useMemo(() => ['ทั้งหมด', ...Array.from(new Set(contents.map((c) => c.character))).sort()], [contents])
+    const rows = useMemo(() => {
+        const list = contents
+            .filter(GROUPS[filter].f)
+            .filter((c) => charFilter === 'ทั้งหมด' || c.character === charFilter)
+            .filter((c) => `${c.title || ''} ${c.character}`.toLowerCase().includes(query.toLowerCase()))
+        if (sortKey === 'default') return list
+        const key = SORTS[sortKey].key
+        // items without a value (e.g. never sent) always go last
+        return [...list].sort((a, b) => {
+            const x = key(a)
+            const y = key(b)
+            if (x == null && y == null) return 0
+            if (x == null) return 1
+            if (y == null) return -1
+            const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))
+            return sortDesc ? -c : c
+        })
+    }, [contents, filter, charFilter, query, sortKey, sortDesc])
     const waitingIds = useMemo(() => new Set((queue?.waiting || []).filter((w) => w.status === 'waiting').map((w) => w.content_item_id)), [queue])
     const running = counts.run
     const waiting = contents.filter((c) => stateOf(c) === 'NONE').length
@@ -488,6 +521,14 @@ export default function ContentPage() {
         run(async () => {
             if (!confirm('ลบ workflow "' + w.name + '" ออกจากรายการ? (ไม่กระทบงานที่ส่งไปแล้ว)')) return
             await call('/api/pipeline/workflows', 'DELETE', { id: w.id })
+            await load()
+        })
+
+    const applyBulkRes = () =>
+        run(async () => {
+            const ids = [...checked]
+            for (const id of ids) await call('/api/pipeline/content-settings', 'PATCH', { contentId: id, resolution: bulkRes || defaultRes })
+            setInfo(`ตั้งขนาดภาพให้ ${ids.length} เรื่องแล้ว`)
             await load()
         })
 
@@ -722,8 +763,29 @@ export default function ContentPage() {
                     ))}
                 </div>
                 <input className="search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ค้นหาชื่อเรื่องหรือตัวละคร" aria-label="ค้นหา" />
+                <select className="tok" style={{ width: 'auto' }} value={charFilter} onChange={(e) => setCharFilter(e.target.value)} aria-label="กรองตามตัวละคร">
+                    {charList.map((c) => (
+                        <option key={c} value={c}>{c === 'ทั้งหมด' ? 'ทุกตัวละคร' : c}</option>
+                    ))}
+                </select>
+                <select className="tok" style={{ width: 'auto' }} value={sortKey} onChange={(e) => setSortKey(e.target.value)} aria-label="เรียงตาม">
+                    {Object.entries(SORTS).map(([k, s]) => (
+                        <option key={k} value={k}>เรียง: {s.label}</option>
+                    ))}
+                </select>
+                <button onClick={() => setSortDesc((v) => !v)} disabled={sortKey === 'default'} title="สลับทิศทางการเรียง">{sortDesc ? 'มาก→น้อย / ใหม่→เก่า' : 'น้อย→มาก / เก่า→ใหม่'}</button>
                 <button onClick={load} disabled={loading}>{loading ? 'กำลังโหลด…' : 'โหลดใหม่'}</button>
             </div>
+
+            {checked.size > 0 && (
+                <div className="bulkbar" role="group" aria-label="ตั้งค่าที่เลือกทั้งหมด">
+                    <b>เลือกอยู่ {checked.size} เรื่อง</b>
+                    <span className="sub">ขนาดภาพ:</span>
+                    <ResolutionPicker megapixel={megapixelMode} value={bulkRes || defaultRes} onChange={setBulkRes} />
+                    <button onClick={applyBulkRes} disabled={busy}>ตั้งขนาดภาพให้ที่เลือก</button>
+                    <button className="link" onClick={() => setChecked(new Set())}>ล้างที่เลือก</button>
+                </div>
+            )}
 
             <div className={`layout ${open ? 'open' : ''}`}>
                 <section className="list" aria-label="รายการคอนเทนต์">
@@ -828,6 +890,10 @@ export default function ContentPage() {
                                             )}
                                             <p>{t ? `ส่งเมื่อ ${fmtDate(t.submitted_at)} · task ${t.job_id}` : hasPic1(open) ? 'รูปครบแล้ว พร้อมสั่งเจน' : 'ยังไม่ได้เลือกรูป Picture 1'}</p>
                                             <Stepper c={open} />
+                                            <div className="resrow">
+                                                <span className="sub">ขนาดภาพที่จะเจน{megapixelMode ? ' (aspect ratio + megapixels)' : ' (workflow นี้ยังเป็นแบบเลือกขนาดสำเร็จรูป)'}</span>
+                                                <ResolutionPicker megapixel={megapixelMode} value={parseRenderSettings(open.note).resolution || defaultRes} onChange={(v) => saveSettings(open.id, { resolution: v })} />
+                                            </div>
                                             <label className="datefield">
                                                 <span className="sub">วันที่จะลงโพสต์</span>
                                                 <input type="date" value={open.scheduled_date || ''} disabled={busy} onChange={(e) => setDate(open.id, e.target.value || null)} />
@@ -1129,6 +1195,9 @@ export default function ContentPage() {
 }
 
 const CSS = `
+.pl .bulkbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--brand-soft);border:1px solid var(--brand);border-radius:12px;padding:10px 14px;margin-bottom:14px}
+.pl .resrow{display:flex;flex-direction:column;gap:4px;margin-top:12px}
+
 .pl .lanes{display:flex;gap:6px 18px;flex-wrap:wrap;margin-top:6px;font-size:14px}.pl .lane b{color:var(--brand)}
 
 .pl .views{display:flex;gap:8px;margin:0 0 14px;border-bottom:1px solid var(--line);padding-bottom:10px}
