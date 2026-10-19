@@ -237,3 +237,10 @@ The owner reviewed rendered UGC clips: "structure is good; content boring and mi
 3. **Fun, not a lecture:** ask "would viewers rather sit in a classroom or go out and play a game?" — prefer doing/playing/reacting (tiny experiment, game, before/after, prop gag); the character does something with her hands while talking, with real personality/jokes from `characters/<name>/`.
 4. **Real spoken Thai:** everyday colloquial wording, not written/academic/formal; avoid the words in `model_specs/thai-dialogue-words.md` that the voice mispronounces (e.g. ไถ -> ปัด, มีด -> ที่โกน).
 5. **Camera wording:** never write "a phone-on-a-stand talking video" (the model draws a phone into the frame) — state **shot size and camera height** instead, e.g. "locked-off camera at chest height", "medium close-up, straight on", as the dance prompts do.
+
+## Subject definitions say WHO does WHAT and HOW (owner's rule, 2026-10-19)
+`subject_definitions` is not only "which picture is whom". Each subject entry also states its role and what it does through the clip, the way the owner's working workflow prompt does: identity from the picture, then one clause on posture/position, what she holds in which hand, how she speaks.
+- Pattern: `<Picture 1> <Name> - <identity as needed>, <outfit if the picture should not decide it>. She is the woman who <role and what she does across the clip: sits upright talking to camera across cuts / walks the hallway / holds the bottle in her right hand at chest height, left hand free>.`
+- Props and other subjects get their own entry (`<Picture 2> is a large clear glass bottle ...`) and are tied to the subject that uses them.
+- Several people: keep each person's actions and lines attributable. Name them in every shot ("Momo says, ..."), and for speech use the verified `(S1)` / `(S2)` speaker marks (see Dialogue / Speaker Rules); an off-screen speaker needs no picture.
+- Keep it consistent with `retention_analysis` and with what the shots show: the subject entry sets the standing role, the shots add the moment-to-moment actions.
