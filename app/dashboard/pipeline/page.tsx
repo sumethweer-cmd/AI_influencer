@@ -67,6 +67,7 @@ const fmtDate = (iso: string | null) => {
     const d = new Date(iso)
     return isNaN(d.getTime()) ? '-' : d.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })
 }
+const fmtMin = (sec: number | null) => (sec == null ? '-' : `${(sec / 60).toFixed(1)} นาที`)
 const fmtDur = (sec: number | null) => (sec == null ? '-' : `${Math.floor(sec / 60)} น. ${sec % 60} ว.`)
 const needsAction = (c: Content) => {
     const s = stateOf(c)
@@ -645,9 +646,7 @@ export default function ContentPage() {
             {view === 'content' && (<>
             <div className="summary">
                 ตอนนี้ <b>กำลังรัน {running}</b> · <b>รอส่ง {waiting}</b> · <b>เสร็จแล้วยังไม่ได้โหลด {toDownload.length}</b>
-                {spend.coins > 0 && (
-                    <span className="sub"> · ใช้ไปแล้ว {spend.coins.toLocaleString()} เหรียญ ({spend.sec} วินาทีวิดีโอ เฉลี่ย {(spend.coins / spend.sec).toFixed(1)} เหรียญ และ {Math.round(spend.runSec / spend.sec)} วินาทีรันต่อ 1 วินาทีวิดีโอ)</span>
-                )}
+                {spend.coins > 0 && <span className="sub"> · ใช้ไปแล้ว {spend.coins.toLocaleString()} เหรียญ</span>}
                 {urgent && (
                     <span className="warn">
                         {' '}
@@ -676,6 +675,8 @@ export default function ContentPage() {
                         <span>เรื่อง</span>
                         <span>ความคืบหน้า</span>
                         <span>สถานะ / ต้องทำอะไรต่อ</span>
+                        <span className="num">เหรียญ</span>
+                        <span className="num">เวลาเจนจริง</span>
                     </div>
                     {rows.map((c) => {
                         const queued = waitingIds.has(c.id) && stateOf(c) === 'NONE'
@@ -715,10 +716,6 @@ export default function ContentPage() {
                                 <Stepper c={c} />
                                 <div className="next">
                                     <span className={`tag t-${tc}`}>{tl}</span>
-                                    {(() => {
-                                        const t = headline(c)
-                                        return t && t.status === 'SUCCESS' && t.coins != null ? <span className="sub">{t.coins} เหรียญ · {fmtDur(t.run_seconds)}</span> : null
-                                    })()}
                                     {nl ? (
                                         <button
                                             className={hot ? 'primary' : ''}
@@ -734,6 +731,16 @@ export default function ContentPage() {
                                         <span className="sub">รอ RH ทำงาน ไม่ต้องทำอะไร</span>
                                     )}
                                 </div>
+                                {(() => {
+                                    const t = headline(c)
+                                    const done = t && t.status === 'SUCCESS'
+                                    return (
+                                        <>
+                                            <div className="num">{done && t.coins != null ? t.coins : '-'}</div>
+                                            <div className="num">{done ? fmtMin(t.run_seconds) : '-'}</div>
+                                        </>
+                                    )
+                                })()}
                             </div>
                         )
                     })}
@@ -870,7 +877,7 @@ export default function ContentPage() {
                                 ) : (
                                     <table className="t">
                                         <thead>
-                                            <tr><th>สถานะ</th><th>งาน</th><th>เลข task</th><th>ส่งเมื่อ</th><th>เวลารัน</th><th>เหรียญ</th><th>ผลลัพธ์</th></tr>
+                                            <tr><th>สถานะ</th><th>งาน</th><th>เลข task</th><th>ส่งเมื่อ</th><th>เวลาเจนจริง</th><th>เหรียญ</th><th>ผลลัพธ์</th></tr>
                                         </thead>
                                         <tbody>
                                             {open.render_tasks.map((t) => {
@@ -882,7 +889,7 @@ export default function ContentPage() {
                                                         <td>{rep ? `ซ่อม SEG ${t.seg_from}${(t.seg_count || 1) > 1 ? `–${(t.seg_from || 1) + (t.seg_count || 1) - 1}` : ''}` : 'ทั้งเรื่อง'}</td>
                                                         <td className="mono">{t.job_id}</td>
                                                         <td>{fmtDate(t.submitted_at)}</td>
-                                                        <td>{fmtDur(t.run_seconds)}</td>
+                                                        <td>{fmtMin(t.run_seconds)}</td>
                                                         <td>{t.coins ?? '-'}</td>
                                                         <td>
                                                             {t.file_url ? <a href={t.file_url} target="_blank" rel="noreferrer">เปิด/โหลดคลิป</a> : '-'}
@@ -1114,7 +1121,9 @@ const CSS = `
 .pl .layout.open{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)}
 @media (max-width:1000px){.pl .layout.open{grid-template-columns:1fr}}
 .pl .list{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.pl .head,.pl .row{display:grid;grid-template-columns:28px minmax(140px,1.3fr) minmax(210px,1.7fr) minmax(150px,1fr);gap:12px;align-items:center;padding:12px 16px}
+.pl .head,.pl .row{display:grid;grid-template-columns:28px minmax(140px,1.3fr) minmax(210px,1.7fr) minmax(150px,1fr) 70px 96px;gap:12px;align-items:center;padding:12px 16px}
+.pl .num{text-align:right;font-variant-numeric:tabular-nums}
+.pl .layout.open .head,.pl .layout.open .row{grid-template-columns:28px minmax(140px,1.3fr) minmax(210px,1.7fr) minmax(150px,1fr)}.pl .layout.open .num{display:none}
 .pl .head{font-size:13px;color:var(--muted);background:#faf8f3;border-bottom:1px solid var(--line)}
 .pl .row{border-bottom:1px solid var(--line);cursor:pointer}.pl .row:last-child{border-bottom:0}.pl .row:hover{background:#faf8f3}.pl .row.sel{background:var(--brand-soft)}
 .pl .title{font-weight:700}.pl .sub{font-size:13px;color:var(--muted)}

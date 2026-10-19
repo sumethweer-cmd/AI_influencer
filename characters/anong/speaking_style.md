@@ -46,3 +46,8 @@ Avoid stating things as flat fact. Prefer curiosity-framed language:
 
 Warm + teasing, not baby-talk the entire time, and never reads as "please
 love me" / desperate for attention (see `constraints.md`).
+
+## Voice notes from rendered clips (2026-10-19)
+- Speak like a real young Thai woman on TikTok/Reels: short colloquial phrases with natural particles, never written/academic/formal wording; one idea per phrase; pauses marked with "…".
+- Avoid words the voice mispronounces — see `model_specs/thai-dialogue-words.md` (ไถ -> ปัด, มีด -> ที่โกน).
+- Personality first: teasing, playful, self-aware, reacting to props — the content must feel like Anong, not a leaflet. See "Lessons from rendered clips" in `model_specs/minimax-h3.md`.

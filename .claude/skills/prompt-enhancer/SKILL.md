@@ -97,3 +97,11 @@ Fill `enhanced_spec.yaml` (schema: `schemas/enhanced_spec.yaml`).
 Means naturalism or format-fit failed at the validator — re-check the specific
 shot(s) called out in `retry_reason` against the format bible's "Common Failure
 Patterns" section first, that's usually exactly what tripped the check.
+
+## Lessons from rendered clips (2026-10-19) — apply before writing
+The owner reviewed rendered UGC clips: "structure is good; content boring and missing the character's DNA; Thai sounds odd; dialogue too long so the model distorts."
+1. **Short, slow speech:** each phrase <= ~6 Thai words, <= ~15 spoken words per 8 s segment (tighter than the old 24-word cap), clear gaps between phrases.
+2. **More shots:** 3-4 shots per segment (~2-2.5 s each), one short phrase per shot or a silent beat — the way TikTok creators record one line, stop, read the next, then cut together. Shots may stay similar or change angle.
+3. **Fun, not a lecture:** ask "would viewers rather sit in a classroom or go out and play a game?" — prefer doing/playing/reacting (tiny experiment, game, before/after, prop gag); the character does something with her hands while talking, with real personality/jokes from `characters/<name>/`.
+4. **Real spoken Thai:** everyday colloquial wording, not written/academic/formal; avoid the words in `model_specs/thai-dialogue-words.md` that the voice mispronounces (e.g. ไถ -> ปัด, มีด -> ที่โกน).
+5. **Camera wording:** never write "a phone-on-a-stand talking video" (the model draws a phone into the frame) — state **shot size and camera height** instead, e.g. "locked-off camera at chest height", "medium close-up, straight on", as the dance prompts do.
