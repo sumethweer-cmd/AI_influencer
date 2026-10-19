@@ -90,7 +90,7 @@ the prompt tends to grade its own work leniently.
   downstream layers may depend on what changed). Re-validate. Cap at 3 retries;
   if still failing, still write the output (Step 3) but with `status: qc_fail`
   and the failing `validation_report` attached — a human reviews it on the
-  `/dashboard/content-pipeline` queue instead of it silently disappearing.
+  `/dashboard/pipeline` queue instead of it silently disappearing.
 
 </details>
 
@@ -105,7 +105,7 @@ structured sections as one file; `per_shot` models like krea → one file per
 shot, `item{NN}_shot{N}_compiled_prompt.txt`.)
 
 **Also push the same item to Supabase**, so it shows up on the
-`/dashboard/content-pipeline` review queue: write a small JSON file with the
+`/dashboard/pipeline` review queue: write a small JSON file with the
 item's fields (see the shape documented at the top of
 `scripts/push-content-item.mjs`) and run:
 ```

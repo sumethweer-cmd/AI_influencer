@@ -38,7 +38,7 @@ export default function TopNav() {
                             🖍️ Etsy Books
                         </Link>
                         <Link
-                            href="/dashboard/content-pipeline"
+                            href="/dashboard/pipeline"
                             className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${isPipeline ? 'bg-cyan-600 shadow-md text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
                                 }`}
                         >
@@ -58,8 +58,7 @@ export default function TopNav() {
                     ) : isPipeline ? (
                         // Content Pipeline Navigation
                         <>
-                            <Link href="/dashboard/pipeline" className="hover:text-cyan-400 transition-colors">Content</Link>
-                            <Link href="/dashboard/content-pipeline" className="hover:text-cyan-400 transition-colors">Queue</Link>
+                            <Link href="/dashboard/pipeline" className="hover:text-cyan-400 transition-colors">Content (งาน · ปฏิทิน · คลังรูป)</Link>
                         </>
                     ) : (
                         // Influencer (Legacy) Navigation

@@ -73,3 +73,51 @@ export async function PUT(req: Request) {
         return NextResponse.json({ success: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 })
     }
 }
+
+// PATCH -> { id, label } renames a library picture (slot copies keep their own label).
+export async function PATCH(req: Request) {
+    const denied = adminGuard(req)
+    if (denied) return denied
+    try {
+        if (!supabaseAdmin) return NextResponse.json({ success: false, error: 'SUPABASE_SERVICE_ROLE_KEY is not set on the server' }, { status: 500 })
+        const b = await req.json().catch(() => ({}))
+        const label = String(b.label || '').trim()
+        if (!b.id || !label) return NextResponse.json({ success: false, error: 'id and label are required' }, { status: 400 })
+        const { error } = await supabaseAdmin.from('pipeline_assets').update({ label: label.slice(0, 200) }).eq('id', b.id).is('content_item_id', null)
+        if (error) throw error
+        return NextResponse.json({ success: true })
+    } catch (e: unknown) {
+        return NextResponse.json({ success: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 })
+    }
+}
+
+// DELETE -> { id } removes a library picture and its file, but ONLY when no content uses it
+// (slot rows share the same file, so deleting a used picture would break those contents).
+export async function DELETE(req: Request) {
+    const denied = adminGuard(req)
+    if (denied) return denied
+    try {
+        if (!supabaseAdmin) return NextResponse.json({ success: false, error: 'SUPABASE_SERVICE_ROLE_KEY is not set on the server' }, { status: 500 })
+        const b = await req.json().catch(() => ({}))
+        if (!b.id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 })
+        const { data: a, error } = await supabaseAdmin
+            .from('pipeline_assets')
+            .select('id,storage_path')
+            .eq('id', b.id)
+            .is('content_item_id', null)
+            .single()
+        if (error || !a) return NextResponse.json({ success: false, error: 'ไม่พบรูปในคลัง' }, { status: 404 })
+        const { count } = await supabaseAdmin
+            .from('pipeline_assets')
+            .select('id', { count: 'exact', head: true })
+            .eq('storage_path', a.storage_path)
+            .not('content_item_id', 'is', null)
+        if (count) return NextResponse.json({ success: false, error: `ลบไม่ได้ ยังมี ${count} เรื่องที่ใช้รูปนี้อยู่` }, { status: 409 })
+        const { error: delErr } = await supabaseAdmin.from('pipeline_assets').delete().eq('id', a.id)
+        if (delErr) throw delErr
+        if (a.storage_path) await supabaseAdmin.storage.from(BUCKET).remove([String(a.storage_path).replace(`${BUCKET}/`, '')])
+        return NextResponse.json({ success: true })
+    } catch (e: unknown) {
+        return NextResponse.json({ success: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 })
+    }
+}

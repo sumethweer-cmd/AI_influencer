@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import CalendarView, { type CalItem } from './CalendarView'
+import AssetsView, { type AssetItem } from './AssetsView'
 import { DEFAULT_RESOLUTION, DEFAULT_SEG_FRAMES, estimate, parseRenderSettings, RESOLUTION_PRESETS, WORKFLOW_RESOLUTION, type Continuity } from '@/lib/trackData'
 
 // Result files on RunningHub expire ~14 days after the job (owner's observation). Counted from submit.
@@ -209,6 +211,7 @@ export default function ContentPage() {
     const [error, setError] = useState<string | null>(null)
     const [info, setInfo] = useState<string | null>(null)
     const [openId, setOpenId] = useState<string | null>(null)
+    const [view, setView] = useState<'content' | 'calendar' | 'assets'>('content')
     const [tab, setTab] = useState<'info' | 'pics' | 'segs' | 'render'>('info')
     const [filter, setFilter] = useState('all')
     const [query, setQuery] = useState('')
@@ -312,6 +315,30 @@ export default function ContentPage() {
         [contents, orphans]
     )
 
+    const calItems: CalItem[] = useMemo(
+        () => contents.map((c) => ({ id: c.id, title: c.title || '(ไม่มีชื่อ)', character: c.character, date: c.scheduled_date, label: tagOf(c)[0], cls: tagOf(c)[1] })),
+        [contents]
+    )
+    const assetItems: AssetItem[] = useMemo(() => {
+        const uses = new Map<string, number>()
+        for (const c of contents) for (const p of Object.values(c.pics)) uses.set(p.url, (uses.get(p.url) || 0) + 1)
+        return library.map((a) => ({ ...a, uses: uses.get(a.url) || 0 }))
+    }, [contents, library])
+    const spend = useMemo(() => {
+        let coins = 0
+        let sec = 0
+        let runSec = 0
+        for (const c of contents) {
+            for (const t of c.render_tasks) {
+                if (t.status !== 'SUCCESS' || t.coins == null) continue
+                coins += t.coins
+                sec += (t.seg_count || 1) * 8
+                runSec += t.run_seconds || 0
+            }
+        }
+        return { coins, sec, runSec }
+    }, [contents])
+
     const refreshRh = () =>
         run(async () => {
             let done = 0
@@ -359,6 +386,46 @@ export default function ContentPage() {
             await call('/api/pipeline/slot', 'POST', { contentId, slot, assetId: rec.asset.id })
             setPicker(null)
             setInfo('อัปโหลดแล้ว และเก็บเข้าคลังรูปให้ใช้ซ้ำได้')
+            await load()
+        })
+
+    const setDate = (id: string, date: string | null) =>
+        run(async () => {
+            await call('/api/pipeline/schedule', 'PATCH', { id, date })
+            setInfo(date ? 'ลงวันที่ ' + date + ' แล้ว' : 'เอาออกจากปฏิทินแล้ว')
+            await load()
+        })
+    const uploadLibrary = (files: File[], character: string) =>
+        run(async () => {
+            let n = 0
+            for (const file of files) {
+                setInfo(`กำลังอัปโหลด ${n + 1}/${files.length}: ${file.name}`)
+                const ticket = await call('/api/pipeline/library', 'POST', { filename: file.name, character })
+                const { error: upErr } = await supabase.storage.from('pipeline-assets').uploadToSignedUrl(ticket.path, ticket.token, file)
+                if (upErr) throw new Error(`อัปโหลดไม่สำเร็จ: ${upErr.message}`)
+                await call('/api/pipeline/library', 'PUT', {
+                    path: ticket.path,
+                    url: ticket.publicUrl,
+                    character,
+                    label: `${character} · ${file.name.replace(/\.[^.]+$/, '')}`,
+                    contentType: file.type,
+                    sizeBytes: file.size,
+                })
+                n++
+            }
+            setInfo(`อัปโหลดแล้ว ${n} รูป`)
+            await load()
+        })
+    const renameAsset = (a: AssetItem, label: string) =>
+        run(async () => {
+            await call('/api/pipeline/library', 'PATCH', { id: a.id, label })
+            await load()
+        })
+    const deleteAsset = (a: AssetItem) =>
+        run(async () => {
+            if (!confirm('ลบรูป "' + a.label + '" ออกจากคลังถาวร?')) return
+            await call('/api/pipeline/library', 'DELETE', { id: a.id })
+            setInfo('ลบรูปแล้ว')
             await load()
         })
 
@@ -559,8 +626,28 @@ export default function ContentPage() {
                 </div>
             )}
 
+            <nav className="views" aria-label="มุมมอง">
+                {([['content', 'งาน'], ['calendar', 'ปฏิทิน'], ['assets', 'คลังรูป']] as const).map(([k, l]) => (
+                    <button key={k} className="vt" aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>
+                ))}
+            </nav>
+
+            {view === 'calendar' && (
+                <CalendarView
+                    items={calItems}
+                    busy={busy}
+                    onOpen={(id) => { setOpenId(id); setTab('info'); setView('content') }}
+                    onSetDate={setDate}
+                />
+            )}
+            {view === 'assets' && <AssetsView assets={assetItems} busy={busy} onUpload={uploadLibrary} onRename={renameAsset} onDelete={deleteAsset} />}
+
+            {view === 'content' && (<>
             <div className="summary">
                 ตอนนี้ <b>กำลังรัน {running}</b> · <b>รอส่ง {waiting}</b> · <b>เสร็จแล้วยังไม่ได้โหลด {toDownload.length}</b>
+                {spend.coins > 0 && (
+                    <span className="sub"> · ใช้ไปแล้ว {spend.coins.toLocaleString()} เหรียญ ({spend.sec} วินาทีวิดีโอ เฉลี่ย {(spend.coins / spend.sec).toFixed(1)} เหรียญ และ {Math.round(spend.runSec / spend.sec)} วินาทีรันต่อ 1 วินาทีวิดีโอ)</span>
+                )}
                 {urgent && (
                     <span className="warn">
                         {' '}
@@ -628,6 +715,10 @@ export default function ContentPage() {
                                 <Stepper c={c} />
                                 <div className="next">
                                     <span className={`tag t-${tc}`}>{tl}</span>
+                                    {(() => {
+                                        const t = headline(c)
+                                        return t && t.status === 'SUCCESS' && t.coins != null ? <span className="sub">{t.coins} เหรียญ · {fmtDur(t.run_seconds)}</span> : null
+                                    })()}
                                     {nl ? (
                                         <button
                                             className={hot ? 'primary' : ''}
@@ -673,6 +764,10 @@ export default function ContentPage() {
                                             )}
                                             <p>{t ? `ส่งเมื่อ ${fmtDate(t.submitted_at)} · task ${t.job_id}` : hasPic1(open) ? 'รูปครบแล้ว พร้อมสั่งเจน' : 'ยังไม่ได้เลือกรูป Picture 1'}</p>
                                             <Stepper c={open} />
+                                            <label className="datefield">
+                                                <span className="sub">วันที่จะลงโพสต์</span>
+                                                <input type="date" value={open.scheduled_date || ''} disabled={busy} onChange={(e) => setDate(open.id, e.target.value || null)} />
+                                            </label>
                                             <p className="sub" style={{ marginTop: 14 }}>
                                                 สิ่งที่ต้องทำต่อ: <b>{nextLabel(open) || 'ไม่ต้องทำอะไร รอ RH'}</b>
                                             </p>
@@ -775,7 +870,7 @@ export default function ContentPage() {
                                 ) : (
                                     <table className="t">
                                         <thead>
-                                            <tr><th>สถานะ</th><th>งาน</th><th>เลข task</th><th>ส่งเมื่อ</th><th>เวลารัน</th><th>ผลลัพธ์</th></tr>
+                                            <tr><th>สถานะ</th><th>งาน</th><th>เลข task</th><th>ส่งเมื่อ</th><th>เวลารัน</th><th>เหรียญ</th><th>ผลลัพธ์</th></tr>
                                         </thead>
                                         <tbody>
                                             {open.render_tasks.map((t) => {
@@ -788,6 +883,7 @@ export default function ContentPage() {
                                                         <td className="mono">{t.job_id}</td>
                                                         <td>{fmtDate(t.submitted_at)}</td>
                                                         <td>{fmtDur(t.run_seconds)}</td>
+                                                        <td>{t.coins ?? '-'}</td>
                                                         <td>
                                                             {t.file_url ? <a href={t.file_url} target="_blank" rel="noreferrer">เปิด/โหลดคลิป</a> : '-'}
                                                             {t.status === 'SUCCESS' && (
@@ -822,6 +918,7 @@ export default function ContentPage() {
                     </ul>
                 </details>
             )}
+            </>)}
 
             {/* Picture picker */}
             {picker && (
@@ -967,6 +1064,29 @@ export default function ContentPage() {
 }
 
 const CSS = `
+.pl .views{display:flex;gap:8px;margin:0 0 14px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.pl .vt{border-radius:999px;padding:6px 20px;min-height:42px;font-weight:600}.pl .vt[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+.pl .datefield{display:flex;flex-direction:column;gap:2px;margin-top:12px;max-width:240px}
+.pl input[type=date],.pl select{border:1px solid var(--line);border-radius:10px;padding:8px 12px;font:inherit;min-height:44px;background:var(--card);color:var(--ink)}
+.pl .cal{display:grid;gap:14px}
+.pl .calhead{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.pl .calhead h2{min-width:170px;text-align:center}
+.pl .calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.pl .calwk{text-align:center;font-size:13px;color:var(--muted);font-weight:600}
+.pl .calday{background:var(--card);border:1px solid var(--line);border-radius:10px;min-height:96px;padding:6px;display:flex;flex-direction:column;gap:3px;cursor:pointer}
+.pl .calday.today{border-color:var(--brand)}.pl .calday.sel{background:var(--brand-soft);border-color:var(--brand)}
+.pl .calday b{font-size:13px;color:var(--muted)}
+.pl .calchip{border:0;border-radius:6px;padding:2px 6px;min-height:24px;font-size:12px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
+.pl .calside{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px}.pl .calside h3{margin:0 0 8px}
+.pl .calitem{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+.pl .calpick{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}.pl .calpick label{display:flex;flex-direction:column;gap:2px;flex:1;min-width:220px}
+@media (max-width:700px){.pl .calday{min-height:70px}.pl .calchip{font-size:11px}}
+.pl .dropzone{border:2px dashed #c9c2b2;border-radius:14px;padding:16px;margin-bottom:14px;background:#faf8f3}
+.pl .dropzone label{display:flex;flex-direction:column;gap:2px}
+.pl .assetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.pl .asset{margin:0;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.pl .asset img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;background:#ece8de}
+.pl .asset figcaption{padding:10px 12px;display:grid;gap:4px}
+
 .pl{--bg:#f6f4ef;--card:#fff;--ink:#26231f;--muted:#6f695d;--line:#e4dfd5;--brand:#2f5d50;--brand-soft:#e3eee9;
  --wait:#7a5c00;--wait-bg:#fbf1cf;--run:#1f5f99;--run-bg:#dfeefa;--ok:#2c6b3f;--ok-bg:#dff1e4;--bad:#a3322a;--bad-bg:#f9e0dd;--idle:#625d53;--idle-bg:#ece8de;
  background:var(--bg);color:var(--ink);border-radius:16px;padding:22px;font:16px/1.6 "Leelawadee UI","Sarabun","Noto Sans Thai",Tahoma,sans-serif}
