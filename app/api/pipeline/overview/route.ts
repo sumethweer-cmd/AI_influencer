@@ -29,7 +29,7 @@ export async function GET() {
         const { data: tasks, error: tasksErr } = await supabaseAdmin
             .from('render_tasks')
             .select(
-                'id,provider,job_id,content_item_id,project_name,status,submitted_at,running_at,finished_at,run_seconds,coins,segments,seg_from,seg_count,file_url,downloaded,local_path,error,note'
+                'id,provider,job_id,content_item_id,project_name,status,submitted_at,running_at,finished_at,run_seconds,coins,segments,seg_from,seg_count,lane,file_url,downloaded,local_path,error,note'
             )
             .order('submitted_at', { ascending: false })
             .limit(1000)

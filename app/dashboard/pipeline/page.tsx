@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import CalendarView, { type CalItem } from './CalendarView'
 import AssetsView, { type AssetItem } from './AssetsView'
-import { DEFAULT_RESOLUTION, DEFAULT_SEG_FRAMES, estimate, parseRenderSettings, RESOLUTION_PRESETS, WORKFLOW_RESOLUTION, type Continuity } from '@/lib/trackData'
+import { ASPECT_RATIOS, DEFAULT_MEGAPIXEL_RESOLUTION, DEFAULT_RESOLUTION, DEFAULT_SEG_FRAMES, estimate, MEGAPIXEL_PRESETS, parseMegapixelValue, parseRenderSettings, RESOLUTION_PRESETS, taskEtaMs, WORKFLOW_RESOLUTION, type Continuity } from '@/lib/trackData'
 
 // Result files on RunningHub expire ~14 days after the job (owner's observation). Counted from submit.
 const RETENTION_DAYS = 14
@@ -23,6 +23,7 @@ type RenderTask = {
     coins: number | null
     seg_from: number | null
     seg_count: number | null
+    lane: number | null
     file_url: string | null
     downloaded: boolean
     local_path: string | null
@@ -39,10 +40,10 @@ type Content = {
     segments: Segment[]
     render_tasks: RenderTask[]
 }
-type Workflow = { id: string; name: string; workflow_id: string; node_editor: string; node_project: string; is_default: boolean; note: string | null }
+type Workflow = { id: string; name: string; workflow_id: string; node_editor: string; node_project: string; megapixel_mode: boolean; is_default: boolean; note: string | null }
 type QueueItem = { id: string; content_item_id: string; status: string; attempts: number; last_error: string | null; enqueued_at: string }
 type DispatcherInfo = {
-    settings: { enabled: boolean; max_per_tick: number; daily_limit: number | null; site_url: string | null; last_tick_at: string | null; last_note: string | null }
+    settings: { enabled: boolean; max_per_tick: number; lanes: number; next_tick_at: string | null; daily_limit: number | null; site_url: string | null; last_tick_at: string | null; last_note: string | null }
     waiting: QueueItem[]
     recentLog: { at: string; active_before: number | null; sent: number | null; queue_maxed: boolean; note: string | null }[]
 }
@@ -142,7 +143,29 @@ type SendDialog = {
     continuity: Record<string, Continuity>
 } | null
 
-function ResolutionPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function ResolutionPicker({ value, onChange, megapixel }: { value: string; onChange: (v: string) => void; megapixel?: boolean }) {
+    if (megapixel) {
+        const mp = parseMegapixelValue(value) || parseMegapixelValue(DEFAULT_MEGAPIXEL_RESOLUTION)!
+        const off = value === WORKFLOW_RESOLUTION
+        const set = (aspect: string, megapixels: number) => onChange(`${aspect}|${megapixels}`)
+        return (
+            <span className="respick">
+                <select className="tok" style={{ width: 'auto' }} value={off ? '' : mp.aspect} onChange={(e) => (e.target.value ? set(e.target.value, mp.megapixels) : onChange(WORKFLOW_RESOLUTION))} aria-label="สัดส่วนภาพ (aspect ratio)">
+                    <option value="">ตามค่าที่ตั้งไว้ใน workflow (ไม่กำหนด)</option>
+                    {ASPECT_RATIOS.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                    ))}
+                </select>
+                {!off && (
+                    <select className="tok" style={{ width: 'auto' }} value={String(mp.megapixels)} onChange={(e) => set(mp.aspect, Number(e.target.value))} aria-label="megapixels">
+                        {Array.from(new Set([...MEGAPIXEL_PRESETS, mp.megapixels])).sort((x, y) => x - y).map((m) => (
+                            <option key={m} value={String(m)}>{m} MP</option>
+                        ))}
+                    </select>
+                )}
+            </span>
+        )
+    }
     const preset = value === WORKFLOW_RESOLUTION || RESOLUTION_PRESETS.includes(value)
     return (
         <span className="respick">
@@ -226,7 +249,7 @@ export default function ContentPage() {
     const [workflows, setWorkflows] = useState<Workflow[]>([])
     const [wfPick, setWfPick] = useState('')
     const [wfModal, setWfModal] = useState(false)
-    const [wfForm, setWfForm] = useState({ name: '', workflowId: '', nodeEditor: '26', nodeProject: '17', isDefault: false })
+    const [wfForm, setWfForm] = useState({ name: '', workflowId: '', nodeEditor: '26', nodeProject: '17', isDefault: false, megapixelMode: false })
     const [edit, setEdit] = useState<Record<string, string>>({}) // segment id -> unsaved text
     const fileRef = useRef<HTMLInputElement>(null)
 
@@ -294,6 +317,9 @@ export default function ContentPage() {
     }
 
     const open = contents.find((c) => c.id === openId) || null
+    const activeWf = workflows.find((w) => w.id === wfPick) || workflows.find((w) => w.is_default)
+    const megapixelMode = activeWf?.megapixel_mode === true
+    const defaultRes = megapixelMode ? DEFAULT_MEGAPIXEL_RESOLUTION : DEFAULT_RESOLUTION
     const counts = useMemo(() => Object.fromEntries(Object.entries(GROUPS).map(([k, g]) => [k, contents.filter(g.f).length])), [contents])
     const rows = useMemo(
         () =>
@@ -340,6 +366,22 @@ export default function ContentPage() {
         return { coins, sec, runSec }
     }, [contents])
 
+    const lanes = queue?.settings.lanes || 2
+    const laneRows = useMemo(() => {
+        const act = contents
+            .flatMap((c) => c.render_tasks.filter((t) => t.provider === 'runninghub' && ['QUEUED', 'RUNNING'].includes(t.status)).map((t) => ({ t, c })))
+            .sort((x, y) => x.t.submitted_at.localeCompare(y.t.submitted_at))
+        // tasks keep their saved lane; tasks sent by hand (no lane yet) take the lowest free lane numbers in order
+        const byLane = new Map<number, (typeof act)[number]>()
+        for (const x of act) if (x.t.lane && !byLane.has(x.t.lane)) byLane.set(x.t.lane, x)
+        let n = 1
+        for (const x of act) {
+            if (x.t.lane && byLane.get(x.t.lane) === x) continue
+            while (byLane.has(n)) n++
+            byLane.set(n, x)
+        }
+        return Array.from({ length: Math.max(lanes, byLane.size ? Math.max(...byLane.keys()) : 0) }, (_, i) => ({ n: i + 1, x: byLane.get(i + 1) }))
+    }, [contents, lanes])
     const refreshRh = () =>
         run(async () => {
             let done = 0
@@ -433,7 +475,7 @@ export default function ContentPage() {
     const addWorkflow = () =>
         run(async () => {
             await call('/api/pipeline/workflows', 'POST', wfForm)
-            setWfForm({ name: '', workflowId: '', nodeEditor: '26', nodeProject: '17', isDefault: false })
+            setWfForm({ name: '', workflowId: '', nodeEditor: '26', nodeProject: '17', isDefault: false, megapixelMode: false })
             setInfo('เพิ่ม workflow แล้ว')
             await load()
         })
@@ -456,7 +498,7 @@ export default function ContentPage() {
             const skipped = (out.skipped || []).map((x: { id: string; reason: string }) => (contents.find((c) => c.id === x.id)?.title || x.id.slice(0, 6)) + ': ' + x.reason)
             setInfo(
                 'เข้าคิวส่งแล้ว ' + out.queued.length + ' เรื่อง' +
-                    (out.dispatcher === 'started' ? ' · เปิดตัวส่งอัตโนมัติ (ตรวจทุก 30 นาที)' : out.dispatcher === 'already_on' ? ' · ตัวส่งอัตโนมัติเปิดอยู่แล้ว' : '') +
+                    (out.dispatcher === 'started' ? ' · เปิดตัวส่งอัตโนมัติ (ตรวจตามเวลาที่คาดว่างานจะเสร็จ)' : out.dispatcher === 'already_on' ? ' · ตัวส่งอัตโนมัติเปิดอยู่แล้ว' : '') +
                     (out.warning ? ' · ' + out.warning : '') +
                     (skipped.length ? ' · ข้าม: ' + skipped.join(', ') : '')
             )
@@ -465,7 +507,7 @@ export default function ContentPage() {
     const toggleDispatcher = (enabled: boolean) =>
         run(async () => {
             await call('/api/pipeline/queue', 'PATCH', { enabled, siteUrl: window.location.origin })
-            setInfo(enabled ? 'เปิดตัวส่งอัตโนมัติแล้ว (ตรวจทุก 30 นาที)' : 'ปิดตัวส่งอัตโนมัติแล้ว ไม่มีอะไรรันอยู่อีก')
+            setInfo(enabled ? 'เปิดตัวส่งอัตโนมัติแล้ว (ตรวจตามเวลาที่คาดว่างานจะเสร็จ)' : 'ปิดตัวส่งอัตโนมัติแล้ว ไม่มีอะไรรันอยู่อีก')
             await load()
         })
     const runNow = () =>
@@ -521,7 +563,7 @@ export default function ContentPage() {
                 setInfo(
                     skip
                         ? 'ไม่ได้เข้าคิว: ' + skip.reason
-                        : 'เข้าคิวส่งแล้ว' + (out.dispatcher === 'started' ? ' · เปิดตัวส่งอัตโนมัติ (ตรวจทุก 30 นาที)' : out.dispatcher === 'already_on' ? ' · ตัวส่งอัตโนมัติเปิดอยู่แล้ว' : '') + (out.warning ? ' · ' + out.warning : '')
+                        : 'เข้าคิวส่งแล้ว' + (out.dispatcher === 'started' ? ' · เปิดตัวส่งอัตโนมัติ (ตรวจตามเวลาที่คาดว่างานจะเสร็จ)' : out.dispatcher === 'already_on' ? ' · ตัวส่งอัตโนมัติเปิดอยู่แล้ว' : '') + (out.warning ? ' · ' + out.warning : '')
                 )
                 await load()
                 return
@@ -558,7 +600,7 @@ export default function ContentPage() {
 
     const openSend = (c: Content) => {
         const st = parseRenderSettings(c.note)
-        setDialog({ content: c, segFrom: 1, segCount: c.segments.length, prompt: '', repair: false, unshift: false, resolution: st.resolution || DEFAULT_RESOLUTION, continuity: st.continuity })
+        setDialog({ content: c, segFrom: 1, segCount: c.segments.length, prompt: '', repair: false, unshift: false, resolution: st.resolution || defaultRes, continuity: st.continuity })
     }
     const openRepair = (c: Content, seg: Segment) =>
         setDialog({
@@ -568,7 +610,7 @@ export default function ContentPage() {
             prompt: edit[seg.id] ?? seg.compiled_prompt ?? '',
             repair: true,
             unshift: seg.segment_number > 1,
-            resolution: parseRenderSettings(c.note).resolution || DEFAULT_RESOLUTION,
+            resolution: parseRenderSettings(c.note).resolution || defaultRes,
             continuity: {},
         })
 
@@ -617,9 +659,24 @@ export default function ContentPage() {
 
             {queue && (queue.settings.enabled || queue.waiting.some((w) => w.status === 'waiting')) && (
                 <div className="banner warn" role="status">
-                    ตัวส่งอัตโนมัติ: <b>{queue.settings.enabled ? 'เปิดอยู่ (ตรวจทุก 30 นาที)' : 'ปิดอยู่'}</b> · รอส่ง {queue.waiting.filter((w) => w.status === 'waiting').length} เรื่อง
+                    ตัวส่งอัตโนมัติ: <b>{queue.settings.enabled ? `เปิดอยู่ (${lanes} ช่อง)` : 'ปิดอยู่'}</b> · รอส่ง {queue.waiting.filter((w) => w.status === 'waiting').length} เรื่อง
                     {queue.waiting.some((w) => w.status === 'failed') && ' · ส่งไม่สำเร็จ ' + queue.waiting.filter((w) => w.status === 'failed').length + ' เรื่อง'}
                     {queue.settings.last_tick_at && <span className="sub"> · รอบล่าสุด {fmtDate(queue.settings.last_tick_at)} ({queue.settings.last_note})</span>}
+                    <div className="lanes">
+                        {laneRows.map(({ n, x }) => (
+                            <span key={n} className="lane">
+                                <b>ช่อง {n}</b>{' '}
+                                {x ? (
+                                    <>
+                                        {x.c.title} · {x.t.status === 'RUNNING' ? 'กำลังรัน' : 'รอคิว RH'} · คาดว่าเสร็จ ~{new Date(taskEtaMs(x.t)).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                                    </>
+                                ) : (
+                                    'ว่าง'
+                                )}
+                            </span>
+                        ))}
+                        {queue.settings.enabled && queue.settings.next_tick_at && <span className="sub"> ตรวจรอบถัดไป ~{new Date(queue.settings.next_tick_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>}
+                    </div>
                     <span className="actions" style={{ display: 'inline-flex', marginLeft: 12 }}>
                         <button onClick={() => toggleDispatcher(!queue.settings.enabled)} disabled={busy}>{queue.settings.enabled ? 'ปิดตัวส่งอัตโนมัติ' : 'เปิดตัวส่งอัตโนมัติ'}</button>
                         <button onClick={runNow} disabled={busy} title="เช็กสถานะและส่งเรื่องถัดไปทันที 1 รอบ">รันตอนนี้</button>
@@ -819,7 +876,7 @@ export default function ContentPage() {
                                         <div className="settingsbox">
                                             <div className="conted">
                                                 <span className="sub">ความละเอียด:</span>
-                                                <ResolutionPicker value={st.resolution || DEFAULT_RESOLUTION} onChange={(v) => saveSettings(open.id, { resolution: v })} />
+                                                <ResolutionPicker megapixel={megapixelMode} value={st.resolution || defaultRes} onChange={(v) => saveSettings(open.id, { resolution: v })} />
                                             </div>
                                             <ContinuityEditor segs={open.segments} value={st.continuity} onChange={(v) => saveSettings(open.id, { continuity: v })} />
                                             {Object.keys(open.pics).length > 1 && (
@@ -1001,6 +1058,7 @@ export default function ContentPage() {
                                 <label>node id ของ MultiTrack Editor<input className="tok" style={{ width: '100%' }} value={wfForm.nodeEditor} onChange={(e) => setWfForm({ ...wfForm, nodeEditor: e.target.value })} /></label>
                                 <label>node id ของ Project<input className="tok" style={{ width: '100%' }} value={wfForm.nodeProject} onChange={(e) => setWfForm({ ...wfForm, nodeProject: e.target.value })} /></label>
                             </div>
+                            <label className="chk"><input type="checkbox" checked={wfForm.megapixelMode} onChange={(e) => setWfForm({ ...wfForm, megapixelMode: e.target.checked })} /> workflow ใหม่ที่ node 26 เลือก aspect ratio + megapixels (ไม่ใช่รายการขนาดแบบเก่า)</label>
                             <label className="chk"><input type="checkbox" checked={wfForm.isDefault} onChange={(e) => setWfForm({ ...wfForm, isDefault: e.target.checked })} /> ตั้งเป็นค่าเริ่มต้น</label>
                             <div className="actions end"><button className="primary" disabled={busy || !wfForm.name.trim() || !wfForm.workflowId.trim()} onClick={addWorkflow}>เพิ่ม workflow</button></div>
                         </div>
@@ -1033,7 +1091,7 @@ export default function ContentPage() {
                                 <p className="sub">ส่งทุก segment เป็นงานเดียว ใช้รูป Picture 1–{Object.keys(dialog.content.pics).length} ของเรื่องนี้</p>
                                 <div className="conted">
                                     <span className="sub">ความละเอียด:</span>
-                                    <ResolutionPicker value={dialog.resolution} onChange={(v) => setDialog({ ...dialog, resolution: v })} />
+                                    <ResolutionPicker megapixel={megapixelMode} value={dialog.resolution} onChange={(v) => setDialog({ ...dialog, resolution: v })} />
                                 </div>
                                 <ContinuityEditor segs={dialog.content.segments} value={dialog.continuity} onChange={(v) => setDialog({ ...dialog, continuity: v })} />
                             </>
@@ -1041,7 +1099,7 @@ export default function ContentPage() {
                         {dialog.repair && (
                             <div className="conted">
                                 <span className="sub">ความละเอียด:</span>
-                                <ResolutionPicker value={dialog.resolution} onChange={(v) => setDialog({ ...dialog, resolution: v })} />
+                                <ResolutionPicker megapixel={megapixelMode} value={dialog.resolution} onChange={(v) => setDialog({ ...dialog, resolution: v })} />
                             </div>
                         )}
                         <label className="chk" style={{ alignItems: 'center' }}>
@@ -1071,6 +1129,8 @@ export default function ContentPage() {
 }
 
 const CSS = `
+.pl .lanes{display:flex;gap:6px 18px;flex-wrap:wrap;margin-top:6px;font-size:14px}.pl .lane b{color:var(--brand)}
+
 .pl .views{display:flex;gap:8px;margin:0 0 14px;border-bottom:1px solid var(--line);padding-bottom:10px}
 .pl .vt{border-radius:999px;padding:6px 20px;min-height:42px;font-weight:600}.pl .vt[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
 .pl .datefield{display:flex;flex-direction:column;gap:2px;margin-top:12px;max-width:240px}

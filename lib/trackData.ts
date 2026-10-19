@@ -41,14 +41,53 @@ export type Continuity = 'shot' | 'context'
 export type SegInput = { prompt: string; frames: number; continuity?: Continuity; images?: string[] }
 
 /**
- * Resolution names seen in the workflow files (node 26 "resolution"). The node's dropdown has more options
- * (it also has 16:9 ones and "Custom") whose exact names are not known here: use the custom field for those.
+ * Resolution of node 26. Two generations of the workflow exist:
+ *  - legacy: a "resolution" list of sizes such as '720 x 1280 (9:16)'
+ *  - megapixel mode (workflow row flag megapixel_mode): resolution = 'width x height (megapixels)' plus
+ *    an aspect_ratio list and a megapixels number. The page stores that as '<aspect ratio>|<megapixels>'.
  */
 export const RESOLUTION_PRESETS = ['720 x 1280 (9:16)', '480 x 832 (9:16)']
-/** Used when a content has no saved resolution. */
+export const ASPECT_RATIOS = [
+    '1:1 (Square)',
+    '2:3 (Portrait Photo)',
+    '3:2 (Photo)',
+    '3:4 (Portrait Standard)',
+    '4:3 (Standard)',
+    '9:16 (Portrait Widescreen)',
+    '16:9 (Widescreen)',
+    '21:9 (Ultrawide)',
+]
+export const MEGAPIXEL_PRESETS = [0.5, 0.75, 1, 1.25, 1.5]
+export const MEGAPIXEL_MODE_NAME = 'width x height (megapixels)'
+export const DEFAULT_MEGAPIXEL_RESOLUTION = '9:16 (Portrait Widescreen)|1'
+/** Used when a content has no saved resolution (legacy workflows). */
 export const DEFAULT_RESOLUTION = '720 x 1280 (9:16)'
 /** Saved value meaning "do not send a resolution, keep the one saved in the workflow". */
 export const WORKFLOW_RESOLUTION = 'workflow'
+
+/** '<aspect>|<megapixels>' -> parts, or null when the value is not in megapixel format. */
+export function parseMegapixelValue(v: string | null | undefined): { aspect: string; megapixels: number } | null {
+    const m = String(v || '').match(/^(.+)\|(\d+(?:\.\d+)?)$/)
+    if (!m) return null
+    const megapixels = Number(m[2])
+    return megapixels > 0 && megapixels <= 4 ? { aspect: m[1].trim(), megapixels } : null
+}
+
+/** What to send to node 26 for the given saved value and workflow style. [] = send nothing (workflow keeps its own). */
+export function resolutionFields(value: string | null, megapixelMode: boolean): { fieldName: string; fieldValue: string | number }[] {
+    if (!value || value === WORKFLOW_RESOLUTION) return []
+    if (megapixelMode) {
+        // an old size such as '720 x 1280 (9:16)' maps to the default 9:16 at 1 MP
+        const mp = parseMegapixelValue(value) || parseMegapixelValue(DEFAULT_MEGAPIXEL_RESOLUTION)!
+        return [
+            { fieldName: 'resolution', fieldValue: MEGAPIXEL_MODE_NAME },
+            { fieldName: 'resolution.aspect_ratio', fieldValue: mp.aspect },
+            { fieldName: 'resolution.megapixels', fieldValue: mp.megapixels },
+        ]
+    }
+    if (parseMegapixelValue(value)) return [] // megapixel value on a legacy workflow: cannot be applied
+    return [{ fieldName: 'resolution', fieldValue: value.trim() }]
+}
 
 /** Per-content render settings, stored in the main row's note JSON. */
 export type RenderSettings = {
@@ -143,7 +182,16 @@ export function buildTrackData(segs: SegInput[], imageNames: string[]): string {
 }
 
 /** Rough estimate from our own measurements (≈33 s render per video second, ≈6.6 coins per video second). */
+/** Measured on finished RunningHub tasks: ~27 s of run time per second of video (the clip length tracks the generation time). */
+export const RUN_SEC_PER_VIDEO_SEC = 27
+
+export const CHECK_AT = 0.85 // first status check when 85% of the estimated run time has passed
+export const MIN_FIRST_CHECK_SEC = 120
+/** When a render task is expected to be finished (used to time the status checks). */
+export const taskEtaMs = (t: { submitted_at: string; seg_count: number | null }) =>
+    new Date(t.submitted_at).getTime() + Math.max(MIN_FIRST_CHECK_SEC, Math.round((t.seg_count || 5) * 8 * RUN_SEC_PER_VIDEO_SEC * CHECK_AT)) * 1000
+
 export function estimate(totalFrames: number) {
     const sec = totalFrames / FPS
-    return { videoSec: sec, minutes: Math.round((sec * 33) / 60), coins: Math.round(sec * 6.6) }
+    return { videoSec: sec, minutes: Math.round((sec * RUN_SEC_PER_VIDEO_SEC) / 60), coins: Math.round(sec * 5.5) }
 }

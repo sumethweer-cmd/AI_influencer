@@ -22,7 +22,7 @@ export async function GET() {
         if (!supabaseAdmin) return noKey()
         const { data, error } = await supabaseAdmin
             .from('pipeline_render_workflows')
-            .select('id,name,provider,workflow_id,node_editor,node_project,is_default,note,created_at')
+            .select('id,name,provider,workflow_id,node_editor,node_project,megapixel_mode,is_default,note,created_at')
             .order('is_default', { ascending: false })
             .order('created_at', { ascending: false })
         if (error) throw error
@@ -52,6 +52,7 @@ export async function POST(req: Request) {
                 workflow_id: workflowId,
                 node_editor: String(b.nodeEditor || '26'),
                 node_project: String(b.nodeProject || '17'),
+                megapixel_mode: b.megapixelMode === true,
                 is_default: makeDefault,
                 note: b.note ? String(b.note).slice(0, 300) : null,
             })

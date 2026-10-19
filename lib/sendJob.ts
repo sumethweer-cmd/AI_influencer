@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { rhCreate, rhUploadImage, type NodeInfo } from '@/lib/runninghub'
-import { buildTrackData, DEFAULT_RESOLUTION, DEFAULT_SEG_FRAMES, parseRenderSettings, planSegments, WORKFLOW_RESOLUTION, type Continuity } from '@/lib/trackData'
+import { buildTrackData, DEFAULT_MEGAPIXEL_RESOLUTION, DEFAULT_RESOLUTION, DEFAULT_SEG_FRAMES, parseRenderSettings, planSegments, resolutionFields, WORKFLOW_RESOLUTION, type Continuity } from '@/lib/trackData'
 
 // Sends a content (all segments) or a subset of its segments (repair) to RunningHub as ONE task and
 // records it in render_tasks. Used by /api/pipeline/send (button) and /api/pipeline/dispatch (auto).
@@ -64,13 +64,15 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
     let workflowId = process.env.RUNNINGHUB_WORKFLOW_ID || ''
     let nodeEditor = process.env.RH_NODE_EDITOR || '26'
     let nodeProject = process.env.RH_NODE_PROJECT || '17'
+    let megapixelMode = false
     {
-        const q = supabaseAdmin.from('pipeline_render_workflows').select('workflow_id,node_editor,node_project').eq('provider', 'runninghub')
+        const q = supabaseAdmin.from('pipeline_render_workflows').select('workflow_id,node_editor,node_project,megapixel_mode').eq('provider', 'runninghub')
         const { data: wf } = opts.workflowRowId ? await q.eq('id', String(opts.workflowRowId)).maybeSingle() : await q.eq('is_default', true).maybeSingle()
         if (wf) {
             workflowId = String(wf.workflow_id)
             nodeEditor = String(wf.node_editor)
             nodeProject = String(wf.node_project)
+            megapixelMode = wf.megapixel_mode === true
         } else if (opts.workflowRowId) {
             throw new SendError('ไม่พบ workflow ที่เลือก', 400)
         }
@@ -102,8 +104,9 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
     const saved = parseRenderSettings(main.note)
     const continuity = { ...saved.continuity, ...(opts.continuity || {}) }
     // explicit override > saved on the content > default (720 x 1280). '' / 'workflow' = send nothing.
-    const resolutionRaw = opts.resolution !== undefined && opts.resolution !== null ? opts.resolution : saved.resolution ?? DEFAULT_RESOLUTION
-    const resolution = resolutionRaw && resolutionRaw !== WORKFLOW_RESOLUTION ? resolutionRaw.trim() : null
+    const resolutionRaw = opts.resolution !== undefined && opts.resolution !== null ? opts.resolution : saved.resolution ?? (megapixelMode ? DEFAULT_MEGAPIXEL_RESOLUTION : DEFAULT_RESOLUTION)
+    const resFields = resolutionFields(resolutionRaw && resolutionRaw !== WORKFLOW_RESOLUTION ? resolutionRaw.trim() : null, megapixelMode)
+    const resolution = resFields.length ? (megapixelMode ? String(resFields[1].fieldValue) + ' | ' + String(resFields[2].fieldValue) + ' MP' : String(resFields[0].fieldValue)) : null
     const plan = planSegments(
         chosen.map((s, i) => {
             const prompt = i === 0 && typeof opts.prompt === 'string' && opts.prompt.trim() ? opts.prompt : s.compiled_prompt || ''
@@ -197,7 +200,7 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
             { nodeId: nodeProject, fieldName: 'project_name', fieldValue: projectName },
             { nodeId: nodeProject, fieldName: 'seed', fieldValue: seed },
         ]
-        if (resolution) nodeInfoList.push({ nodeId: nodeEditor, fieldName: 'resolution', fieldValue: resolution })
+        for (const f of resFields) nodeInfoList.push({ nodeId: nodeEditor, fieldName: f.fieldName, fieldValue: f.fieldValue })
         created = await rhCreate(String(workflowId), nodeInfoList)
     } catch (e) {
         throw new SendError(e instanceof Error ? e.message : String(e))

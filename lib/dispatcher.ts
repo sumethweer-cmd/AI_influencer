@@ -1,19 +1,26 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { activeJobIds, refreshTasks } from '@/lib/refreshTasks'
+import { refreshTasks } from '@/lib/refreshTasks'
+import { taskEtaMs } from '@/lib/trackData'
 import { sendContent, SendError, type SendOpts } from '@/lib/sendJob'
 
-// Auto dispatcher: every tick (pg_cron, every 30 min, only while enabled) it
-//   1) refreshes the status of unfinished RunningHub tasks (free),
-//   2) sends waiting contents from pipeline_send_queue one by one until RunningHub answers
-//      TASK_QUEUE_MAXED (no fixed limit is assumed), a per-tick safety limit or the optional daily limit is hit,
-//   3) switches itself off (and removes the cron job) when nothing is waiting and nothing is running.
-// Tables/functions: supabase/migrations/20261019010000_pipeline_auto_dispatch.sql
+// Auto dispatcher with two render lanes (RunningHub runs 2 tasks at once). A lane is free when its task has finished;
+// a free lane immediately takes the next waiting content. Instead of a fixed 30-minute tick, every task has an ETA
+// (clip length tracks generation time, see RUN_SEC_PER_VIDEO_SEC): pg_cron looks every minute but only calls this route
+// when settings.next_tick_at is due, and each tick sets the next due time = the earliest ETA among running tasks.
+//   1) refresh (free status call) the tasks that should be finished by now,
+//   2) give every free lane the next waiting content until RunningHub answers TASK_QUEUE_MAXED,
+//   3) switch itself off (and remove the cron job) when nothing is waiting and nothing is running.
+// Tables/functions: supabase/migrations/20261019010000_pipeline_auto_dispatch.sql, 20261019030000_pipeline_lanes_eta.sql
 
 const MAX_ATTEMPTS = 3
+const RECHECK_SEC = 90 // after the ETA has passed, look again this often
+const BACKOFF_SEC = 180 // RunningHub refused (queue full) or an item failed: try again later
 
 export type Settings = {
     enabled: boolean
     max_per_tick: number
+    lanes: number
+    next_tick_at: string | null
     daily_limit: number | null
     site_url: string | null
     last_tick_at: string | null
@@ -28,7 +35,7 @@ const db = () => {
 export async function getSettings(): Promise<Settings> {
     const { data, error } = await db()
         .from('pipeline_dispatcher_settings')
-        .select('enabled,max_per_tick,daily_limit,site_url,last_tick_at,last_note')
+        .select('enabled,max_per_tick,lanes,next_tick_at,daily_limit,site_url,last_tick_at,last_note')
         .eq('id', 1)
         .single()
     if (error) throw error
@@ -74,19 +81,49 @@ export type TickResult = {
     waitingLeft?: number
     activeNow?: number
     switchedOff?: boolean
+    nextTickAt?: string | null
     note: string
+}
+
+export type ActiveTask = { id: string; job_id: string; content_item_id: string | null; status: string; submitted_at: string; seg_count: number | null; lane: number | null }
+
+export async function activeTasks(): Promise<ActiveTask[]> {
+    const { data, error } = await db()
+        .from('render_tasks')
+        .select('id,job_id,content_item_id,status,submitted_at,seg_count,lane')
+        .eq('provider', 'runninghub')
+        .in('status', ['QUEUED', 'RUNNING'])
+        .order('submitted_at', { ascending: true })
+    if (error) throw error
+    return (data || []) as ActiveTask[]
 }
 
 export async function runTick(manual: boolean): Promise<TickResult> {
     const settings = await getSettings()
     if (!settings.enabled && !manual) return { skipped: 'disabled', note: 'dispatcher is off' }
+    const lanes = Math.max(1, settings.lanes || 2)
+    const now = Date.now()
 
-    // 1) refresh unfinished tasks
-    const before = await activeJobIds()
-    for (let i = 0; i < before.length; i += 5) await refreshTasks(before.slice(i, i + 5))
-    let active = (await activeJobIds()).length
+    // 1) refresh the tasks that should be done by now (all of them on a manual tick)
+    let active = await activeTasks()
+    const before = active.length
+    const due = active.filter((t) => manual || now >= taskEtaMs(t)).map((t) => t.job_id)
+    for (let i = 0; i < due.length; i += 5) await refreshTasks(due.slice(i, i + 5))
+    active = await activeTasks()
 
-    // 2) send waiting contents
+    // 2) lanes in use (tasks sent by hand have no lane yet: they take the first free one)
+    const used = new Set<number>(active.map((t) => t.lane).filter((l): l is number => !!l))
+    for (const t of active) {
+        if (t.lane) continue
+        let l = 1
+        while (used.has(l)) l++
+        used.add(l)
+        t.lane = l
+        await db().from('render_tasks').update({ lane: l }).eq('id', t.id)
+    }
+    const free = Array.from({ length: lanes }, (_, i) => i + 1).filter((l) => !used.has(l))
+
+    // 3) send waiting contents into the free lanes
     const { data: waiting, error: wErr } = await db()
         .from('pipeline_send_queue')
         .select('id,content_item_id,workflow_row_id,attempts,opts')
@@ -105,42 +142,48 @@ export async function runTick(manual: boolean): Promise<TickResult> {
 
     let sent = 0
     let queueMaxed = false
+    let hadError = false
     const notes: string[] = []
-    for (const item of waiting || []) {
-        if (sent >= settings.max_per_tick) {
-            notes.push(`per-tick limit ${settings.max_per_tick}`)
-            break
-        }
+    const queue = [...(waiting || [])]
+    while (free.length && queue.length) {
         if (settings.daily_limit != null && (sentToday || 0) + sent >= settings.daily_limit) {
             notes.push(`daily limit ${settings.daily_limit}`)
             break
         }
+        const item = queue.shift()!
         // never send the same content twice (repairs / re-renders carry opts and are deliberate)
-        const { count: already } = item.opts ? { count: 0 } : await db()
-            .from('render_tasks')
-            .select('id', { count: 'exact', head: true })
-            .eq('content_item_id', item.content_item_id)
-            .eq('seg_from', 1)
-            .in('status', ['QUEUED', 'RUNNING', 'SUCCESS'])
+        const { count: already } = item.opts
+            ? { count: 0 }
+            : await db()
+                  .from('render_tasks')
+                  .select('id', { count: 'exact', head: true })
+                  .eq('content_item_id', item.content_item_id)
+                  .eq('seg_from', 1)
+                  .in('status', ['QUEUED', 'RUNNING', 'SUCCESS'])
         if (already) {
             await db().from('pipeline_send_queue').update({ status: 'cancelled', last_error: 'already sent' }).eq('id', item.id)
             continue
         }
+        const lane = free[0]
         try {
             const o = (item.opts || {}) as Partial<SendOpts>
             const r = await sendContent({ ...o, contentId: item.content_item_id, workflowRowId: item.workflow_row_id || undefined })
+            await db().from('render_tasks').update({ lane }).eq('job_id', r.taskId)
             await db()
                 .from('pipeline_send_queue')
                 .update({ status: 'sent', task_job_id: r.taskId, sent_at: new Date().toISOString(), attempts: item.attempts + 1, last_error: null })
                 .eq('id', item.id)
+            free.shift()
+            used.add(lane)
             sent++
-            active++
+            notes.push(`lane ${lane} <- ${item.content_item_id.slice(0, 6)}`)
         } catch (e) {
             if (e instanceof SendError && e.queueMaxed) {
                 queueMaxed = true
-                notes.push(`RunningHub queue full with ${active} unfinished task(s)`)
+                notes.push(`RunningHub queue full (lane ${lane} could not start)`)
                 break
             }
+            hadError = true
             const attempts = item.attempts + 1
             await db()
                 .from('pipeline_send_queue')
@@ -150,20 +193,31 @@ export async function runTick(manual: boolean): Promise<TickResult> {
         }
     }
 
-    // 3) switch off when idle
+    // 4) when to look again, or switch off when idle
     const { count: waitingLeft } = await db().from('pipeline_send_queue').select('id', { count: 'exact', head: true }).eq('status', 'waiting')
-    const activeNow = (await activeJobIds()).length
+    const activeNow = await activeTasks()
     let switchedOff = false
-    if (!waitingLeft && !activeNow && settings.enabled) {
+    let nextTickAt: string | null = null
+    if (!waitingLeft && !activeNow.length && settings.enabled) {
         await setEnabled(false)
         switchedOff = true
         notes.push('idle: dispatcher switched off and cron removed')
+    } else {
+        const t = Date.now()
+        const cands = activeNow.map((a) => Math.max(taskEtaMs(a), t + RECHECK_SEC * 1000))
+        if (waitingLeft && (queueMaxed || hadError || !activeNow.length)) cands.push(t + BACKOFF_SEC * 1000)
+        // a lane is free and something is waiting (e.g. daily limit): look again soon
+        else if (waitingLeft && free.length) cands.push(t + BACKOFF_SEC * 1000)
+        if (cands.length) {
+            nextTickAt = new Date(Math.min(...cands)).toISOString()
+            await db().from('pipeline_dispatcher_settings').update({ next_tick_at: nextTickAt }).eq('id', 1)
+        }
     }
 
     const note = `sent ${sent}${notes.length ? '; ' + notes.join('; ') : ''}`
-    await db().from('pipeline_dispatch_log').insert({ active_before: before.length, sent, queue_maxed: queueMaxed, note })
+    await db().from('pipeline_dispatch_log').insert({ active_before: before, sent, queue_maxed: queueMaxed, note })
     await db().from('pipeline_dispatcher_settings').update({ last_tick_at: new Date().toISOString(), last_note: note }).eq('id', 1)
-    return { activeBefore: before.length, sent, queueMaxed, waitingLeft: waitingLeft || 0, activeNow, switchedOff, note }
+    return { activeBefore: before, sent, queueMaxed, waitingLeft: waitingLeft || 0, activeNow: activeNow.length, switchedOff, nextTickAt, note }
 }
 
 export async function enqueue(contentIds: string[], workflowRowId?: string, opts?: Record<string, unknown> | null) {
