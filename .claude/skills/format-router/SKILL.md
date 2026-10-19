@@ -28,6 +28,7 @@ Only run this layer for `video_clip` and single-shot `image_set` items.
 | storytelling, opinion (benefits from scenery change) | — | `walk_and_talk` |
 | educational (general explainer/teaching tone) | — | `tripod_casual` |
 | educational (intimate/confiding "insider tip" framing — e.g. direct-address hook to a specific audience segment) | — | `selfie_cam` |
+| lookbook_editorial (silent magazine / lingerie / swimwear shoot, shots only) | — | `editorial_lookbook` |
 
 If the character's `visual_personality.md` "Format Fit → Avoid" list rules out
 the table's default pick, choose the next-best fit from that same file's

@@ -58,6 +58,16 @@ const isRepair = (t: RenderTask, c: Content) => (t.seg_count ?? c.segments.lengt
 const headline = (c: Content) => c.render_tasks.find((t) => !isRepair(t, c)) || null
 const stateOf = (c: Content) => headline(c)?.status || 'NONE'
 const hasPic1 = (c: Content) => Boolean(c.pics['1'])
+/** Scene the owner could find or generate as a background reference: note.sceneHint, else the 'Setting …' line written in segment 1's prompt. */
+const sceneHintOf = (c: Content): string | null => {
+    try {
+        const h = JSON.parse(c.note || '{}').sceneHint
+        if (typeof h === 'string' && h.trim()) return h.trim()
+    } catch {}
+    const first = [...c.segments].sort((a, b) => a.segment_number - b.segment_number)[0]
+    const m = (first?.compiled_prompt || '').match(/^Setting[^:\n]*:\s*(.+)$/m)
+    return m ? m[1].trim() : null
+}
 const stageOf = (c: Content) => {
     const t = headline(c)
     if (!t) return hasPic1(c) ? 1 : 0
@@ -918,6 +928,18 @@ export default function ContentPage() {
                         )}
 
                         {tab === 'pics' && (
+                            <>
+                            {(() => {
+                                const hint = sceneHintOf(open)
+                                if (!hint || (open.pics['2'] && open.pics['3'])) return null
+                                return (
+                                    <div className="scenehint">
+                                        <b>ฉากที่แนะนำ</b> <span className="sub">(ถ้าหรือสร้างรูปฉากนี้ได้ ใส่เป็นรูปอ้างอิงฉาก แล้วบอกให้ปรับ prompt ให้อ้างถึงรูปนั้น)</span>
+                                        <p>{hint}</p>
+                                        <button onClick={() => navigator.clipboard?.writeText(hint).then(() => setInfo('คัดลอกคำอธิบายฉากแล้ว'))}>คัดลอกคำอธิบายฉาก</button>
+                                    </div>
+                                )
+                            })()}
                             <div className="slots">
                                 {[1, 2, 3].map((n) => {
                                     const p = open.pics[String(n)]
@@ -932,6 +954,7 @@ export default function ContentPage() {
                                     )
                                 })}
                             </div>
+                            </>
                         )}
 
                         {tab === 'segs' && (
@@ -1196,6 +1219,8 @@ export default function ContentPage() {
 }
 
 const CSS = `
+.pl .scenehint{background:#fff8e6;border:1px solid #ecd79a;border-radius:12px;padding:10px 14px;margin-bottom:12px}.pl .scenehint p{margin:4px 0 8px}
+
 .pl .bulkbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--brand-soft);border:1px solid var(--brand);border-radius:12px;padding:10px 14px;margin-bottom:14px}
 .pl .resrow{display:flex;flex-direction:column;gap:4px;margin-top:12px}
 
