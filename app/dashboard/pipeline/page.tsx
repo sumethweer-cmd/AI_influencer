@@ -540,6 +540,7 @@ export default function ContentPage() {
             setInfo(
                 'เข้าคิวส่งแล้ว ' + out.queued.length + ' เรื่อง' +
                     (out.dispatcher === 'started' ? ' · เปิดตัวส่งอัตโนมัติ (ตรวจตามเวลาที่คาดว่างานจะเสร็จ)' : out.dispatcher === 'already_on' ? ' · ตัวส่งอัตโนมัติเปิดอยู่แล้ว' : '') +
+                    (out.tick?.sent ? ` · ส่งเข้าช่องที่ว่างทันที ${out.tick.sent} เรื่อง` : out.tick ? ' · ช่องเต็ม รอช่องว่างแล้วส่งให้อัตโนมัติ' : '') +
                     (out.warning ? ' · ' + out.warning : '') +
                     (skipped.length ? ' · ข้าม: ' + skipped.join(', ') : '')
             )
@@ -604,7 +605,7 @@ export default function ContentPage() {
                 setInfo(
                     skip
                         ? 'ไม่ได้เข้าคิว: ' + skip.reason
-                        : 'เข้าคิวส่งแล้ว' + (out.dispatcher === 'started' ? ' · เปิดตัวส่งอัตโนมัติ (ตรวจตามเวลาที่คาดว่างานจะเสร็จ)' : out.dispatcher === 'already_on' ? ' · ตัวส่งอัตโนมัติเปิดอยู่แล้ว' : '') + (out.warning ? ' · ' + out.warning : '')
+                        : 'เข้าคิวส่งแล้ว' + (out.dispatcher === 'started' ? ' · เปิดตัวส่งอัตโนมัติ (ตรวจตามเวลาที่คาดว่างานจะเสร็จ)' : out.dispatcher === 'already_on' ? ' · ตัวส่งอัตโนมัติเปิดอยู่แล้ว' : '') + (out.tick?.sent ? ' · ส่งเข้าช่องที่ว่างทันที' : out.tick ? ' · ช่องเต็ม รอช่องว่างแล้วส่งให้อัตโนมัติ' : '') + (out.warning ? ' · ' + out.warning : '')
                 )
                 await load()
                 return

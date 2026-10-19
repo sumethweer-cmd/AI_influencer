@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { adminGuard } from '@/lib/adminGuard'
-import { enqueue, getSettings, setEnabled, validSiteUrl } from '@/lib/dispatcher'
+import { enqueue, getSettings, runTick, setEnabled, validSiteUrl, type TickResult } from '@/lib/dispatcher'
 
 // Send queue + dispatcher switch used by the Content page.
 //   GET    -> { settings, waiting[], recentLog[] }
@@ -9,6 +9,7 @@ import { enqueue, getSettings, setEnabled, validSiteUrl } from '@/lib/dispatcher
 //   PATCH  -> { enabled?, siteUrl?, dailyLimit?, maxPerTick? }   switch on/off, set limits
 //   DELETE -> { id }   remove a waiting item
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 const fail = (e: unknown, status = 500) => NextResponse.json({ success: false, error: e instanceof Error ? e.message : String(e) }, { status })
 
@@ -46,7 +47,16 @@ export async function POST(req: Request) {
                 dispatcher = 'started'
             } else warning = 'เข้าคิวแล้ว แต่ยังไม่เปิดตัวส่งอัตโนมัติ: ต้องเปิดหน้านี้จากเว็บจริง (https) ไม่ใช่ localhost'
         }
-        return NextResponse.json({ success: true, ...result, dispatcher, warning })
+        // a lane may be free right now: do one tick immediately instead of waiting for the next minute
+        let tick: TickResult | undefined
+        if (result.queued.length && dispatcher !== 'not_started') {
+            try {
+                tick = await runTick(false)
+            } catch (e) {
+                warning = (warning ? warning + ' · ' : '') + 'เข้าคิวแล้ว แต่ลองส่งทันทีไม่สำเร็จ: ' + (e instanceof Error ? e.message : String(e))
+            }
+        }
+        return NextResponse.json({ success: true, ...result, dispatcher, warning, tick })
     } catch (e) {
         return fail(e)
     }
