@@ -83,6 +83,23 @@ export async function rhCreate(workflowId: string, nodeInfoList: NodeInfo[]): Pr
     return { taskId: String(json.data.taskId), status: String(json.data.taskStatus || 'QUEUED') }
 }
 
+/**
+ * Reads the saved workflow's API graph from RunningHub (free, read-only) and returns the current input fields of one node.
+ * Used to see whether node 26 is in the old size-list mode or the new aspect-ratio + megapixels mode, because the owner
+ * re-saves the workflow on RunningHub at any time and a stale setting makes /create fail with NODE_INFO_MISMATCH.
+ */
+export async function rhWorkflowNodeInputs(workflowId: string, nodeId: string): Promise<Record<string, unknown> | null> {
+    const json = await rhPost('/api/openapi/getJsonApiFormat', { workflowId })
+    const raw = json?.data?.prompt
+    let graph: Record<string, { inputs?: Record<string, unknown> }> | null = null
+    try {
+        graph = typeof raw === 'string' ? JSON.parse(raw) : raw || null
+    } catch {
+        graph = null
+    }
+    return graph?.[nodeId]?.inputs ?? null
+}
+
 export async function rhOutputs(taskId: string): Promise<RhOutputs> {
     return pickOutputs(await rhPost('/task/openapi/outputs', { taskId }))
 }

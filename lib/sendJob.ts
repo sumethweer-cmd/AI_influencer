@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { supabaseAdmin } from '@/lib/supabase'
-import { rhCreate, rhUploadImage, type NodeInfo } from '@/lib/runninghub'
-import { buildTrackData, DEFAULT_MEGAPIXEL_RESOLUTION, DEFAULT_RESOLUTION, DEFAULT_SEG_FRAMES, parseRenderSettings, planSegments, resolutionFields, WORKFLOW_RESOLUTION, type Continuity } from '@/lib/trackData'
+import { rhCreate, rhUploadImage, rhWorkflowNodeInputs, type NodeInfo } from '@/lib/runninghub'
+import { buildTrackData, DEFAULT_MEGAPIXEL_RESOLUTION, detectMegapixelMode, DEFAULT_RESOLUTION, DEFAULT_SEG_FRAMES, parseRenderSettings, planSegments, resolutionFields, WORKFLOW_RESOLUTION, type Continuity } from '@/lib/trackData'
 
 // Sends a content (all segments) or a subset of its segments (repair) to RunningHub as ONE task and
 // records it in render_tasks. Used by /api/pipeline/send (button) and /api/pipeline/dispatch (auto).
@@ -76,6 +76,13 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
         } else if (opts.workflowRowId) {
             throw new SendError('ไม่พบ workflow ที่เลือก', 400)
         }
+    }
+    // trust what RunningHub holds right now over the saved flag (the workflow can be re-saved at any time)
+    try {
+        const detected = detectMegapixelMode(await rhWorkflowNodeInputs(String(workflowId), nodeEditor))
+        if (detected !== null) megapixelMode = detected
+    } catch {
+        /* keep the saved flag */
     }
     if (!workflowId) throw new SendError('ยังไม่ได้ตั้ง workflow — กดปุ่ม "Workflow" บนหน้า แล้วเพิ่ม workflow id ก่อน', 400)
 

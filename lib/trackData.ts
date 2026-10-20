@@ -65,6 +65,16 @@ export const DEFAULT_RESOLUTION = '720 x 1280 (9:16)'
 /** Saved value meaning "do not send a resolution, keep the one saved in the workflow". */
 export const WORKFLOW_RESOLUTION = 'workflow'
 
+/** Which style node 26 is in, from its current input field names (null = cannot tell). */
+export function detectMegapixelMode(inputs: Record<string, unknown> | null | undefined): boolean | null {
+    if (!inputs) return null
+    const keys = Object.keys(inputs)
+    if (keys.some((k) => k === 'resolution.aspect_ratio' || k === 'resolution.megapixels')) return true
+    if (/megapixels/i.test(String(inputs.resolution ?? ''))) return true
+    if (keys.includes('resolution.resize_method') || /^\d+\s*x\s*\d+/.test(String(inputs.resolution ?? ''))) return false
+    return null
+}
+
 /** '<aspect>|<megapixels>' -> parts, or null when the value is not in megapixel format. */
 export function parseMegapixelValue(v: string | null | undefined): { aspect: string; megapixels: number } | null {
     const m = String(v || '').match(/^(.+)\|(\d+(?:\.\d+)?)$/)
@@ -85,7 +95,11 @@ export function resolutionFields(value: string | null, megapixelMode: boolean): 
             { fieldName: 'resolution.megapixels', fieldValue: mp.megapixels },
         ]
     }
-    if (parseMegapixelValue(value)) return [] // megapixel value on a legacy workflow: cannot be applied
+    const mp = parseMegapixelValue(value)
+    if (mp) {
+        // a megapixel value on a legacy workflow: only the 9:16 case maps to a known size-list option
+        return /^9:16/.test(mp.aspect) ? [{ fieldName: 'resolution', fieldValue: DEFAULT_RESOLUTION }] : []
+    }
     return [{ fieldName: 'resolution', fieldValue: value.trim() }]
 }
 
