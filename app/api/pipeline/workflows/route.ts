@@ -22,7 +22,7 @@ export async function GET() {
         if (!supabaseAdmin) return noKey()
         const { data, error } = await supabaseAdmin
             .from('pipeline_render_workflows')
-            .select('id,name,provider,workflow_id,node_editor,node_project,megapixel_mode,is_default,note,created_at')
+            .select('id,name,provider,workflow_id,node_editor,node_project,megapixel_mode,prompt_prefix,is_default,note,created_at')
             .order('is_default', { ascending: false })
             .order('created_at', { ascending: false })
         if (error) throw error
@@ -53,6 +53,7 @@ export async function POST(req: Request) {
                 node_editor: String(b.nodeEditor || '26'),
                 node_project: String(b.nodeProject || '17'),
                 megapixel_mode: b.megapixelMode === true,
+                prompt_prefix: typeof b.promptPrefix === 'string' ? b.promptPrefix.trim().slice(0, 80) : '',
                 is_default: makeDefault,
                 note: b.note ? String(b.note).slice(0, 300) : null,
             })
@@ -78,6 +79,7 @@ export async function PATCH(req: Request) {
         if (typeof b.name === 'string' && b.name.trim()) patch.name = b.name.trim().slice(0, 80)
         if (b.nodeEditor) patch.node_editor = String(b.nodeEditor)
         if (b.nodeProject) patch.node_project = String(b.nodeProject)
+        if (typeof b.promptPrefix === 'string') patch.prompt_prefix = b.promptPrefix.trim().slice(0, 80)
         if (typeof b.note === 'string') patch.note = b.note.slice(0, 300)
         const { error } = await supabaseAdmin.from('pipeline_render_workflows').update(patch).eq('id', b.id)
         if (error) throw error

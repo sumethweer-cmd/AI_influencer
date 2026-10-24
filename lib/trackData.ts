@@ -57,7 +57,7 @@ export const ASPECT_RATIOS = [
     '16:9 (Widescreen)',
     '21:9 (Ultrawide)',
 ]
-export const MEGAPIXEL_PRESETS = [0.5, 0.75, 1, 1.25, 1.5]
+export const MEGAPIXEL_PRESETS = [0.3, 0.5, 0.75, 1, 1.25, 1.5]
 export const MEGAPIXEL_MODE_NAME = 'width x height (megapixels)'
 export const DEFAULT_MEGAPIXEL_RESOLUTION = '9:16 (Portrait Widescreen)|1'
 /** Used when a content has no saved resolution (legacy workflows). */
@@ -158,7 +158,7 @@ export function planSegments(
 }
 
 /** Easy-Media "easy multiTrackEditor" track_data JSON (schema verified 2026-10-13). */
-export function buildTrackData(segs: SegInput[], imageNames: string[]): string {
+export function buildTrackData(segs: SegInput[], imageNames: string[], promptPrefix = ''): string {
     const uid = () => crypto.randomUUID()
     let start = 0
     const segments = segs.map((s, i) => {
@@ -175,7 +175,7 @@ export function buildTrackData(segs: SegInput[], imageNames: string[]): string {
                 images: (s.images ?? imageNames).map((n) => ({ id: uid(), source_type: 'input', file_path: n, file_name: n })),
                 muted: false,
                 volume_db: 0,
-                user_prompt: cleanPrompt(s.prompt),
+                user_prompt: promptPrefix.trim() ? `${promptPrefix.trim()}\n\n${cleanPrompt(s.prompt)}` : cleanPrompt(s.prompt),
             },
         }
         start += s.frames

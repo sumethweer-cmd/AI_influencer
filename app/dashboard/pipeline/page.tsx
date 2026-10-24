@@ -43,7 +43,7 @@ type Content = {
     segments: Segment[]
     render_tasks: RenderTask[]
 }
-type Workflow = { id: string; name: string; workflow_id: string; node_editor: string; node_project: string; megapixel_mode: boolean; is_default: boolean; note: string | null }
+type Workflow = { id: string; name: string; workflow_id: string; node_editor: string; node_project: string; megapixel_mode: boolean; prompt_prefix: string; is_default: boolean; note: string | null }
 type QueueItem = { id: string; content_item_id: string; status: string; attempts: number; last_error: string | null; enqueued_at: string }
 type DispatcherInfo = {
     settings: { enabled: boolean; max_per_tick: number; lanes: number; next_tick_at: string | null; daily_limit: number | null; site_url: string | null; last_tick_at: string | null; last_note: string | null }
@@ -278,7 +278,7 @@ export default function ContentPage() {
     const [workflows, setWorkflows] = useState<Workflow[]>([])
     const [wfPick, setWfPick] = useState('')
     const [wfModal, setWfModal] = useState(false)
-    const [wfForm, setWfForm] = useState({ name: '', workflowId: '', nodeEditor: '26', nodeProject: '17', isDefault: false, megapixelMode: false })
+    const [wfForm, setWfForm] = useState({ name: '', workflowId: '', nodeEditor: '26', nodeProject: '17', isDefault: false, megapixelMode: false, promptPrefix: '' })
     const [edit, setEdit] = useState<Record<string, string>>({}) // segment id -> unsaved text
     const fileRef = useRef<HTMLInputElement>(null)
 
@@ -518,7 +518,7 @@ export default function ContentPage() {
     const addWorkflow = () =>
         run(async () => {
             await call('/api/pipeline/workflows', 'POST', wfForm)
-            setWfForm({ name: '', workflowId: '', nodeEditor: '26', nodeProject: '17', isDefault: false, megapixelMode: false })
+            setWfForm({ name: '', workflowId: '', nodeEditor: '26', nodeProject: '17', isDefault: false, megapixelMode: false, promptPrefix: '' })
             setInfo('เพิ่ม workflow แล้ว')
             await load()
         })
@@ -1132,7 +1132,7 @@ export default function ContentPage() {
                             <div key={w.id} className="wf">
                                 <div>
                                     <b>{w.name}</b> {w.is_default && <span className="tag t-ok">ค่าเริ่มต้น</span>}
-                                    <div className="sub mono">{w.workflow_id} · editor node {w.node_editor} · project node {w.node_project}</div>
+                                    <div className="sub mono">{w.workflow_id} · editor node {w.node_editor} · project node {w.node_project}{w.prompt_prefix ? ` · trigger ${w.prompt_prefix}` : ''}</div>
                                 </div>
                                 <div className="actions">
                                     {!w.is_default && <button onClick={() => makeDefaultWf(w.id)} disabled={busy}>ตั้งเป็นค่าเริ่มต้น</button>}
@@ -1144,6 +1144,7 @@ export default function ContentPage() {
                         <div className="form">
                             <label>ชื่อเรียก<input className="tok" style={{ width: '100%' }} value={wfForm.name} onChange={(e) => setWfForm({ ...wfForm, name: e.target.value })} placeholder="เช่น Minimax H3 EZ" /></label>
                             <label>workflow id หรือลิงก์จาก RunningHub<input className="tok" style={{ width: '100%' }} value={wfForm.workflowId} onChange={(e) => setWfForm({ ...wfForm, workflowId: e.target.value })} placeholder="https://www.runninghub.ai/workflow/…" /></label>
+                            <label>Trigger word นำหน้าพรอมป์ (ถ้ามี)<input className="tok" style={{ width: '100%' }} value={wfForm.promptPrefix} onChange={(e) => setWfForm({ ...wfForm, promptPrefix: e.target.value })} placeholder="เช่น nsgirl" /></label>
                             <div className="two">
                                 <label>node id ของ MultiTrack Editor<input className="tok" style={{ width: '100%' }} value={wfForm.nodeEditor} onChange={(e) => setWfForm({ ...wfForm, nodeEditor: e.target.value })} /></label>
                                 <label>node id ของ Project<input className="tok" style={{ width: '100%' }} value={wfForm.nodeProject} onChange={(e) => setWfForm({ ...wfForm, nodeProject: e.target.value })} /></label>

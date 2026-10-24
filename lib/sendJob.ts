@@ -65,14 +65,16 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
     let nodeEditor = process.env.RH_NODE_EDITOR || '26'
     let nodeProject = process.env.RH_NODE_PROJECT || '17'
     let megapixelMode = false
+    let promptPrefix = ''
     {
-        const q = supabaseAdmin.from('pipeline_render_workflows').select('workflow_id,node_editor,node_project,megapixel_mode').eq('provider', 'runninghub')
+        const q = supabaseAdmin.from('pipeline_render_workflows').select('workflow_id,node_editor,node_project,megapixel_mode,prompt_prefix').eq('provider', 'runninghub')
         const { data: wf } = opts.workflowRowId ? await q.eq('id', String(opts.workflowRowId)).maybeSingle() : await q.eq('is_default', true).maybeSingle()
         if (wf) {
             workflowId = String(wf.workflow_id)
             nodeEditor = String(wf.node_editor)
             nodeProject = String(wf.node_project)
             megapixelMode = wf.megapixel_mode === true
+            promptPrefix = String(wf.prompt_prefix || '').trim()
         } else if (opts.workflowRowId) {
             throw new SendError('ไม่พบ workflow ที่เลือก', 400)
         }
@@ -167,7 +169,7 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
         segInputs.forEach((s, i) => {
             s.images = segSlots[i].map((n) => `<slot ${n}>`)
         })
-        const td = JSON.parse(buildTrackData(segInputs, []))
+        const td = JSON.parse(buildTrackData(segInputs, [], promptPrefix))
         return {
             taskId: '(dry-run: nothing sent)',
             projectName,
@@ -203,7 +205,7 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
             s.images = segSlots[i].map((n) => nameBySlot[n])
         })
         const nodeInfoList: NodeInfo[] = [
-            { nodeId: nodeEditor, fieldName: 'track_data', fieldValue: buildTrackData(segInputs, []) },
+            { nodeId: nodeEditor, fieldName: 'track_data', fieldValue: buildTrackData(segInputs, [], promptPrefix) },
             { nodeId: nodeProject, fieldName: 'project_name', fieldValue: projectName },
             { nodeId: nodeProject, fieldName: 'seed', fieldValue: seed },
         ]
@@ -220,7 +222,7 @@ export async function sendContent(opts: SendOpts): Promise<SendResult> {
         continuity: segInputs.map((s, i) => `${chosen[i].segment_number}:${s.continuity}`).join(','),
         prompt_snapshot: isSubset ? segInputs.map((s, i) => `--- SEG ${chosen[i].segment_number} ---\n${s.prompt}`).join('\n') : undefined,
     })
-    const promptVersion = crypto.createHash('sha1').update(segInputs.map((s) => s.prompt).join('\u0000')).digest('hex').slice(0, 10)
+    const promptVersion = crypto.createHash('sha1').update(promptPrefix + '\u0000' + segInputs.map((s) => s.prompt).join('\u0000')).digest('hex').slice(0, 10)
     const status = ['QUEUED', 'RUNNING', 'SUCCESS', 'FAILED', 'CANCELLED'].includes(created.status) ? created.status : 'QUEUED'
     const { error: insErr } = await supabaseAdmin.from('render_tasks').insert({
         provider: 'runninghub',
